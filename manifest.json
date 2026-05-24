@@ -1,0 +1,21 @@
+{
+  "name": "SPL Fierljeppen",
+  "short_name": "Fierljeppen",
+  "description": "Salire Perticea Longa — Fries fierljep drankspel.",
+  "start_url": "./fierljeppen.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1e3f",
+  "theme_color": "#0b1e3f",
+  "lang": "nl",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "app-icon.png",
+      "sizes": "1024x1024 512x512 256x256 192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

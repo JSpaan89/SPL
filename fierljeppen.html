@@ -1,0 +1,3827 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Salire Perticea Longa — Fierljep Drankspel</title>
+<link rel="icon" type="image/png" href="app-icon.png" />
+<link rel="apple-touch-icon" href="app-icon.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="app-icon.png" />
+<meta name="theme-color" content="#0b1e3f" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="SPL Fierljeppen" />
+<meta name="description" content="Salire Perticea Longa — een Friese fierljep drankspel voor de borrel." />
+<link rel="manifest" id="pwa-manifest" href="manifest.json" />
+<script>
+  /* Service worker + auto-update logica.
+   * --------------------------------------------------------------------
+   * Bij elke deploy bumpen we CACHE_VERSION in service-worker.js. Wanneer
+   * een geïnstalleerde gebruiker de app opent:
+   *   1. We registreren de SW (en periodiek `update()` om nieuwe versies
+   *      op te halen — eens per 60s + bij visibility-change).
+   *   2. Zodra een nieuwe SW geïnstalleerd is en de controle overneemt,
+   *      vuurt `controllerchange`. We reloaden dan automatisch de pagina
+   *      zodat de nieuwe versie meteen actief is.
+   * De gebruiker hoeft dus niets te doen — gewoon openen = laatste versie. */
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js')
+        .then((reg) => {
+          // Periodieke update-check zodat een lang openstaande PWA niet
+          // achterloopt op een nieuwe deploy.
+          const poll = () => { try { reg.update(); } catch(e) {} };
+          setInterval(poll, 60 * 1000);
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') poll();
+          });
+        })
+        .catch((e) => console.warn('SW register failed:', e));
+
+      // Wanneer een nieuwe SW de controle overneemt (na skipWaiting +
+      // clients.claim aan SW-kant) → automatisch reloaden. We doen dat
+      // maar één keer per sessie om reload-loops te voorkomen.
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded) return;
+        reloaded = true;
+        window.location.reload();
+      });
+    });
+  }
+</script>
+<template id="__bundler_thumbnail">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" fill="#0b1e3f"/>
+  <circle cx="50" cy="50" r="34" fill="none" stroke="#f6d77a" stroke-width="2"/>
+  <path d="M 30 60 Q 38 52 44 56 L 50 36 L 56 56 Q 62 52 70 60" fill="none" stroke="#f6d77a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="50" y="78" text-anchor="middle" font-family="Georgia, serif" font-size="9" font-weight="bold" fill="#f6d77a" letter-spacing="2">SPL</text>
+</svg>
+</template>
+<!--
+  ============================================================
+  FIERLJEPPEN — Salire Perticea Longa (SPL)
+  Versie: v2.1  ·  mei 2026
+  ------------------------------------------------------------
+  v2.1 (deze iteratie):
+   • UI re-design naar de poster-look: één duidelijke KLIMMEN-knop
+     (houd vast om snel taps te genereren) en één SPRING!-knop
+     (lanceert met de huidige power, glow als je in de gouden
+     perfect-zone zit). Geen losse tap-zone meer.
+   • Horizontale power-meter onderaan, perfect-zone als gouden band.
+   • Level-dots (1..6) bovenaan, actieve ronde gloeit.
+   • Auto-launch verwijderd; power decay alleen na 220 ms idle.
+   • Op-board uitlegblok dat de eerste paar seconden zichtbaar is.
+
+  v2.0:
+   • PHYSICS: base (4.5 + p*5.5 m), perfect-zone 78–92 % met
+     ×1.00, daarbuiten ×0.95 / ×0.90, wind ±12 % per beurt,
+     diminishing returns boven 85 %.
+   • SLOOT: 4.5 / 6.5 / 7.5 / 8.0 / 8.5 / 9.0 m (cap).
+   • JUICE: screen-shake bij plons, slow-mo (180 ms) op de top,
+     "PERFECT!" / "GOED!" pop-up met gouden glitter, extra
+     splash-frames, ritmisch stijgende tap-pitch, confetti +
+     gejuich bij ronde-clear, haptic feedback (vibrate).
+   • VISUEEL: pole flext tijdens afzet, water-reflectie van
+     speler, 3 vrijval-poses, SPL-vlagje op de borst, wind-vlag.
+   • QOL: namen-cache (localStorage), geluid-toggle, skip-knop
+     op pass-screen, deel-knop op eindstand, 4 achievements.
+  ------------------------------------------------------------
+  SIMULATIE: 1000 jumps/ronde draaien bij elke page-load.
+  Werkelijke percentages staan in de console (groep
+  "Fierljeppen v2 — sim"). Mik op rondes 2–5 ≈ 20–35 % fail
+  voor een gemiddelde speler.
+  ============================================================
+-->
+<style>
+  /* ===== Reset & base ===== */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #0b1e3f;
+    overflow: hidden;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    color: #f6d77a;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  #wrap { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  #shake { position: absolute; inset: 0; will-change: transform; }
+  canvas {
+    display: block;
+    width: 100%; height: 100%;
+    background: #9ed7f5;
+  }
+
+  /* ===== HUD ===== */
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: max(10px, env(safe-area-inset-top)) 10px 6px;
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    pointer-events: none;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    max-width: 720px;
+    margin-left: auto; margin-right: auto;
+  }
+  .hud-block {
+    background: rgba(11, 30, 63, 0.85);
+    border: 1.5px solid #f6d77a;
+    border-radius: 8px;
+    padding: 4px 9px;
+    color: #f6d77a;
+    letter-spacing: 1px;
+    font-weight: bold;
+    text-align: center;
+    min-width: 50px;
+    flex: 1 1 0;
+    max-width: 30vw;
+  }
+  .hud-block small { display: block; font-size: 9px; opacity: 0.75; letter-spacing: 2px; }
+  .hud-block strong { font-size: 15px; }
+  .hud-block.player strong {
+    font-size: 14px; color: #ffe091;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;
+  }
+  .hud-block .wind { font-size: 13px; }
+  .hud-block .wind .arrow { display: inline-block; transform-origin: center; }
+
+  /* ===== Logo watermark while playing ===== */
+  #wm {
+    position: absolute;
+    right: max(12px, env(safe-area-inset-right));
+    top: max(70px, calc(env(safe-area-inset-top) + 60px));
+    width: clamp(80px, 12vw, 130px);
+    height: auto;
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 1;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
+  }
+
+  /* ===== Level dots (top center, poster style) ===== */
+  #levelDots {
+    position: absolute;
+    top: max(72px, calc(env(safe-area-inset-top) + 62px));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 8px;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .level-dot {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid #f6d77a;
+    background: rgba(11,30,63,0.85);
+    color: #f6d77a;
+    font-size: 12px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .level-dot.done { background: #f6d77a; color: #0b1e3f; }
+  .level-dot.active {
+    background: #ffe091; color: #0b1e3f;
+    transform: scale(1.18);
+    box-shadow: 0 0 14px rgba(246,215,122,0.7), 0 2px 6px rgba(0,0,0,0.3);
+  }
+
+  /* ===== Action panel — JS positions it exactly on the white strip below
+   * the ditch (just below where the dirt strip ends). See positionActionBar()
+   * called from resize(). The CSS fallback below is just the initial value
+   * for before JS runs. */
+  #actionBar {
+    position: absolute;
+    left: 0; right: 0;
+    top: 78vh;
+    bottom: auto;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    padding: 6px 10px;
+    background: linear-gradient(180deg,
+      rgba(11,30,63,0) 0%,
+      rgba(11,30,63,0.75) 30%,
+      rgba(11,30,63,0.85) 70%,
+      rgba(11,30,63,0.6) 100%);
+    border-top: none;
+    box-shadow: none;
+  }
+  #actionBar > * { pointer-events: auto; }
+  #actionBar .inner {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+  #actionBar > * { pointer-events: auto; }
+
+  /* Horizontal power bar */
+  #powerWrap {
+    position: relative;
+    width: 100%;
+    height: 52px;
+    background: linear-gradient(180deg, #0b1e3f 0%, #163066 100%);
+    border: 2.5px solid #f6d77a;
+    border-radius: 26px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.45), inset 0 2px 6px rgba(0,0,0,0.4);
+    display: flex; align-items: center;
+  }
+  #powerInner {
+    position: absolute; inset: 4px;
+    border-radius: 22px;
+    overflow: hidden;
+    background: rgba(0,0,0,0.35);
+  }
+  /* Perfect-zone band always visible — opgedeeld in 5 segmenten zodat de
+   * speler ziet dat het hart het beste is, en de randen minder.
+   *   ok-good-PERFECT-good-ok    (widths 22-22-12-22-22 %) */
+  #perfectZone {
+    position: absolute; top: 0; bottom: 0;
+    border-left: 2px solid #ffe091;
+    border-right: 2px solid #ffe091;
+    box-shadow: 0 0 12px rgba(246,215,122,0.4);
+    pointer-events: none;
+    display: flex;
+    overflow: hidden;
+  }
+  #perfectZone .zone-seg {
+    height: 100%;
+    border-right: 1px solid rgba(255,255,255,0.18);
+  }
+  #perfectZone .zone-seg:last-child { border-right: none; }
+  #perfectZone .zone-ok      { flex: 22 0 0; background: rgba(246,215,122,0.22); }
+  #perfectZone .zone-good    { flex: 22 0 0; background: rgba(246,215,122,0.55); }
+  #perfectZone .zone-perfect { flex: 12 0 0; background: rgba(231,159,46,0.85); box-shadow: inset 0 0 8px rgba(255,224,145,0.9); }
+  /* The marker that sweeps left-to-right and back — the THING you time. */
+  #powerMarker {
+    position: absolute;
+    top: -2px; bottom: -2px;
+    width: 10px;
+    margin-left: -5px;
+    left: 0%;
+    background: linear-gradient(180deg, #ffffff 0%, #ffe091 45%, #f6d77a 100%);
+    border-radius: 5px;
+    box-shadow: 0 0 14px #ffffff, 0 0 26px rgba(246,215,122,0.9);
+    pointer-events: none;
+    display: none;
+  }
+  #powerMarker::before, #powerMarker::after {
+    content: '';
+    position: absolute;
+    left: 50%; width: 0; height: 0;
+    transform: translateX(-50%);
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+  }
+  #powerMarker::before {
+    top: -8px;
+    border-bottom: 8px solid #ffe091;
+  }
+  #powerMarker::after {
+    bottom: -8px;
+    border-top: 8px solid #ffe091;
+  }
+  #powerMarker.in-zone {
+    background: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+    box-shadow: 0 0 22px #ffffff, 0 0 40px #ffe091;
+  }
+  #powerLabel {
+    position: relative; z-index: 2;
+    width: 100%;
+    text-align: center;
+    color: #f6d77a;
+    font-size: 11px;
+    letter-spacing: 4px;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.6);
+    pointer-events: none;
+    opacity: 0.85;
+  }
+
+  /* Two big action buttons */
+  #buttonRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .action-btn {
+    position: relative;
+    height: 72px;
+    border-radius: 14px;
+    border: 3px solid #f6d77a;
+    background: linear-gradient(180deg, #163066 0%, #0b1e3f 100%);
+    color: #f6d77a;
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 20px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.35), inset 0 2px 0 rgba(246,215,122,0.18);
+    transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.15s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    padding: 0;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .action-btn:active,
+  .action-btn.pressed {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 rgba(0,0,0,0.35), inset 0 2px 0 rgba(246,215,122,0.18);
+  }
+  .action-btn .label { display: block; }
+  .action-btn .sub {
+    display: block;
+    font-size: 10px;
+    font-weight: normal;
+    letter-spacing: 2px;
+    opacity: 0.7;
+    margin-top: 3px;
+  }
+  .action-btn.disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .action-btn.jump-armed {
+    background: linear-gradient(180deg, #f6d77a 0%, #d9a13a 100%);
+    color: #0b1e3f;
+    animation: jumpPulse 0.7s ease-in-out infinite;
+  }
+  @keyframes jumpPulse {
+    0%,100% { box-shadow: 0 6px 0 rgba(0,0,0,0.35), 0 0 0 rgba(246,215,122,0.0), inset 0 2px 0 rgba(255,255,255,0.3); }
+    50%     { box-shadow: 0 6px 0 rgba(0,0,0,0.35), 0 0 22px rgba(246,215,122,0.7), inset 0 2px 0 rgba(255,255,255,0.3); }
+  }
+  .action-btn.jump-perfect {
+    background: linear-gradient(180deg, #fff3c4 0%, #f6d77a 100%);
+    color: #0b1e3f;
+  }
+
+  /* ----- Landscape mobile: shrink the bottom action bar so the scene stays large ----- */
+  @media (orientation: landscape) and (max-height: 600px) {
+    .action-btn { height: 54px; font-size: 16px; }
+    .action-btn .sub { font-size: 9px; }
+    #powerWrap { height: 38px; border-radius: 19px; }
+    #powerLabel { font-size: 9px; }
+    #actionBar { gap: 6px; bottom: 6px; }
+    #hud { padding: 6px 8px 4px; }
+    .hud-block { padding: 3px 7px; min-width: 44px; }
+    .hud-block small { font-size: 8px; }
+    .hud-block strong { font-size: 13px; }
+    #levelDots { top: 50px; }
+    .level-dot { width: 22px; height: 22px; font-size: 10px; }
+    .overlay h1 { font-size: clamp(20px, 4vw, 32px); }
+    .overlay img.logo { width: clamp(80px, 18vh, 130px); }
+  }
+
+  /* Wider screens (tablet/desktop): cap action bar centred */
+  @media (min-width: 800px) {
+    #buttonRow { gap: 12px; }
+  }
+
+  #tapPrompt {
+    position: absolute;
+    left: 50%;
+    /* Onderin beeld geplaatst — net boven de actie-bar, niet meer voor de
+     * karakters. Eerder zat de prompt op top:38% wat de scene afdekte. */
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 110px);
+    transform: translateX(-50%);
+    background: rgba(11,30,63,0.92);
+    border: 2px solid #f6d77a;
+    border-radius: 14px;
+    padding: 12px 20px;
+    color: #f6d77a;
+    font-size: 15px; font-weight: bold;
+    letter-spacing: 2px;
+    pointer-events: none;
+    z-index: 5;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+    max-width: 88vw;
+    text-align: center;
+    line-height: 1.4;
+  }
+  #tapPrompt .small {
+    display: block;
+    font-size: 11px;
+    opacity: 0.75;
+    margin-top: 5px;
+    letter-spacing: 1px;
+  }
+  #tapPrompt.pulse { animation: tapPulse 1.1s ease-in-out infinite; }
+  @keyframes tapPulse {
+    0%,100% { transform: translateX(-50%) scale(1); }
+    50%     { transform: translateX(-50%) scale(1.05); }
+  }
+
+  /* ===== Overlays ===== */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(11, 30, 63, 0.96);
+    backdrop-filter: blur(3px);
+    padding: 14px;
+    text-align: center;
+    overflow-y: auto;
+    z-index: 10;
+    animation: fadeIn 0.25s ease-out;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .overlay h1 {
+    margin: 6px 0 4px;
+    font-size: clamp(22px, 5vw, 42px);
+    color: #f6d77a;
+    letter-spacing: 3px;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  }
+  .overlay .latin {
+    margin: 0 0 10px;
+    font-style: italic;
+    font-size: clamp(11px, 2vw, 15px);
+    color: #d9b864;
+    opacity: 0.85;
+  }
+  .overlay p {
+    margin: 5px 0;
+    color: #f3eed7;
+    font-size: clamp(13px, 2vw, 16px);
+    max-width: 540px;
+    line-height: 1.45;
+  }
+  .overlay img.logo {
+    width: clamp(160px, 38vw, 280px);
+    height: auto;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    margin-bottom: 10px;
+    /* Strong golden glow — makes the round emblem pop off the navy bg */
+    filter:
+      drop-shadow(0 0 14px rgba(246,215,122,0.85))
+      drop-shadow(0 0 32px rgba(246,215,122,0.55))
+      drop-shadow(0 8px 18px rgba(0,0,0,0.4));
+  }
+
+  .btn {
+    margin-top: 10px;
+    padding: 14px 36px;
+    border: 2px solid #f6d77a;
+    border-radius: 999px;
+    background: #f6d77a;
+    color: #0b1e3f;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+    transition: transform 0.12s ease, background 0.12s ease;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn.secondary {
+    background: transparent; color: #f6d77a;
+    box-shadow: none;
+    font-size: 13px; padding: 8px 18px;
+  }
+  .btn.secondary:active { background: rgba(246,215,122,0.15); }
+  .btn.big {
+    padding: 18px 40px;
+    font-size: 19px;
+  }
+
+  .hidden { display: none !important; }
+
+  /* ===== Setup ===== */
+  #setupForm {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 420px;
+    margin-top: 4px;
+  }
+  .count-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin: 6px 0 10px;
+  }
+  .count-btn {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: 2px solid #f6d77a;
+    background: rgba(246,215,122,0.15);
+    color: #f6d77a;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .count-btn:active { background: rgba(246,215,122,0.3); }
+  .count-display {
+    font-size: 36px;
+    font-weight: bold;
+    color: #ffe091;
+    min-width: 60px;
+    text-align: center;
+  }
+  .count-label {
+    font-size: 11px; opacity: 0.75; letter-spacing: 2px;
+    margin-bottom: 2px;
+  }
+  #nameInputs {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 30vh;
+    overflow-y: auto;
+    padding: 4px 2px;
+  }
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(246,215,122,0.08);
+    border: 1.5px solid rgba(246,215,122,0.4);
+    border-radius: 8px;
+    padding: 2px 12px;
+  }
+  .name-row .idx { color: #f6d77a; font-weight: bold; min-width: 22px; text-align: right; }
+  .name-row input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-family: inherit;
+    font-size: 16px;
+    padding: 8px 4px;
+    outline: none;
+    min-width: 0;
+  }
+  .name-row input::placeholder { color: rgba(255,255,255,0.4); }
+  .name-row select.char-select {
+    flex: 1;
+    background: rgba(246,215,122,0.08);
+    border: 1px solid rgba(246,215,122,0.35);
+    color: #fff;
+    font-family: inherit;
+    font-size: 16px;
+    padding: 8px 28px 8px 10px;
+    border-radius: 6px;
+    outline: none;
+    min-width: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><polygon points='2,5 14,5 8,12' fill='%23f6d77a'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 14px 14px;
+    cursor: pointer;
+  }
+  .name-row select.char-select option { background: #0b1e3f; color: #fff; }
+
+  /* ===== Character manager ===== */
+  #charManager {
+    overflow-y: auto;
+    padding: 18px 18px 80px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .frame-legend {
+    display: flex; gap: 14px; flex-wrap: wrap; justify-content: center;
+    margin: 4px 0 10px;
+    color: #d9b864; font-size: 11px; letter-spacing: 2px;
+  }
+  .frame-legend b {
+    display: inline-block;
+    width: 18px; height: 18px; line-height: 18px;
+    border-radius: 50%;
+    background: #f6d77a; color: #0b1e3f;
+    text-align: center; font-size: 11px;
+    margin-right: 6px;
+  }
+  .char-upload {
+    width: 100%; max-width: 480px;
+    display: flex; flex-direction: column; gap: 10px;
+    background: rgba(246,215,122,0.07);
+    border: 1.5px solid rgba(246,215,122,0.4);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .char-file { display: flex; align-items: center; gap: 12px; }
+  .char-file .btn { margin-top: 0; }
+  .char-file-name {
+    color: rgba(243,238,215,0.75);
+    font-size: 12px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    flex: 1; min-width: 0;
+  }
+  #charNameInput {
+    background: rgba(0,0,0,0.25);
+    border: 1.5px solid rgba(246,215,122,0.4);
+    border-radius: 8px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 16px;
+    padding: 10px 12px;
+    outline: none;
+  }
+  #charNameInput::placeholder { color: rgba(255,255,255,0.4); }
+  #charNameInput:focus { border-color: #f6d77a; }
+  .char-trim-row {
+    display: flex; align-items: center; justify-content: space-between;
+    color: #f3eed7; font-size: 13px; letter-spacing: 1px;
+  }
+  .char-trim-row input[type=checkbox] { width: 18px; height: 18px; accent-color: #f6d77a; }
+  .char-preview {
+    background: rgba(11,30,63,0.5);
+    border: 1px dashed rgba(246,215,122,0.35);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .char-preview-frames {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  }
+  .char-preview-frames .frame {
+    background:
+      repeating-conic-gradient(rgba(255,255,255,0.04) 0 25%, transparent 0 50%) 0 0/14px 14px,
+      rgba(0,0,0,0.25);
+    border-radius: 6px;
+    aspect-ratio: 1 / 1.4;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    position: relative;
+  }
+  .char-preview-frames .frame::after {
+    content: attr(data-label);
+    position: absolute;
+    left: 50%; bottom: 4px; transform: translateX(-50%);
+    color: #f6d77a; font-size: 9px; letter-spacing: 1.5px;
+    background: rgba(0,0,0,0.55);
+    padding: 1px 5px; border-radius: 3px;
+  }
+  .char-preview-hint {
+    color: rgba(217,184,100,0.85);
+    font-size: 10px; letter-spacing: 1.5px;
+    text-align: center; margin-top: 6px;
+  }
+  .char-msg { color: #ffb469; font-size: 12px; min-height: 14px; text-align: center; }
+  .char-msg.ok { color: #8de08d; }
+
+  .char-list {
+    width: 100%; max-width: 480px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+  }
+  .char-card {
+    background: rgba(246,215,122,0.07);
+    border: 1.5px solid rgba(246,215,122,0.35);
+    border-radius: 12px;
+    padding: 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    position: relative;
+  }
+  .char-card .thumb {
+    width: 100%; aspect-ratio: 1 / 1;
+    background:
+      repeating-conic-gradient(rgba(255,255,255,0.04) 0 25%, transparent 0 50%) 0 0/14px 14px,
+      rgba(0,0,0,0.25);
+    background-position: center; background-repeat: no-repeat, repeat;
+    background-size: contain, 14px 14px;
+    border-radius: 8px;
+  }
+  .char-card .nm {
+    font-weight: bold; color: #ffe091; font-size: 14px; letter-spacing: 1px;
+  }
+  .char-card .tag {
+    font-size: 9px; letter-spacing: 1.5px; color: #d9b864; opacity: 0.85;
+  }
+  .char-card .del {
+    position: absolute; top: 4px; right: 4px;
+    width: 22px; height: 22px; border-radius: 50%;
+    border: none; background: rgba(0,0,0,0.5);
+    color: #ffb6b6; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  .char-card .del:hover { background: rgba(180,30,30,0.85); color: #fff; }
+  .char-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: rgba(243,238,215,0.55);
+    font-size: 12px; letter-spacing: 1.5px;
+    padding: 18px;
+  }
+
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+  .btn:disabled:active { transform: none; }
+
+  /* Install button is bold gold so it stands out on the setup screen */
+  #installBtn {
+    background: #f6d77a;
+    color: #0b1e3f;
+    font-size: 20px;
+    font-weight: bold;
+    box-shadow: 0 0 12px rgba(246,215,122,0.55);
+    animation: installBob 2.2s ease-in-out infinite;
+  }
+  @keyframes installBob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-2px); }
+  }
+  /* Compacte automatische install-popup — toont één keer bij eerste bezoek */
+  #installPopup[hidden] { display: none !important; }
+  #installPopup {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 9998;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    animation: fadeIn 0.25s ease-out;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  #installPopup .install-card {
+    background: #0b1e3f;
+    border: 2px solid #f6d77a;
+    border-radius: 18px;
+    padding: 22px 24px 18px;
+    max-width: 340px;
+    width: 100%;
+    text-align: center;
+    color: #f3eed7;
+    box-shadow: 0 16px 50px rgba(0,0,0,0.55);
+  }
+  #installPopup .install-logo {
+    width: 88px; height: 88px;
+    border-radius: 18px;
+    object-fit: cover;
+    margin: 0 auto 8px;
+    display: block;
+    box-shadow: 0 4px 16px rgba(246,215,122,0.25);
+  }
+  #installPopup h2 {
+    color: #f6d77a;
+    font-size: 19px;
+    letter-spacing: 2px;
+    margin: 8px 0 6px;
+  }
+  #installPopup .install-body {
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 6px 0 16px;
+    color: #d6cda3;
+  }
+  #installPopup .install-btn-row { display: flex; flex-direction: column; gap: 8px; }
+  #installPopup .install-btn-row .btn { width: 100%; }
+
+  /* Top-right corner controls — fixed position so they're available on
+   * EVERY screen (setup, gameplay, pass-the-phone, gameover). */
+  #cornerControls {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    right: 10px;
+    display: flex; gap: 8px;
+    z-index: 9999;
+    pointer-events: none;
+  }
+  #cornerControls .icon-btn { pointer-events: auto; }
+  .icon-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1.5px solid #f6d77a;
+    background: rgba(11,30,63,0.7);
+    color: #f6d77a;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: inherit;
+    padding: 0;
+  }
+  .icon-btn.off { opacity: 0.4; }
+
+  /* ===== Pass-the-phone — large, readable from across the table ===== */
+  #pass .who {
+    font-size: clamp(28px, 7vw, 50px);
+    color: #ffe091;
+    margin: 6px 0 4px;
+    letter-spacing: 2px;
+    max-width: 92vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #pass .verdict {
+    font-size: clamp(34px, 9vw, 64px);
+    margin: 4px 0;
+    letter-spacing: 3px;
+    font-weight: bold;
+  }
+  #pass .verdict.success { color: #87e89a; }
+  #pass .verdict.fail { color: #ff8a8a; }
+  #pass .shot-icon { font-size: 64px; margin: 4px 0; min-height: 64px; }
+  #pass .shot-icon img {
+    height: clamp(320px, 50vh, 480px);
+    width: auto;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,0.45));
+  }
+  #pass .next-line {
+    font-size: clamp(18px, 4.5vw, 28px);
+    color: #ffe091;
+    margin: 10px 0 4px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  #pass .roast {
+    font-style: italic;
+    color: #ffd6d6;
+    font-size: clamp(16px, 3.4vw, 22px);
+    margin: 6px 16px 10px;
+    max-width: 600px;
+    line-height: 1.35;
+  }
+  #passActions {
+    display: flex; gap: 10px; align-items: center;
+    margin-top: 10px; flex-wrap: wrap; justify-content: center;
+  }
+
+  /* ===== Bottom-of-screen achievement badge ===== */
+  #achievement {
+    position: absolute;
+    left: 50%;
+    top: 14px;
+    transform: translate(-50%, -120%);
+    background: linear-gradient(180deg, #ffe091 0%, #f6d77a 100%);
+    color: #0b1e3f;
+    padding: 10px 22px;
+    border-radius: 10px;
+    border: 2px solid #0b1e3f;
+    font-weight: bold;
+    letter-spacing: 1px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 15;
+    text-align: center;
+    pointer-events: none;
+    transition: transform 0.45s cubic-bezier(.2,1.4,.4,1);
+    max-width: 88vw;
+  }
+  #achievement.show { transform: translate(-50%, 0); }
+  #achievement .ach-title { font-size: 11px; letter-spacing: 3px; opacity: 0.7; }
+  #achievement .ach-name { font-size: 17px; }
+
+  /* ===== "Perfect!" / "Goed!" launch toast ===== */
+  #wordBanner {
+    position: absolute;
+    left: 50%; top: 26%;
+    transform: translate(-50%, -50%) scale(0.4) rotate(-4deg);
+    color: #f6d77a;
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    font-size: clamp(56px, 16vw, 140px);
+    font-weight: bold;
+    letter-spacing: 6px;
+    text-shadow:
+      0 0 30px rgba(246,215,122,0.9),
+      0 6px 24px rgba(0,0,0,0.7),
+      4px 6px 0 #0b1e3f;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 7;
+    white-space: nowrap;
+    transition: opacity 0.15s, transform 0.4s cubic-bezier(.15,1.7,.3,1);
+    -webkit-text-stroke: 2px #0b1e3f;
+  }
+  #wordBanner.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(-4deg);
+  }
+
+  #launchToast {
+    position: absolute;
+    left: 50%; top: 28%;
+    transform: translate(-50%, -50%) scale(0.4);
+    color: #f6d77a;
+    font-size: clamp(40px, 12vw, 90px);
+    font-weight: bold;
+    letter-spacing: 4px;
+    text-shadow: 0 4px 18px rgba(0,0,0,0.6), 0 0 28px rgba(246,215,122,0.6);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 6;
+    transition: opacity 0.25s, transform 0.35s cubic-bezier(.2,1.6,.4,1);
+  }
+  #launchToast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+  /* ===== Scoreboard ===== */
+  .scoreboard {
+    width: 100%;
+    max-width: 380px;
+    margin: 8px auto 0;
+    border-collapse: collapse;
+    background: rgba(246,215,122,0.06);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .scoreboard th, .scoreboard td {
+    padding: 8px 12px;
+    text-align: left;
+    color: #f3eed7;
+    font-size: 15px;
+    border-bottom: 1px solid rgba(246,215,122,0.15);
+  }
+  .scoreboard th { color: #f6d77a; font-size: 11px; letter-spacing: 2px; }
+  .scoreboard td.shots { text-align: right; color: #ff8a8a; font-weight: bold; }
+  .scoreboard td.cleared { text-align: right; color: #87e89a; font-weight: bold; }
+  .scoreboard .crown { color: #f6d77a; margin-right: 4px; }
+
+  /* tiny dev readout */
+  #simReadout {
+    position: absolute;
+    left: 6px; bottom: 6px;
+    font-size: 9px;
+    color: rgba(246,215,122,0.5);
+    font-family: monospace;
+    pointer-events: none;
+    z-index: 1;
+  }
+</style>
+</head>
+<body style="font-family: monospace">
+<audio id="bgMusic" src="bg-music.mp3" loop preload="auto" hidden></audio>
+<div id="wrap">
+  <div id="shake">
+    <canvas id="game"></canvas>
+  </div>
+
+  <!-- Watermark logo while playing -->
+  <img id="wm" src="logo.png" alt="" class="hidden" onerror="this.style.display='none'" />
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-block player"><small>AAN ZET</small><strong id="curPlayer">—</strong></div>
+    <div class="hud-block"><small>RONDE</small><strong id="lvl">1</strong></div>
+    <div class="hud-block"><small>SLOOT</small><strong id="ditch">4.0 m</strong></div>
+    <div class="hud-block"><small>WIND</small><span class="wind"><span class="arrow" id="windArrow">→</span> <span id="windStrength">0</span></span></div>
+    <div class="hud-block"><small>SHOTS</small><strong id="totalShots">0</strong></div>
+  </div>
+
+  <div id="levelDots" class="hidden"></div>
+
+  <div id="actionBar" class="hidden">
+    <div class="inner">
+      <div id="powerWrap">
+        <div id="powerInner">
+          <div id="perfectZone">
+            <div class="zone-seg zone-ok"></div>
+            <div class="zone-seg zone-good"></div>
+            <div class="zone-seg zone-perfect"></div>
+            <div class="zone-seg zone-good"></div>
+            <div class="zone-seg zone-ok"></div>
+          </div>
+          <div id="powerMarker"></div>
+        </div>
+        <div id="powerLabel">POWER</div>
+      </div>
+      <div id="buttonRow">
+        <button id="climbBtn" class="action-btn" type="button">
+          <span class="label">POWER</span>
+          <span class="sub">TIK OM TE STARTEN</span>
+        </button>
+        <button id="jumpBtn" class="action-btn disabled" type="button">
+          <span class="label">SPRING!</span>
+          <span class="sub">TIK IN DE GOUDEN ZONE</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tapPrompt" class="hidden"></div>
+
+  <div id="launchToast"></div>
+  <div id="wordBanner"></div>
+  <div id="achievement">
+    <div class="ach-title">ACHIEVEMENT</div>
+    <div class="ach-name">—</div>
+  </div>
+
+  <!-- Global corner controls — visible in every menu AND during play -->
+  <div id="cornerControls">
+    <button class="icon-btn" id="installBtn" aria-label="Voeg toe aan startscherm" title="Voeg toe aan startscherm">⬇</button>
+    <button class="icon-btn" id="soundToggle" aria-label="Geluid aan/uit" title="Geluid">🔊</button>
+  </div>
+
+  <!-- Automatic install popup -->
+  <div id="installPopup" hidden>
+    <div class="install-card">
+      <img class="install-logo" src="logo.png" alt="SPL Fierljeppen" />
+      <h2>SPL FIERLJEPPEN</h2>
+      <p class="install-body" id="installBody">Voeg toe aan je startscherm — sneller starten, geen browser-balk en offline speelbaar.</p>
+      <div class="install-btn-row">
+        <button class="btn big" id="installAcceptBtn">INSTALLEER</button>
+        <button class="btn secondary" id="installSkipBtn">NU NIET</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Setup -->
+  <div id="setup" class="overlay">
+<img class="logo" src="logo.png" alt="SPL — Salire Perticea Longa" onerror="this.style.display='none'" />
+    <h1>FIERLJEPPEN</h1>
+    <div class="latin">— Salire Perticea Longa —</div>
+    <p>Polsstokverspringen drankspel. Wie de sloot niet haalt: <strong style="color:#ffe091">SHOTJE</strong>.</p>
+
+    <div id="setupForm">
+      <div class="count-label">AANTAL SPELERS</div>
+      <div class="count-row">
+        <button class="count-btn" id="minusBtn" aria-label="Minder spelers">–</button>
+        <div class="count-display" id="countDisplay">2</div>
+        <button class="count-btn" id="plusBtn" aria-label="Meer spelers">+</button>
+      </div>
+      <div class="count-label">NAMEN</div>
+      <div id="nameInputs"></div>
+      <button class="btn big" id="startBtn">START</button>
+      <button class="btn secondary" id="openCharsBtn" type="button" hidden>👤 BEHEER KARAKTERS</button>
+    </div>
+  </div>
+
+  <!-- Character manager -->
+  <div id="charManager" class="overlay hidden">
+    <h1 style="margin-top:6px;">KARAKTERS</h1>
+    <div class="latin">— Sprite sheets per speler —</div>
+    <p style="max-width:520px;">
+      Upload een <strong>4-frame sprite sheet</strong> (horizontaal, transparante
+      achtergrond, karakter kijkt naar rechts) en koppel die aan een naam.
+      Wanneer een speler die naam intypt — <em>hoofdletter-ongevoelig</em> —
+      gebruikt het spel automatisch jouw sprite.
+    </p>
+    <div class="frame-legend" aria-hidden="true">
+      <span><b>1</b> READY</span>
+      <span><b>2</b> JUMP</span>
+      <span><b>3</b> FAIL</span>
+      <span><b>4</b> SUCCESS</span>
+    </div>
+
+    <div class="char-upload">
+      <label class="char-file">
+        <input type="file" id="charFileInput" accept="image/png,image/webp,image/jpeg" hidden>
+        <span class="btn secondary" id="charPickBtn">📷 KIES SHEET</span>
+        <span class="char-file-name" id="charFileName">geen bestand</span>
+      </label>
+      <input type="text" id="charNameInput" placeholder="naam (bv. daan)" maxlength="20" autocomplete="off">
+      <label class="char-trim-row">
+        <span>Labels onderaan automatisch wegsnijden</span>
+        <input type="checkbox" id="charTrimToggle" checked>
+      </label>
+      <label class="char-trim-row">
+        <span>Witte achtergrond transparant maken</span>
+        <input type="checkbox" id="charBgToggle" checked>
+      </label>
+      <div id="charPreview" class="char-preview" hidden>
+        <div class="char-preview-frames" id="charPreviewFrames"></div>
+        <div class="char-preview-hint">Voorbeeld · 4 frames gelijk verdeeld</div>
+      </div>
+      <button class="btn" id="charSaveBtn" disabled>OPSLAAN</button>
+      <div id="charMsg" class="char-msg"></div>
+    </div>
+
+    <div class="count-label" style="margin-top:18px;">OPGESLAGEN</div>
+    <div id="charList" class="char-list"></div>
+
+    <button class="btn secondary" id="charCloseBtn" style="margin-top:14px;">KLAAR</button>
+  </div>
+
+  <!-- Pass screen -->
+  <div id="pass" class="overlay hidden">
+    <div class="who" id="passWho">Speler</div>
+    <div class="verdict" id="passVerdict">—</div>
+    <div class="shot-icon" id="shotIcon"></div>
+    <div class="roast" id="roastLine"></div>
+    <p id="passMsg"></p>
+    <div class="next-line" id="nextLine"></div>
+    <div id="passActions">
+      <button class="btn big" id="passBtn">DOORGEVEN ▶</button>
+      <button class="btn secondary" id="quitBtn">STOP SPEL</button>
+    </div>
+  </div>
+
+  <!-- Game over -->
+  <div id="gameover" class="overlay hidden">
+    <img class="logo" src="logo.png" alt="" style="width:clamp(140px, 28vw, 220px);" onerror="this.style.display='none'" />
+    <h1>EINDSTAND</h1>
+    <div class="latin">— Een rondje van het huis —</div>
+    <table class="scoreboard" id="finalBoard"></table>
+    <div id="passActions" style="margin-top:14px;">
+      <button class="btn" id="retryBtn">NIEUW SPEL</button>
+      <button class="btn secondary" id="shareBtn">💬 DEEL VIA WHATSAPP</button>
+    </div>
+  </div>
+
+  <div id="simReadout"></div>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   FIERLJEPPEN — v2  ·  SPL (Salire Perticea Longa)
+   Single-file vanilla JS. No build step. Open by double-click.
+   Sections: Canvas · Constants · DOM · Audio · State · Setup · Game flow
+             Input · Particles · Update · Drawing · Achievements · Sim
+   ========================================================================= */
+
+/* ----------------------------- Canvas setup ----------------------------- */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let W = 0, H = 0;
+let dpr = 1;
+
+let GROUND_Y, WATER_TOP_Y, WATER_BOT_Y;
+let START_X, DITCH_START;
+let PX_PER_M;
+let POLE_LEN;
+let CHAR_SCALE;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const cssW = window.innerWidth;
+  const cssH = window.innerHeight;
+  canvas.width  = Math.floor(cssW * dpr);
+  canvas.height = Math.floor(cssH * dpr);
+  canvas.style.width  = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  W = canvas.width;
+  H = canvas.height;
+
+  // Maximum-zoom layout: action zone sits dead-center on screen. Sky band
+  // is just tall enough to fit the character + flag, dirt band just tall
+  // enough to show the water + a bit of bank. Everything else (HUD, action
+  // bar) wraps around. Character itself is dramatically bigger so faces and
+  // poses are clearly readable.
+  const actionBarPx = 100 * dpr;
+  GROUND_Y    = Math.min(H * 0.50, H - actionBarPx - H * 0.18);
+  WATER_TOP_Y = GROUND_Y + H * 0.008;
+  WATER_BOT_Y = GROUND_Y + H * 0.10;
+  START_X     = W * 0.20;
+  DITCH_START = W * 0.36;
+
+  PX_PER_M = W * 0.045;
+  POLE_LEN = (GROUND_Y) * 0.55;
+  CHAR_SCALE = Math.max(5.5, Math.min(H, W*0.5) * 0.019);
+
+  // Position the action bar exactly where the dirt strip ends, in CSS px.
+  // We compute it from GROUND_Y + dirtH (both in canvas px) → divide by dpr.
+  const dirtHpx     = Math.min(H - GROUND_Y, H * 0.22);
+  const dirtBotCss  = (GROUND_Y + dirtHpx) / dpr;
+  const actionBarEl = document.getElementById('actionBar');
+  if (actionBarEl) actionBarEl.style.top = (dirtBotCss - 4) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ----------------------------- Image assets ----------------------------- */
+const IMG = {
+  bgLeft:  new Image(),
+  bgRight: new Image(),
+  bgWater: new Image(),       // full-width water-layer onder GROUND_Y
+  refereeUp:   new Image(),   // NEW: scheidsrechter met hand omhoog (voor sprong)
+  refereeDown: new Image(),   // NEW: scheidsrechter met hand omlaag (na sprong)
+  spriteIdle:  new Image(),
+  spriteCheer: new Image(),
+  spriteWet:   new Image(),
+  flag:        new Image(),
+  pole:        new Image(),
+  bgHills:     new Image(),
+};
+
+/* ========================================================================
+ * CHARACTER REGISTRY — name → sprite sheet (case-insensitive)
+ * ------------------------------------------------------------------------
+ * Each entry is one Image. Sheets contain 4 frames laid out HORIZONTALLY
+ * in this exact order:
+ *     0  READY    — idle / pre-jump
+ *     1  JUMP     — airborne
+ *     2  FAIL     — water fail
+ *     3  SUCCESS  — dry celebration
+ *
+ * Per spec, characters on 4-frame sheets ALWAYS FACE RIGHT, so the draw
+ * code skips the usual horizontal flip for those entries. Single-pose
+ * legacy images (older art that faced left) are still mirrored.
+ *
+ * NEW characters can be added one-by-one from the Setup screen
+ * (👤 BEHEER KARAKTERS) without code changes — the lower-cased name typed
+ * by the player will be matched against the registry. User uploads are
+ * persisted to localStorage as data URLs so they survive a reload.
+ * ====================================================================== */
+const CHARACTER_STORE_KEY = 'SPL_CHARACTERS_V2';
+const FRAME_READY = 0, FRAME_JUMP = 1, FRAME_FAIL = 2, FRAME_SUCCESS = 3;
+
+const CharacterRegistry = (() => {
+  // key (lower-cased name) → { img, frames, src, builtin, ready, name }
+  const map = {};
+  const listeners = [];
+  function notify() { listeners.forEach(fn => { try { fn(); } catch(e){} }); }
+
+  function inferFrames(img) {
+    // 4-frame sheets are wide rectangles; single-pose art is portrait.
+    // Bundled single-pose images top out ~0.92 ratio; 4-frame sheets sit
+    // above ~2.0. A 1.5 threshold sits safely in the gap.
+    if (!img.naturalWidth || !img.naturalHeight) return 1;
+    return (img.naturalWidth / img.naturalHeight) >= 1.5 ? 4 : 1;
+  }
+
+  /* Analyse every frame of a sprite sheet and return TWO things:
+   *   footFracs[i]  — y-fraction (0..1) of the bottom-most content row,
+   *                   used to anchor the character's feet to the ground.
+   *   frameBoxes[i] — { x0, y0, x1, y1 } in fractions of FRAME dimensions,
+   *                   covering only the dominant blob (largest connected
+   *                   component). Used so the pass-screen can crop to just
+   *                   the FAIL pose without bleed from JUMP/SUCCESS poses
+   *                   next door.
+   * Returns null if pixel access throws (tainted canvas etc.). */
+  function computeFrameInfo(img, frames) {
+    if (frames < 2) return null;
+    try {
+      const fw = Math.floor(img.naturalWidth / frames);
+      const fh = img.naturalHeight;
+      const c = document.createElement('canvas');
+      c.width = fw; c.height = fh;
+      const cx = c.getContext('2d');
+      const footFracs  = [];
+      const frameBoxes = [];
+
+      for (let f = 0; f < frames; f++) {
+        cx.clearRect(0, 0, fw, fh);
+        cx.drawImage(img, f*fw, 0, fw, fh, 0, 0, fw, fh);
+        const data = cx.getImageData(0, 0, fw, fh).data;
+
+        // Background detection (handles non-transparent uploads).
+        const samples = [
+          getPx(data, 0, 0, fw), getPx(data, fw-1, 0, fw),
+          getPx(data, 0, fh-1, fw), getPx(data, fw-1, fh-1, fw),
+          getPx(data, Math.floor(fw/2), 0, fw),
+          getPx(data, Math.floor(fw/2), fh-1, fw),
+        ];
+        let bg = null;
+        if (samples.every(p => p[3] > 200)) {
+          const r0 = samples[0][0], g0 = samples[0][1], b0 = samples[0][2];
+          if (samples.every(p =>
+            Math.abs(p[0]-r0) + Math.abs(p[1]-g0) + Math.abs(p[2]-b0) < 30)) {
+            bg = [r0, g0, b0];
+          }
+        }
+        function isContent(idx) {
+          const a = data[idx + 3];
+          if (a <= 32) return false;
+          if (bg) {
+            const d =
+              Math.abs(data[idx]   - bg[0]) +
+              Math.abs(data[idx+1] - bg[1]) +
+              Math.abs(data[idx+2] - bg[2]);
+            if (d < 50) return false;
+          }
+          return true;
+        }
+
+        // ----- foot row (existing behaviour) -----
+        let bottomY = fh - 1;
+        for (let y = fh - 1; y >= 0; y--) {
+          let count = 0;
+          for (let x = 0; x < fw; x++) {
+            if (isContent((y*fw + x)*4)) {
+              count++; if (count > 2) break;
+            }
+          }
+          if (count > 2) { bottomY = y; break; }
+        }
+        footFracs.push(Math.min(1, (bottomY + 2) / fh));
+
+        // ----- per-frame bbox via connected components -----
+        // We do a coarse pass: subsample at every 3rd pixel to keep it fast
+        // (sheets can be 1500+ px wide). Then find the largest blob via
+        // flood-fill and report its bbox. This drops stray bits from
+        // neighbouring frames that crossed into this slot.
+        const SAMP = 3;
+        const sw = Math.ceil(fw / SAMP), sh = Math.ceil(fh / SAMP);
+        const mask = new Uint8Array(sw * sh);
+        for (let yy = 0; yy < sh; yy++) {
+          for (let xx = 0; xx < sw; xx++) {
+            const px = Math.min(fw-1, xx*SAMP);
+            const py = Math.min(fh-1, yy*SAMP);
+            if (isContent((py*fw + px)*4)) mask[yy*sw + xx] = 1;
+          }
+        }
+        const visited = new Uint8Array(sw * sh);
+        let bestSize = 0, bestBox = null;
+        for (let i = 0; i < mask.length; i++) {
+          if (!mask[i] || visited[i]) continue;
+          // Flood fill this blob
+          let head = 0;
+          const stack = [i];
+          visited[i] = 1;
+          let minX = sw, minY = sh, maxX = -1, maxY = -1, size = 0;
+          while (stack.length) {
+            const idx = stack.pop();
+            const x = idx % sw, y = (idx - x) / sw;
+            size++;
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+            // 4-neighbours
+            if (x > 0    && mask[idx-1]  && !visited[idx-1])  { visited[idx-1]=1;  stack.push(idx-1); }
+            if (x < sw-1 && mask[idx+1]  && !visited[idx+1])  { visited[idx+1]=1;  stack.push(idx+1); }
+            if (y > 0    && mask[idx-sw] && !visited[idx-sw]) { visited[idx-sw]=1; stack.push(idx-sw); }
+            if (y < sh-1 && mask[idx+sw] && !visited[idx+sw]) { visited[idx+sw]=1; stack.push(idx+sw); }
+          }
+          if (size > bestSize) {
+            bestSize = size;
+            bestBox = { minX, minY, maxX, maxY };
+          }
+        }
+        if (bestBox) {
+          // Pad 4 sample-cells outward and convert to source-pixel fractions.
+          const PAD = 4;
+          const x0px = Math.max(0,    (bestBox.minX - PAD)) * SAMP;
+          const y0px = Math.max(0,    (bestBox.minY - PAD)) * SAMP;
+          const x1px = Math.min(sw-1, (bestBox.maxX + PAD)) * SAMP + SAMP;
+          const y1px = Math.min(sh-1, (bestBox.maxY + PAD)) * SAMP + SAMP;
+          frameBoxes.push({
+            x0: x0px / fw, y0: y0px / fh,
+            x1: Math.min(1, x1px / fw), y1: Math.min(1, y1px / fh),
+          });
+        } else {
+          frameBoxes.push({ x0: 0, y0: 0, x1: 1, y1: 1 });
+        }
+      }
+      return { footFracs, frameBoxes };
+    } catch(e) { return null; }
+  }
+  // Back-compat: keep the old name (returns just footFracs).
+  function computeFootFractions(img, frames) {
+    const info = computeFrameInfo(img, frames);
+    return info ? info.footFracs : null;
+  }
+  function getPx(data, x, y, w) {
+    const i = (y*w + x)*4;
+    return [data[i], data[i+1], data[i+2], data[i+3]];
+  }
+
+  function addInternal(name, src, framesHint, builtin) {
+    const key = name.trim().toLowerCase();
+    const img = new Image();
+    const entry = { img, frames: framesHint || 1, src, builtin: !!builtin, ready: false, name: key, footFracs: null, frameBoxes: null };
+    img.onload = () => {
+      entry.ready = true;
+      if (!framesHint) entry.frames = inferFrames(img);
+      const info = computeFrameInfo(img, entry.frames);
+      if (info) {
+        entry.footFracs  = info.footFracs;
+        entry.frameBoxes = info.frameBoxes;
+      }
+      markReady();
+      notify();
+    };
+    img.onerror = () => { notify(); };
+    img.src = src;
+    map[key] = entry;
+    return entry;
+  }
+
+  function addBuiltin(name, src) { return addInternal(name, src, null, true); }
+  function addUpload(name, dataURL) {
+    // User uploads are always 4-frame sheets per the documented format.
+    const entry = addInternal(name, dataURL, 4, false);
+    persist();
+    return entry;
+  }
+
+  function remove(name) {
+    const key = name.trim().toLowerCase();
+    const entry = map[key];
+    if (!entry) return;
+    if (entry.builtin) {
+      addBuiltin(key, `sprite-name-${key}.png`); // restore bundled fallback
+    } else {
+      delete map[key];
+    }
+    persist();
+    notify();
+  }
+
+  function get(name) {
+    if (!name) return null;
+    const e = map[name.trim().toLowerCase()];
+    return (e && e.ready) ? e : null;
+  }
+
+  function list() {
+    return Object.values(map).slice().sort((a,b) => a.name.localeCompare(b.name));
+  }
+
+  function persist() {
+    try {
+      const data = {};
+      for (const [k,e] of Object.entries(map)) {
+        if (!e.builtin) data[k] = { src: e.src, frames: e.frames };
+      }
+      localStorage.setItem(CHARACTER_STORE_KEY, JSON.stringify(data));
+    } catch(e) { /* quota etc. */ }
+  }
+
+  function onChange(fn) { listeners.push(fn); }
+
+  return { addBuiltin, addUpload, remove, get, list, onChange };
+})();
+
+const BUILTIN_CHARACTERS = ['niels','sven','jarno','daan','sanderl','sanderk','jochem','jesper','hidde','stefan','frank','koen'];
+for (const n of BUILTIN_CHARACTERS) {
+  CharacterRegistry.addBuiltin(n, `sprite-name-${n}.png`);
+}
+// User uploads from a previous session override the builtins.
+(function(){
+  try {
+    const raw = localStorage.getItem(CHARACTER_STORE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    for (const [k,v] of Object.entries(data)) {
+      CharacterRegistry.addUpload(k, v.src);
+    }
+  } catch(e) {}
+})();
+
+function getNamedSprite(name) { return CharacterRegistry.get(name); }
+let imagesReady = 0;
+function markReady() { imagesReady++; }
+IMG.bgLeft.onload = markReady;  IMG.bgLeft.src  = 'bg-left.png';
+IMG.bgRight.onload = markReady; IMG.bgRight.src = 'bg-right.png';
+IMG.bgWater.onload = markReady; IMG.bgWater.src = 'bg-water.png';
+IMG.refereeUp.onload   = markReady; IMG.refereeUp.src   = 'referee.png';
+IMG.refereeDown.onload = markReady; IMG.refereeDown.src = 'referee2.png';
+IMG.spriteIdle.onload = markReady;  IMG.spriteIdle.src  = 'sprite-idle.png';
+IMG.spriteCheer.onload = markReady; IMG.spriteCheer.src = 'sprite-cheer.png';
+IMG.spriteWet.onload = markReady;   IMG.spriteWet.src   = 'sprite-wet.png';
+IMG.flag.onload = markReady;        IMG.flag.src        = 'flag-mast.png';  // NEW: mast + vlag combined asset
+IMG.pole.onload = markReady;        IMG.pole.src        = 'poolstok.png';  // NEW: water-side is pivot, handle volgt speler
+IMG.bgHills.onload = markReady;     IMG.bgHills.src     = 'bg-hills.png';
+
+/* New AI-generated bg lagen (zie background-prompt.md) — alle banks zijn nu
+ * 1024×1536 portretten met geïntegreerde gras-top + cliff + water-overgang.
+ * Hills is een 1536×1024 panorama met sky transparant boven, content in
+ * onderste helft. */
+const HILLS_PNG_W = 1536;
+const HILLS_PNG_H = 1024;
+const HILLS_BOTTOM_ROW = 876;       // row waar grass onder de heuvels eindigt — anchor op GROUND_Y
+
+const BANK_PNG_W = 1024;
+const BANK_PNG_H = 1536;
+const BANK_GRASS_TOP_ROW_L = 600;   // y-row van bovenrand gras in bg-left
+const BANK_GRASS_TOP_ROW_R = 620;   // y-row van bovenrand gras in bg-right — +20 rijen tov links (~4mm extra omhoog)
+const BANK_DITCH_EDGE_COL_L = 770;  // col in bg-left waar cliff overgaat in water → DITCH_START
+const BANK_DITCH_EDGE_COL_R = 245;  // col in bg-right waar water overgaat in cliff → ditchEnd
+
+const MID_PNG_W = 1024;
+const MID_PNG_H = 1536;
+
+/* ----------------------------- Constants -------------------------------- */
+const MAX_POWER     = 1.0;
+const POWER_PER_TAP_BASE = 0.085;
+const POWER_DECAY   = 0.012;
+const AUTO_LAUNCH_MS = 750;
+const MIN_PLAYERS = 2;
+const MAX_PLAYERS = 12;
+
+/* Difficulty knobs — v2.2 is een puur timing-spel.
+ * Power vult niet meer door tappen, maar oscilleert automatisch tussen 0 en 1.
+ * Spelers drukken SPRING! als de meter in de gouden zone staat.
+ * De zone is altijd in het midden van de balk (rond 50 %) en wordt per
+ * ronde smaller én sneller. Live sim onderaan dit bestand verifieert dat
+ * elke ronde haalbaar is voor een speler met ~±150 ms reactietijd. */
+// (the perfect zone is now centered on the meter; per-round width below)
+const WIND_MAX = 0.05;            // wind is now cosmetic-only, max ±5 % nudge
+const BASE_DIST_OFFSET = 4.5;
+const BASE_DIST_SLOPE  = 5.5;
+
+/* Per-round sweep params:
+ *   period       = ms voor één keer 0→1 (en dezelfde tijd terug)
+ *   zoneWidth    = breedte van de gouden zone (fractie van de balk)
+ * De zone is altijd in het midden (target = 0.5). Beide knoppen blijven
+ * haalbaar voor iemand met een normale reactietijd — zelfs ronde 6.
+ * De sloot wordt parallel breder, dus succes vereist BEIDE: smal raken én
+ * grote afstand maken (alleen mogelijk via centreren in de zone). */
+/* DIFFICULTY x2 — alle ramps zijn aangescherpt zodat het spel sneller pittig wordt.
+ *   • Sweep-periodes ~halveren over de rondes (was 2200→850, nu 1500→425).
+ *   • Zone-start smaller én halveert verlies-per-clear sneller.
+ *   • Sloot-uitbreiding per clear bijna verdubbeld (0.45 → 0.80 m). */
+const SWEEP_PERIODS  = [1500, 1150, 900, 700, 550, 425];
+const PERFECT_WIDTHS = [0.32, 0.24, 0.18, 0.14, 0.10, 0.08];
+
+const DITCH_START_M = 4.0;
+const DITCH_PER_CLEAR_M = 0.80;      // was 0.45
+const DITCH_CAP_M = 14.0;            // iets hogere ceiling om langere sessies te kunnen halen
+const ZONE_START = 0.32;             // was 0.42
+const ZONE_PER_CLEAR = 0.032;        // was 0.018
+const ZONE_FLOOR = 0.06;             // was 0.10
+function ditchMetersForRound(r) {
+  // Width depends on cumulative clears, not the round counter. Each successful
+  // jump in the game so far widens the next ditch by DITCH_PER_CLEAR_M.
+  return Math.min(DITCH_CAP_M, DITCH_START_M + totalClears * DITCH_PER_CLEAR_M);
+}
+
+/* ----------------------------- DOM refs --------------------------------- */
+const setupOv = document.getElementById('setup');
+const passOv  = document.getElementById('pass');
+const overOv  = document.getElementById('gameover');
+const hud     = document.getElementById('hud');
+const shake   = document.getElementById('shake');
+const powerWrap = document.getElementById('powerWrap');
+const powerMarker = document.getElementById('powerMarker');
+const perfectZoneEl = document.getElementById('perfectZone');
+const tapPrompt = document.getElementById('tapPrompt');
+const actionBar = document.getElementById('actionBar');
+const climbBtn = document.getElementById('climbBtn');
+const jumpBtn = document.getElementById('jumpBtn');
+const levelDotsEl = document.getElementById('levelDots');
+const wm      = document.getElementById('wm');
+const launchToast = document.getElementById('launchToast');
+const achievementEl = document.getElementById('achievement');
+const achNameEl = achievementEl.querySelector('.ach-name');
+
+const minusBtn = document.getElementById('minusBtn');
+const plusBtn  = document.getElementById('plusBtn');
+const countDisplay = document.getElementById('countDisplay');
+const nameInputs = document.getElementById('nameInputs');
+const startBtn = document.getElementById('startBtn');
+const soundToggle = document.getElementById('soundToggle');
+
+const passWho = document.getElementById('passWho');
+const passVerdict = document.getElementById('passVerdict');
+const passMsg = document.getElementById('passMsg');
+const nextLine = document.getElementById('nextLine');
+const roastLine = document.getElementById('roastLine');
+const passBtn = document.getElementById('passBtn');
+const quitBtn = document.getElementById('quitBtn');
+const shotIcon = document.getElementById('shotIcon');
+
+const lvlEl = document.getElementById('lvl');
+const ditchEl = document.getElementById('ditch');
+const totalShotsEl = document.getElementById('totalShots');
+const curPlayerEl = document.getElementById('curPlayer');
+const windArrowEl = document.getElementById('windArrow');
+const windStrengthEl = document.getElementById('windStrength');
+const finalBoard = document.getElementById('finalBoard');
+const retryBtn = document.getElementById('retryBtn');
+const shareBtn = document.getElementById('shareBtn');
+const simReadout = document.getElementById('simReadout');
+
+/* ----------------------------- Persistent prefs ------------------------- */
+const LS_NAMES = 'spl_names_v2';
+const LS_SOUND = 'spl_sound_v2';
+function lsGet(k, fb) {
+  try { const v = localStorage.getItem(k); return v == null ? fb : v; }
+  catch(e) { return fb; }
+}
+function lsSet(k, v) {
+  try { localStorage.setItem(k, String(v)); } catch(e) {}
+}
+
+let soundOn = lsGet(LS_SOUND, '1') !== '0';
+function refreshSoundIcon() {
+  soundToggle.textContent = soundOn ? '🔊' : '🔇';
+  soundToggle.classList.toggle('off', !soundOn);
+}
+refreshSoundIcon();
+soundToggle.addEventListener('click', () => {
+  soundOn = !soundOn;
+  lsSet(LS_SOUND, soundOn ? '1' : '0');
+  refreshSoundIcon();
+  if (soundOn) sndTap();
+  refreshMusic();
+});
+
+/* ----------------------------- Background music -----------------------
+ * Loops continuously on every screen. Volume scales with the user's sound
+ * toggle. iOS/Safari blocks autoplay until a user gesture — we kick it off
+ * on the first interaction with any button.
+ * ------------------------------------------------------------------------- */
+const bgMusic = document.getElementById('bgMusic');
+if (bgMusic) {
+  bgMusic.volume = 0.35;
+  bgMusic.loop = true;
+}
+function refreshMusic() {
+  if (!bgMusic) return;
+  if (soundOn) {
+    const p = bgMusic.play();
+    if (p && p.catch) p.catch(() => { /* will retry on next user gesture */ });
+  } else {
+    bgMusic.pause();
+  }
+}
+// Try playback on first user gesture anywhere.
+function kickMusicOnFirstGesture() {
+  refreshMusic();
+  document.removeEventListener('pointerdown', kickMusicOnFirstGesture, true);
+  document.removeEventListener('keydown', kickMusicOnFirstGesture, true);
+  document.removeEventListener('touchstart', kickMusicOnFirstGesture, true);
+}
+document.addEventListener('pointerdown', kickMusicOnFirstGesture, true);
+document.addEventListener('keydown', kickMusicOnFirstGesture, true);
+document.addEventListener('touchstart', kickMusicOnFirstGesture, true);
+
+/* ----------------------------- PWA install ------------------------------
+ * Chrome/Edge/Android: a `beforeinstallprompt` event fires on installable
+ * pages — we stash it and show our gold install button. Clicking calls
+ * `.prompt()` and we hide the button on success.
+ *
+ * iOS Safari: no programmatic install. We show a 3-step "Zet op beginscherm"
+ * sheet (it works just as well for the user). The install button is shown
+ * always on iOS so they can find the option.
+ *
+ * Manifest is set up via a data: URL so the whole game still works as a
+ * single HTML file with no companion JSON to host. Icons reference the
+ * existing logo PNGs (also inlined as data URLs in the bundled build).
+ * ------------------------------------------------------------------------- */
+const installBtn = document.getElementById('installBtn');
+const manifestLink = document.getElementById('pwa-manifest');
+
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isStandalone =
+  window.matchMedia && window.matchMedia('(display-mode: standalone)').matches ||
+  window.navigator.standalone === true;
+
+let deferredInstallEvent = null;
+
+/* Build the manifest as a data URL using the live logo files. Works whether
+ * we're loaded from file:// or hosted; using a data URL means no separate
+ * file is ever required.  */
+function buildAndAttachManifest() {
+  // Try to read the small logo as a data URL so the icon survives in standalone.
+  const fetchAsDataUrl = (url) => new Promise((resolve) => {
+    fetch(url).then(r => r.blob()).then(b => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => resolve(url);
+      fr.readAsDataURL(b);
+    }).catch(() => resolve(url));
+  });
+  Promise.all([fetchAsDataUrl('app-icon.png'), fetchAsDataUrl('app-icon.png')]).then(([smallUrl, bigUrl]) => {
+    const manifest = {
+      name: 'SPL Fierljeppen',
+      short_name: 'Fierljeppen',
+      description: 'Salire Perticea Longa — Fries fierljep drankspel.',
+      start_url: '.',
+      scope: '.',
+      display: 'standalone',
+      orientation: 'any',
+      background_color: '#0b1e3f',
+      theme_color: '#0b1e3f',
+      icons: [
+        { src: smallUrl, sizes: '256x256', type: 'image/png', purpose: 'any maskable' },
+        { src: bigUrl,   sizes: '1024x1024', type: 'image/png', purpose: 'any maskable' }
+      ]
+    };
+    const dataUrl = 'data:application/manifest+json;charset=utf-8,' +
+                    encodeURIComponent(JSON.stringify(manifest));
+    if (manifestLink) manifestLink.setAttribute('href', dataUrl);
+  });
+}
+buildAndAttachManifest();
+
+/* Always show the install button (except when the page is already running
+ * as an installed PWA). On Chrome file:// the `beforeinstallprompt` event
+ * never fires, so previously the button stayed hidden on desktop — making
+ * the install option invisible. Now we always show it; clicking opens the
+ * platform-specific instruction sheet (and ALSO calls .prompt() if the
+ * native install API is available). */
+function refreshInstallButton() {
+  installBtn.hidden = !!isStandalone;
+}
+refreshInstallButton();
+
+/* ----- Automatische install-popup -----
+ * Bij eerste bezoek tonen we direct een kleine popup met INSTALLEER-knop.
+ * Op Chrome/Android/desktop gebruiken we het beforeinstallprompt-event om
+ * native install te triggeren. Op iOS Safari is dat niet beschikbaar, dus
+ * we tonen daar een korte uitleg met de Deel-knop. Eenmaal weggeklikt komt
+ * de popup niet meer terug (state in localStorage), maar de pijl-knop
+ * rechtsboven blijft beschikbaar om 'm handmatig te openen.
+ */
+const INSTALL_DISMISSED_KEY = 'spl_install_popup_dismissed_v1';
+const installPopupEl = document.getElementById('installPopup');
+const installAcceptBtn = document.getElementById('installAcceptBtn');
+const installSkipBtn = document.getElementById('installSkipBtn');
+const installBodyEl = document.getElementById('installBody');
+
+function configureInstallPopup() {
+  if (isIOS) {
+    installBodyEl.innerHTML = 'Tik op <strong>Deel</strong> ⬆ onderin Safari → kies <strong>"Zet op beginscherm"</strong>. Dan staat SPL Fierljeppen als app-icoon op je telefoon.';
+    installAcceptBtn.textContent = 'OK';
+  } else if (deferredInstallEvent) {
+    installBodyEl.textContent = 'Voeg toe aan je startscherm — sneller starten, geen browser-balk en offline speelbaar.';
+    installAcceptBtn.textContent = 'INSTALLEER';
+  } else {
+    // Chrome desktop / file:// — installeer-API niet (nog) beschikbaar
+    installBodyEl.innerHTML = 'Open browser-menu (⋮) → kies <strong>"App installeren"</strong> of <strong>"Toevoegen aan startscherm"</strong> voor app-gevoel.';
+    installAcceptBtn.textContent = 'OK';
+  }
+}
+
+function showInstallPopup(force) {
+  if (isStandalone) return;
+  if (!force && localStorage.getItem(INSTALL_DISMISSED_KEY) === '1') return;
+  configureInstallPopup();
+  installPopupEl.hidden = false;
+}
+function hideInstallPopup() {
+  installPopupEl.hidden = true;
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallEvent = e;
+  refreshInstallButton();
+  // Als popup nu open is, ververs de tekst zodat de native install-knop pakt
+  if (!installPopupEl.hidden) configureInstallPopup();
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallEvent = null;
+  installBtn.hidden = true;
+  hideInstallPopup();
+  showAchievement('Geïnstalleerd! Open vanaf je beginscherm');
+});
+
+installAcceptBtn.addEventListener('click', async () => {
+  if (deferredInstallEvent) {
+    deferredInstallEvent.prompt();
+    try { await deferredInstallEvent.userChoice; } catch(e) {}
+    deferredInstallEvent = null;
+  }
+  hideInstallPopup();
+  localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+});
+installSkipBtn.addEventListener('click', () => {
+  hideInstallPopup();
+  localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+});
+// Corner-knop opent de popup opnieuw (ook na dismissal)
+installBtn.addEventListener('click', () => showInstallPopup(true));
+
+// Toon automatisch bij eerste bezoek — kleine delay zodat assets eerst tekenen
+window.addEventListener('load', () => setTimeout(() => showInstallPopup(false), 400));
+
+/* ----------------------------- Audio ------------------------------------ */
+let audioCtx = null;
+function audio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { audioCtx = null; }
+  }
+  return audioCtx;
+}
+function beep(freq, durMs, type='sine', vol=0.15, slideTo=null) {
+  if (!soundOn) return;
+  const a = audio(); if (!a) return;
+  const o = a.createOscillator(); const g = a.createGain();
+  o.type = type; o.frequency.value = freq;
+  if (slideTo != null) o.frequency.exponentialRampToValueAtTime(slideTo, a.currentTime + durMs/1000);
+  g.gain.value = vol;
+  g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + durMs/1000);
+  o.connect(g); g.connect(a.destination);
+  o.start(); o.stop(a.currentTime + durMs/1000);
+}
+// (Older first-pass sound effects removed — the themed versions further
+// down the file (sndJump/sndLand/sndSuccess/sndSplash/sndTap/sndLaunch/
+// sndPerfect/sndCheer/sndMoo) take their place.)
+function vibrate(pattern) {
+  if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch(e) {} }
+}
+
+/* ----------------------------- Game state ------------------------------- */
+const STATE = {
+  SETUP:'setup', READY:'ready', CLIMBING:'climbing',
+  JUMPING:'jumping', LANDED:'landed', PASS:'pass', OVER:'over'
+};
+let state = STATE.SETUP;
+let players = [];
+let currentIdx = 0;
+let round = 1;
+let ditchWidthPx = 0;
+let ditchWidthMeters = 4.0;
+let wind = 0;          // signed, in units of fraction (e.g. 0.08 = +8% distance)
+let player = null;
+let particles = [];
+let confetti = [];
+let sweepStart = 0;           // ms timestamp when the power sweep began for this turn
+let sweepPeriod = 2000;       // ms half-period (current round)
+let zoneLo = 0.325, zoneHi = 0.675;  // current round's perfect zone bounds (centered)
+let perfectWidth = 0.35;
+let lastTapTime = 0;
+let totalShots = 0;
+let totalClears = 0;             // cumulative successful jumps, drives ditch widening
+let clearStreakSinceFail = 0;    // resets on any fail, drives sweep-speed multiplier
+let lastLaunchMeta = null;  // { perfect, power, wind } — used by pass screen
+let recentClearStreak = {}; // playerIdx -> consecutive clears
+let timeScale = 1;          // slow-mo factor
+let slowmoUntil = 0;
+let shakeUntil = 0;
+let shakeMag = 0;
+
+/* ----------------------------- Roasts ----------------------------------- */
+const ROASTS = [
+  "Sloot: 1 — Jij: 0.",
+  "Je had één taak… één.",
+  "Dit was geen sprong, dit was een suggestie.",
+  "De sloot bedankt je voor je donatie.",
+  "Jij hoort duidelijk bij de zwemafdeling.",
+  "Met dit niveau kom je de brug nog niet eens over.",
+  "Historisch slecht. We gaan dit onthouden.",
+  "Zó dichtbij… als de sloot 3 meter kleiner was.",
+  "Dit was kunst. Niemand snapt het.",
+  "Pak dat shotje. Je hebt 'm eerlijk verdiend.",
+  "Een Fries zou nu zwijgend wegfietsen.",
+  "Je sprong minder ver dan mijn motivatie op maandag.",
+  "Net niet. Net wel een shotje.",
+  "Salire? Meer salade. Drinken jij."
+];
+let lastRoastIdx = -1;
+function pickRoast() {
+  if (ROASTS.length <= 1) return ROASTS[0] || "";
+  let i;
+  do { i = Math.floor(Math.random() * ROASTS.length); } while (i === lastRoastIdx);
+  lastRoastIdx = i;
+  return ROASTS[i];
+}
+
+/* ----------------------------- Setup screen ----------------------------- */
+let playerCount = 2;
+
+function loadCachedNames() {
+  try {
+    const raw = lsGet(LS_NAMES, '');
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.slice(0, MAX_PLAYERS) : [];
+  } catch(e) { return []; }
+}
+function saveCachedNames(names) {
+  try { lsSet(LS_NAMES, JSON.stringify(names)); } catch(e) {}
+}
+const cachedNames = loadCachedNames();
+if (cachedNames.length >= MIN_PLAYERS) {
+  playerCount = Math.min(MAX_PLAYERS, cachedNames.length);
+}
+
+/* Display labels per builtin character key. Used for the player-selection
+ * dropdowns AND as the actual `player.name` value at runtime — the registry
+ * matches case-insensitively so 'SanderL' still resolves to sanderl.png. */
+const CHARACTER_DISPLAY = {
+  niels:   'Niels',
+  sven:    'Sven',
+  jarno:   'Jarno',
+  daan:    'Daan',
+  sanderl: 'SanderL',
+  sanderk: 'SanderK',
+  jochem:  'Jochem',
+  jesper:  'Jesper',
+  hidde:   'Hidde',
+  stefan:  'Stefan',
+  frank:   'Frank',
+  koen:    'Koen',
+};
+function displayNameFor(key) {
+  return CHARACTER_DISPLAY[(key || '').toLowerCase()] || (key ? key[0].toUpperCase() + key.slice(1) : '');
+}
+
+function renderNameInputs() {
+  // Preserve any currently-selected values
+  const existing = Array.from(nameInputs.querySelectorAll('select')).map(s => s.value);
+  nameInputs.innerHTML = '';
+
+  const options = BUILTIN_CHARACTERS.map(key => {
+    const label = displayNameFor(key);
+    return `<option value="${label}">${label}</option>`;
+  }).join('');
+
+  for (let i = 0; i < playerCount; i++) {
+    const row = document.createElement('div');
+    row.className = 'name-row';
+    // Pre-fill: previous selection > cached name > rotate through builtins
+    const fallbackKey = BUILTIN_CHARACTERS[i % BUILTIN_CHARACTERS.length];
+    const fallback = displayNameFor(fallbackKey);
+    const selected = existing[i] || cachedNames[i] || fallback;
+    row.innerHTML = `
+      <span class="idx">${i+1}.</span>
+      <select class="char-select">${options}</select>
+    `;
+    const sel = row.querySelector('select');
+    // Force selection (case-insensitive match against display names)
+    const match = Array.from(sel.options).find(o =>
+      o.value.toLowerCase() === selected.toLowerCase()
+    );
+    sel.value = match ? match.value : fallback;
+    nameInputs.appendChild(row);
+  }
+}
+function updateCount(d) {
+  playerCount = Math.max(MIN_PLAYERS, Math.min(MAX_PLAYERS, playerCount + d));
+  countDisplay.textContent = playerCount;
+  renderNameInputs();
+}
+minusBtn.addEventListener('click', () => updateCount(-1));
+plusBtn.addEventListener('click', () => updateCount(1));
+countDisplay.textContent = playerCount;
+renderNameInputs();
+
+/* ----------------------------- Character manager ----------------------- */
+const charManagerOv = document.getElementById('charManager');
+const openCharsBtn  = document.getElementById('openCharsBtn');
+const charCloseBtn  = document.getElementById('charCloseBtn');
+const charFileInput = document.getElementById('charFileInput');
+const charPickBtn   = document.getElementById('charPickBtn');
+const charFileName  = document.getElementById('charFileName');
+const charNameInput = document.getElementById('charNameInput');
+const charSaveBtn   = document.getElementById('charSaveBtn');
+const charPreview   = document.getElementById('charPreview');
+const charPreviewFrames = document.getElementById('charPreviewFrames');
+const charTrimToggle = document.getElementById('charTrimToggle');
+const charBgToggle  = document.getElementById('charBgToggle');
+const charMsg       = document.getElementById('charMsg');
+const charListEl    = document.getElementById('charList');
+
+let pendingUpload = null;
+
+function showCharMsg(text, ok) {
+  charMsg.textContent = text || '';
+  charMsg.classList.toggle('ok', !!ok);
+}
+
+/* Flood-fill near-white pixels from the edges inward and make them
+ * transparent. Preserves white *inside* the character (teeth, sparkles)
+ * because they're not connected to the edges. Edge pixels with a high-
+ * luminance halo get their alpha faded for clean anti-aliasing. */
+function removeWhiteBackground(srcCanvas) {
+  const W = srcCanvas.width, H = srcCanvas.height;
+  const cx = srcCanvas.getContext('2d');
+  const imgData = cx.getImageData(0, 0, W, H);
+  const px = imgData.data;
+  const visited = new Uint8Array(W * H);
+  const stack = [];
+  const TOL = 28;
+  const isBg = (i) => px[i+3] > 0 && px[i] >= 255-TOL && px[i+1] >= 255-TOL && px[i+2] >= 255-TOL;
+  for (let x = 0; x < W; x++) {
+    for (const y of [0, H-1]) {
+      const idx = y*W + x;
+      if (!visited[idx] && isBg(idx*4)) { stack.push(idx); visited[idx] = 1; }
+    }
+  }
+  for (let y = 0; y < H; y++) {
+    for (const x of [0, W-1]) {
+      const idx = y*W + x;
+      if (!visited[idx] && isBg(idx*4)) { stack.push(idx); visited[idx] = 1; }
+    }
+  }
+  while (stack.length) {
+    const idx = stack.pop();
+    px[idx*4 + 3] = 0;
+    const x = idx % W, y = (idx - x) / W;
+    if (x > 0)   { const n = idx-1; if (!visited[n] && isBg(n*4)) { visited[n]=1; stack.push(n); } }
+    if (x < W-1) { const n = idx+1; if (!visited[n] && isBg(n*4)) { visited[n]=1; stack.push(n); } }
+    if (y > 0)   { const n = idx-W; if (!visited[n] && isBg(n*4)) { visited[n]=1; stack.push(n); } }
+    if (y < H-1) { const n = idx+W; if (!visited[n] && isBg(n*4)) { visited[n]=1; stack.push(n); } }
+  }
+  // Soft halo cleanup
+  for (let y = 1; y < H-1; y++) {
+    for (let x = 1; x < W-1; x++) {
+      const idx = y*W + x, i = idx*4;
+      if (px[i+3] === 0) continue;
+      let bgN = 0;
+      if (px[(idx-1)*4+3] === 0) bgN++;
+      if (px[(idx+1)*4+3] === 0) bgN++;
+      if (px[(idx-W)*4+3] === 0) bgN++;
+      if (px[(idx+W)*4+3] === 0) bgN++;
+      if (!bgN) continue;
+      const luma = (px[i] + px[i+1] + px[i+2]) / 3;
+      if (luma > 230) {
+        px[i+3] = Math.max(0, Math.min(255, (255 - luma) * 6));
+      }
+    }
+  }
+  cx.putImageData(imgData, 0, 0);
+}
+
+/* Re-encode an uploaded image, optionally trimming a transparent gap above
+ * any bottom labels (e.g. "READY · JUMP · FAIL · SUCCESS"). */
+async function processUpload(file, trimLabels, removeBg) {
+  const dataURL = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = rej;
+    im.src = dataURL;
+  });
+
+  const W = img.naturalWidth, H = img.naturalHeight;
+  let cropH = H;
+
+  if (trimLabels) {
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const cx2 = c.getContext('2d');
+    cx2.drawImage(img, 0, 0);
+    const px = cx2.getImageData(0, 0, W, H).data;
+    const emptyThresh = Math.max(2, Math.floor(W * 0.005));
+    const startY = Math.floor(H * 0.45);
+    let inGap = false, gapStart = 0;
+    for (let y = startY; y < H; y++) {
+      let count = 0;
+      for (let x = 0; x < W; x++) {
+        if (px[(y * W + x) * 4 + 3] > 16) { count++; if (count > emptyThresh) break; }
+      }
+      const empty = count <= emptyThresh;
+      if (empty) {
+        if (!inGap) { inGap = true; gapStart = y; }
+      } else {
+        if (inGap && (y - gapStart) > 20) { cropH = gapStart; break; }
+        inGap = false;
+      }
+    }
+  }
+
+  const out = document.createElement('canvas');
+  out.width = W; out.height = cropH;
+  out.getContext('2d').drawImage(img, 0, 0, W, cropH, 0, 0, W, cropH);
+  if (removeBg) removeWhiteBackground(out);
+  return { dataURL: out.toDataURL('image/png'), width: W, height: cropH };
+}
+
+function renderPreview(data) {
+  charPreviewFrames.innerHTML = '';
+  const labels = ['READY','JUMP','FAIL','SUCCESS'];
+  const im = new Image(); im.src = data.dataURL;
+  im.onload = () => {
+    const frameW = im.naturalWidth / 4;
+    const frameH = im.naturalHeight;
+    for (let i = 0; i < 4; i++) {
+      const c = document.createElement('canvas');
+      c.width = frameW; c.height = frameH;
+      c.getContext('2d').drawImage(im, i*frameW, 0, frameW, frameH, 0, 0, frameW, frameH);
+      const div = document.createElement('div');
+      div.className = 'frame';
+      div.style.backgroundImage = `url(${c.toDataURL('image/png')})`;
+      div.dataset.label = labels[i];
+      charPreviewFrames.appendChild(div);
+    }
+  };
+  charPreview.hidden = false;
+}
+
+async function refreshUploadPreview() {
+  if (!pendingUpload || !pendingUpload._file) return;
+  try {
+    const data = await processUpload(pendingUpload._file, charTrimToggle.checked, charBgToggle.checked);
+    pendingUpload.dataURL = data.dataURL;
+    pendingUpload.width = data.width;
+    pendingUpload.height = data.height;
+    renderPreview(data);
+  } catch(e) {
+    showCharMsg('Kon afbeelding niet lezen.');
+  }
+}
+
+function updateSaveEnabled() {
+  const haveFile = !!(pendingUpload && pendingUpload.dataURL);
+  const haveName = !!charNameInput.value.trim();
+  charSaveBtn.disabled = !(haveFile && haveName);
+}
+
+charPickBtn.addEventListener('click', () => charFileInput.click());
+charFileInput.addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  charFileName.textContent = file.name;
+  pendingUpload = { _file: file };
+  if (!charNameInput.value.trim()) {
+    const base = file.name.replace(/\.[^.]+$/, '')
+                          .replace(/^sprite[-_]name[-_]/i, '')
+                          .replace(/[-_].*$/, '');
+    if (base) charNameInput.value = base;
+  }
+  showCharMsg('');
+  await refreshUploadPreview();
+  updateSaveEnabled();
+});
+charTrimToggle.addEventListener('change', refreshUploadPreview);
+charBgToggle.addEventListener('change', refreshUploadPreview);
+charNameInput.addEventListener('input', updateSaveEnabled);
+
+charSaveBtn.addEventListener('click', () => {
+  if (!pendingUpload || !pendingUpload.dataURL) return;
+  const name = charNameInput.value.trim().toLowerCase();
+  if (!name) return;
+  try {
+    CharacterRegistry.addUpload(name, pendingUpload.dataURL);
+    showCharMsg(`Opgeslagen voor "${name}". Type die naam tijdens setup om de sprite te gebruiken.`, true);
+    pendingUpload = null;
+    charFileInput.value = '';
+    charFileName.textContent = 'geen bestand';
+    charNameInput.value = '';
+    charPreview.hidden = true;
+    updateSaveEnabled();
+    renderCharList();
+  } catch(e) {
+    showCharMsg('Opslaan mislukt — afbeelding waarschijnlijk te groot voor lokale opslag.');
+  }
+});
+
+function renderCharList() {
+  charListEl.innerHTML = '';
+  const items = CharacterRegistry.list();
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'char-empty';
+    empty.textContent = 'GEEN KARAKTERS';
+    charListEl.appendChild(empty);
+    return;
+  }
+  for (const e of items) {
+    const card = document.createElement('div');
+    card.className = 'char-card';
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    if (e.ready && e.img && e.img.naturalWidth) {
+      if (e.frames >= 4) {
+        // Show the FAIL frame (index 2) as the thumb — most expressive pose.
+        const fw = e.img.naturalWidth / 4, fh = e.img.naturalHeight;
+        const c = document.createElement('canvas');
+        c.width = fw; c.height = fh;
+        c.getContext('2d').drawImage(e.img, 2*fw, 0, fw, fh, 0, 0, fw, fh);
+        thumb.style.backgroundImage = `url(${c.toDataURL('image/png')})`;
+      } else {
+        thumb.style.backgroundImage = `url(${e.src})`;
+      }
+    }
+    const nm = document.createElement('div');
+    nm.className = 'nm';
+    nm.textContent = e.name;
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.textContent = e.builtin
+      ? (e.frames >= 4 ? 'BUILT-IN · 4-FRAME' : 'BUILT-IN · 1-FRAME')
+      : 'GEÜPLOAD · 4-FRAME';
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.title = 'Verwijderen';
+    del.textContent = '✕';
+    del.addEventListener('click', () => {
+      const verb = e.builtin ? 'terugzetten op standaard' : 'verwijderen';
+      if (!confirm(`"${e.name}" ${verb}?`)) return;
+      CharacterRegistry.remove(e.name);
+      renderCharList();
+    });
+    card.appendChild(thumb); card.appendChild(nm); card.appendChild(tag); card.appendChild(del);
+    charListEl.appendChild(card);
+  }
+}
+
+openCharsBtn.addEventListener('click', () => {
+  setupOv.classList.add('hidden');
+  charManagerOv.classList.remove('hidden');
+  showCharMsg('');
+  renderCharList();
+});
+charCloseBtn.addEventListener('click', () => {
+  charManagerOv.classList.add('hidden');
+  setupOv.classList.remove('hidden');
+});
+CharacterRegistry.onChange(() => {
+  if (!charManagerOv.classList.contains('hidden')) renderCharList();
+});
+
+startBtn.addEventListener('click', () => {
+  // Dropdowns replaced the text inputs — read selected display name per row.
+  const selects = Array.from(nameInputs.querySelectorAll('select'));
+  const names = selects.map((s, i) => (s.value || `Speler ${i+1}`).slice(0, 14));
+  saveCachedNames(names);
+  players = names.map(n => ({ name: n, shots: 0, cleared: 0, perfect: 0 }));
+  recentClearStreak = {};
+  achievementsGiven = {};
+  audio();
+  startGame();
+});
+
+/* ----------------------------- Game flow -------------------------------- */
+function startGame() {
+  currentIdx = 0; round = 1; totalShots = 0; totalClears = 0; clearStreakSinceFail = 0;
+  setupOv.classList.add('hidden');
+  passOv.classList.add('hidden');
+  overOv.classList.add('hidden');
+  beginTurn();
+}
+
+function rollWind() {
+  // Bias slight tailwind / headwind, never zero so the player notices.
+  wind = (Math.random() * 2 - 1) * WIND_MAX;
+  if (Math.abs(wind) < 0.025) wind += (wind < 0 ? -0.025 : 0.025);
+}
+
+function beginTurn() {
+  resetPlayer();
+  configureDifficulty();
+  rollWind();
+  refreshWindHud();
+  renderLevelDots();
+  state = STATE.READY;
+  hud.classList.remove('hidden');
+  levelDotsEl.classList.remove('hidden');
+  actionBar.classList.remove('hidden');
+  tapPrompt.classList.remove('hidden');
+  tapPrompt.classList.add('pulse');
+  tapPrompt.innerHTML = `<strong>${escapeHtml(players[currentIdx].name)}</strong><br>TIK 1× om de meter te STARTEN.<br>TIK 2× om hem in de <span style="color:#ffe091">gouden zone</span> te STOPPEN.<span class="small">Pure timing — in het midden = verste sprong.</span>`;
+  positionPerfectZone();
+  // Reset the single button label & state for the new turn.
+  climbBtn.classList.remove('pressed', 'done', 'disabled');
+  const labelEl0 = climbBtn.querySelector('.label');
+  const subEl0   = climbBtn.querySelector('.sub');
+  if (labelEl0) labelEl0.textContent = 'POWER';
+  if (subEl0)   subEl0.textContent   = 'TIK OM TE STARTEN';
+  jumpBtn.classList.remove('jump-armed', 'jump-perfect', 'disabled');
+  jumpBtn.classList.add('disabled');
+  powerMarker.style.display = 'none';
+  setJumpBtnState();
+  wm.classList.remove('hidden');
+  curPlayerEl.textContent = players[currentIdx].name;
+  lvlEl.textContent = round;
+  totalShotsEl.textContent = totalShots;
+  // Auto-hide the explainer after a few seconds so the scene is visible.
+  if (promptHideTimer) clearTimeout(promptHideTimer);
+  promptHideTimer = setTimeout(() => tapPrompt.classList.add('hidden'), 3800);
+}
+let promptHideTimer = null;
+function resetPlayer() {
+  player = {
+    x: START_X, y: GROUND_Y, vx: 0, vy: 0,
+    power: 0, climbProgress: 0,
+    poleAngle: -Math.PI / 2.1,
+    landed: false, landedSuccess: false, splashed: false,
+    spin: 0, perfect: false,
+    apexTriggered: false,
+    poleBend: 0   // 0..1, used by drawing for the curved push-off
+  };
+}
+function configureDifficulty() {
+  ditchWidthMeters = ditchMetersForRound(round);
+  ditchWidthPx = ditchWidthMeters * PX_PER_M;
+  ditchEl.textContent = ditchWidthMeters.toFixed(1) + ' m';
+  // Sweep period: base from the round table, then multiplied by 0.8^streak.
+  // Each successful clear since the last fail makes the next sweep 20 % faster.
+  // First fail resets the streak → sweep returns to base speed for that round.
+  const idx = Math.min(round - 1, SWEEP_PERIODS.length - 1);
+  const basePeriod = SWEEP_PERIODS[idx];
+  const SWEEP_FLOOR = 250;        // ms; below this it's unplayably fast (was 350)
+  // 0.70^streak = 30 % sneller per clear binnen dezelfde ronde (was 0.80 = 20 %)
+  sweepPeriod = Math.max(SWEEP_FLOOR, basePeriod * Math.pow(0.70, clearStreakSinceFail));
+  // Zone width depends on cumulative clears (narrows progressively).
+  perfectWidth = Math.max(ZONE_FLOOR, ZONE_START - totalClears * ZONE_PER_CLEAR);
+  zoneLo = 0.5 - perfectWidth / 2;
+  zoneHi = 0.5 + perfectWidth / 2;
+}
+function refreshWindHud() {
+  const pct = Math.round(wind * 100);
+  windStrengthEl.textContent = (pct >= 0 ? '+' : '') + pct + '%';
+  // Arrow points in jump direction when wind helps; backward when headwind.
+  windArrowEl.style.transform = `rotate(${wind >= 0 ? 0 : 180}deg)`;
+  windArrowEl.textContent = '→';
+}
+function positionPerfectZone() {
+  perfectZoneEl.style.left  = (zoneLo * 100) + '%';
+  perfectZoneEl.style.width = ((zoneHi - zoneLo) * 100) + '%';
+}
+
+function renderLevelDots() {
+  const total = SWEEP_PERIODS.length;
+  let html = '';
+  for (let i = 1; i <= total; i++) {
+    let cls = 'level-dot';
+    if (i < round) cls += ' done';
+    else if (i === round) cls += ' active';
+    html += `<div class="${cls}">${i}</div>`;
+  }
+  levelDotsEl.innerHTML = html;
+}
+
+function setJumpBtnState() {
+  if (!player) return;
+  const p = player.power;
+  const armable = state === STATE.CLIMBING;
+  const inZone = p >= zoneLo && p <= zoneHi;
+  jumpBtn.classList.toggle('disabled', !armable);
+  jumpBtn.classList.toggle('jump-armed', armable);
+  jumpBtn.classList.toggle('jump-perfect', armable && inZone);
+}
+
+function resolveJump(success) {
+  state = STATE.LANDED;
+  const p = players[currentIdx];
+  // LONGA — landing shout (slight delay so it lands with the visual)
+  setTimeout(() => {
+    showWordBanner('LONGA', success ? '#87e89a' : '#ff8a8a');
+    speakChant('Longa', success ? 0.75 : 0.5, success ? 0.85 : 0.7);
+  }, 120);
+  if (success) {
+    p.cleared++;
+    totalClears++;
+    clearStreakSinceFail++;
+    if (lastLaunchMeta && lastLaunchMeta.perfect) p.perfect++;
+    // Landing thud first, then the cheery success fanfare — gives the moment
+    // a tactile two-beat ("THUD ... TADA!") instead of one flat chord.
+    sndLand();
+    setTimeout(() => sndSuccess(), 140);
+    recentClearStreak[currentIdx] = (recentClearStreak[currentIdx] || 0) + 1;
+  } else {
+    p.shots++; totalShots++;
+    clearStreakSinceFail = 0;     // first fail → reset the sweep speed-up
+    sndSplash();
+    recentClearStreak[currentIdx] = 0;
+  }
+  // Achievements check after this jump completes. Wrapped so a thrown
+  // exception here can NEVER prevent the pass-screen timer from being set —
+  // the game must always be able to advance to the next player.
+  try { checkAchievements(success); }
+  catch (err) { console.warn('checkAchievements failed:', err); }
+  setTimeout(() => {
+    try { showPassScreen(success); }
+    catch (err) {
+      console.warn('showPassScreen failed:', err);
+      // Last-ditch fallback so the player can still hit "next".
+      try { passOv.classList.remove('hidden'); } catch(e) {}
+    }
+  }, success ? 1100 : 1500);
+}
+
+/* Renders the FAIL frame (index 2) of a player's character sprite into
+ * the pass-screen shot icon, auto-cropped to the opaque bounding box so
+ * none of the surrounding transparent padding bleeds into the layout.
+ * Falls back to the 🥃 emoji when the player has no named sprite (or
+ * it's a legacy single-pose image). */
+function setShotIconForPlayer(p) {
+  const name = (p && p.name || '').trim().toLowerCase();
+  // Frank gets his own roast video instead of a still frame.
+  if (name === 'frank') {
+    shotIcon.innerHTML = '';
+    const v = document.createElement('video');
+    v.src = 'frank-fail.mp4';
+    v.autoplay = true;
+    v.playsInline = true;
+    v.loop = true;
+    v.controls = false;
+    v.muted = false;
+    v.style.height = 'clamp(320px, 50vh, 480px)';
+    v.style.width = 'auto';
+    v.style.borderRadius = '12px';
+    v.style.filter = 'drop-shadow(0 6px 14px rgba(0,0,0,0.45))';
+    shotIcon.appendChild(v);
+    const tryPlay = v.play();
+    if (tryPlay && typeof tryPlay.catch === 'function') {
+      tryPlay.catch(() => { v.muted = true; v.play().catch(() => {}); });
+    }
+    return;
+  }
+  const entry = getNamedSprite(p && p.name);
+  if (entry && entry.frames >= 4 && entry.img && entry.img.naturalWidth) {
+    /* Render the FAIL frame tightly, using the bbox computed at sprite-load.
+     * We use a SUB-IMAGE viewport: place an absolute <img> inside a clipped
+     * container, scaled & shifted so only the FAIL bbox lands in the slot.
+     * That kills the bleed from neighbouring JUMP/SUCCESS poses that earlier
+     * peeked into frame 2's slot from the sides. */
+    const frames = entry.frames;
+    const frameIdx = 2;
+    const sourceW = entry.img.naturalWidth;
+    const sourceH = entry.img.naturalHeight;
+    const fwPx = sourceW / frames;
+    const fhPx = sourceH;
+
+    // Pull the FAIL bbox (in fractions of THIS frame). Default = full frame.
+    const box = (entry.frameBoxes && entry.frameBoxes[frameIdx])
+      || { x0: 0, y0: 0, x1: 1, y1: 1 };
+
+    // Convert to absolute pixel coords on the source SHEET.
+    const cropX = frameIdx * fwPx + box.x0 * fwPx;
+    const cropY =                   box.y0 * fhPx;
+    const cropW = (box.x1 - box.x0) * fwPx;
+    const cropH = (box.y1 - box.y0) * fhPx;
+    const cropAspect = cropW / cropH;
+
+    // Container: clamped height, aspect-ratio = bbox aspect, overflow hidden.
+    shotIcon.innerHTML = '';
+    const slot = document.createElement('div');
+    slot.style.cssText = `
+      position: relative;
+      height: clamp(320px, 50vh, 480px);
+      aspect-ratio: ${cropAspect};
+      max-width: 90vw;
+      overflow: hidden;
+      filter: drop-shadow(0 6px 14px rgba(0,0,0,0.45));
+    `;
+    // Inner: full sheet scaled so the FAIL bbox fills the slot.
+    // scale = slotW / cropW (and identical for height since aspect matches).
+    // We use width: 100% / cropFractionOfSheet so the sheet expands to the
+    // right total size, then translate to bring the crop into view.
+    const inner = document.createElement('img');
+    inner.src = entry.src;
+    inner.alt = 'plons';
+    inner.style.cssText = `
+      position: absolute;
+      left:  ${-cropX / cropW * 100}%;
+      top:   ${-cropY / cropH * 100}%;
+      width:  ${sourceW / cropW * 100}%;
+      height: ${sourceH / cropH * 100}%;
+      max-width: none;
+      pointer-events: none;
+    `;
+    slot.appendChild(inner);
+    shotIcon.appendChild(slot);
+  } else {
+    shotIcon.textContent = '🥃';
+  }
+}
+
+function showPassScreen(success) {
+  state = STATE.PASS;
+  hud.classList.add('hidden');
+  levelDotsEl.classList.add('hidden');
+  actionBar.classList.add('hidden');
+  tapPrompt.classList.add('hidden');
+  if (powerMarker) powerMarker.style.display = 'none';
+  wm.classList.add('hidden');
+
+  // Round-clear celebration: confetti + cheer when the LAST player of a round just succeeded.
+  const isLastInRound = currentIdx === players.length - 1;
+  if (success && isLastInRound) {
+    spawnConfetti();
+    sndCheer();
+    vibrate([60, 40, 80]);
+  }
+
+  const p = players[currentIdx];
+  passWho.textContent = p.name;
+  const next = players[(currentIdx + 1) % players.length];
+  if (success) {
+    if (lastLaunchMeta && lastLaunchMeta.perfect) {
+      passVerdict.textContent = 'PERFECT!';
+      shotIcon.textContent = '✨🏆✨';
+    } else {
+      passVerdict.textContent = 'OVER DE SLOOT!';
+      shotIcon.textContent = '🏆';
+    }
+    passVerdict.className = 'verdict success';
+    roastLine.textContent = '';
+    passMsg.innerHTML = `Goed gedaan!`;
+  } else {
+    passVerdict.textContent = 'PLONS!';
+    passVerdict.className = 'verdict fail';
+    shotIcon.textContent = '';
+    // Hardened: NEVER let icon-rendering errors prevent the fail menu from
+    // appearing. A truncated/corrupt sprite previously threw inside
+    // setShotIconForPlayer (via getImageData on a tainted/empty canvas),
+    // which silently aborted the rest of this function — leaving the player
+    // soaked in the ditch forever with no menu and no way to advance.
+    try { setShotIconForPlayer(p); }
+    catch (err) {
+      console.warn('setShotIconForPlayer failed for', p && p.name, '—', err);
+      shotIcon.textContent = '🥃';
+    }
+    roastLine.textContent = `"${pickRoast()}"`;
+    passMsg.innerHTML = `<strong style="color:#ff8a8a">${escapeHtml(p.name)}</strong> moet een <strong style="color:#ffe091">SHOTJE</strong> nemen.`;
+  }
+  nextLine.innerHTML = `Geef door aan <span style="color:#ffe091">${escapeHtml(next.name)}</span> ▶`;
+  passOv.classList.remove('hidden');
+}
+
+passBtn.addEventListener('click', advanceToNextPlayer);
+quitBtn.addEventListener('click', endGame);
+retryBtn.addEventListener('click', () => {
+  overOv.classList.add('hidden');
+  setupOv.classList.remove('hidden');
+});
+shareBtn.addEventListener('click', shareResults);
+
+function advanceToNextPlayer() {
+  passOv.classList.add('hidden');
+  currentIdx++;
+  if (currentIdx >= players.length) {
+    currentIdx = 0;
+    round++;
+    if (round > SWEEP_PERIODS.length + 4) { endGame(); return; }
+  }
+  beginTurn();
+}
+function endGame() {
+  state = STATE.OVER;
+  passOv.classList.add('hidden');
+  hud.classList.add('hidden');
+  levelDotsEl.classList.add('hidden');
+  actionBar.classList.add('hidden');
+  tapPrompt.classList.add('hidden');
+  wm.classList.add('hidden');
+  const sorted = players.slice().sort((a,b) => a.shots - b.shots || b.cleared - a.cleared);
+  let html = '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
+  sorted.forEach((p, i) => {
+    html += `<tr>
+      <td>${i === 0 ? '<span class="crown">👑</span>' : ''}${escapeHtml(p.name)}</td>
+      <td class="cleared">${p.cleared}</td>
+      <td class="shots">${p.shots}</td>
+    </tr>`;
+  });
+  finalBoard.innerHTML = html;
+  overOv.classList.remove('hidden');
+}
+function shareResults() {
+  const sorted = players.slice().sort((a,b) => a.shots - b.shots || b.cleared - a.cleared);
+  const winner = sorted[0];
+  const drinker = players.slice().sort((a,b) => b.shots - a.shots)[0];
+  const lines = [
+    `🏆 SPL Fierljeppen — ronde ${round}`,
+    `Winnaar: ${winner.name} (${winner.cleared} gehaald, ${winner.shots} shots)`,
+    `Meeste shots: ${drinker.name} — ${drinker.shots} 🥃`,
+    '',
+    'Salire Perticea Longa 🌾'
+  ];
+  const text = lines.join('\n');
+  // Try native share sheet first — includes WhatsApp on iOS / Android
+  if (navigator.share) {
+    navigator.share({ title: 'SPL Fierljeppen', text }).then(
+      () => showAchievement('Uitslag gedeeld!'),
+      (err) => {
+        // User cancelled, or share failed — fall back to WhatsApp deep link
+        if (err && err.name === 'AbortError') return;
+        openWhatsApp(text);
+      }
+    );
+    return;
+  }
+  // Direct WhatsApp deep link fallback
+  openWhatsApp(text);
+}
+function openWhatsApp(text) {
+  const url = 'https://wa.me/?text=' + encodeURIComponent(text);
+  // window.open in a user-initiated handler should work on mobile.
+  const win = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!win) {
+    // Pop-up blocked — fall back to clipboard
+    copyToClipboard(text);
+  }
+}
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      () => showAchievement('Gekopieerd — plak in WhatsApp'),
+      () => fallbackCopy(text)
+    );
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.left='-9999px';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showAchievement('Gekopieerd naar klembord');
+  } catch(e) {
+    showAchievement('Delen niet ondersteund');
+  }
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ----------------------------- Input ------------------------------------
+ * Two-button timing model:
+ *  - KLIMMEN (start sweep): single tap to start the power-meter sweep. Power
+ *    oscillates 0→1→0 automatically. No tapping required to fill it.
+ *  - SPRING! (launch):     tap to lock power and jump.
+ * Per ronde wordt de sweep sneller en de gouden zone smaller. In-zone =
+ * altijd over de sloot. Buiten zone = plons (afstand schaalt met hoe dichtbij).
+ * ------------------------------------------------------------------------- */
+
+function beginSweep() {
+  if (state !== STATE.READY) return;
+  state = STATE.CLIMBING;
+  sweepStart = performance.now();
+  // Buttons are hidden — we still update them silently so any older code that
+  // reads their state keeps working.
+  climbBtn.classList.add('done');
+  powerMarker.style.display = 'block';
+  setJumpBtnState();
+  // Swap the prompt so the player sees the second-tap instruction. Keep it
+  // visible (instead of hiding it like the old flow did) — that's now the
+  // only on-screen instruction.
+  if (tapPrompt) {
+    tapPrompt.classList.remove('hidden');
+    tapPrompt.classList.remove('pulse');
+    tapPrompt.innerHTML = `TIK NU om te STOPPEN in de <span style="color:#ffe091">gouden zone</span><span class="small">Hoe dichter bij het midden, hoe verder de sprong.</span>`;
+  }
+}
+
+function launch() {
+  if (state !== STATE.CLIMBING) return;
+  if (!player) return;
+  state = STATE.JUMPING;
+  tapPrompt.classList.add('hidden');
+  setJumpBtnState();
+  jumpBtn.classList.add('disabled');
+
+  const p = player.power;
+  const center = 0.5;
+  const halfWidth = (zoneHi - zoneLo) / 2;
+  const offset = Math.abs(p - center) / halfWidth;   // 0 at zone centre, 1 at zone edge
+
+  /* Band detection — match de visuele 5-segmenten layout (ok-good-perfect):
+   *   offset 0..0.12  → PERFECT  (centrale 12 % van gold zone)
+   *   offset 0..0.56  → GOOD     (binnenste 56 %)
+   *   offset 0..1.00  → OK       (volledige gold zone)
+   *   offset > 1.00   → MISS     (buiten zone)                                */
+  const inZone  = offset <= 1.0;
+  const inGood    = offset <= 0.56;
+  const inPerfect = offset <= 0.12;
+
+  /* WIND-AFHANKELIJKE OUTCOME — Jarno's regels:
+   *  • Hart van de balk (perfect) → altijd de verste sprong
+   *  • Net binnen zone is niet persé voldoende
+   *  • Veel tegenwind: lage centeredness valt alsnog in 't water
+   *  • Meewind: zelfs net buiten zone kan nog klaarkomen
+   * effective = max(0, 1 - offset + wind*6)
+   *   wind -0.05 (max headwind) → -0.30 op centeredness
+   *   wind +0.05 (max tailwind) → +0.30 op centeredness
+   * effective > 0 = landt op gras; effective <= 0 = splash. */
+  const ditchEndPx = DITCH_START + ditchWidthPx;
+  const gapToClearPx = ditchEndPx - player.x;
+  const effective = Math.max(0, (1 - offset) + wind * 6);
+  const clears = effective > 0;
+
+  let rangePx;
+  if (clears) {
+    // Margin past far bank scales met effective centeredness. Bij perfect+meewind
+    // landt de speler aanzienlijk verder dan bij OK+geen wind.
+    const marginPastBank = ditchWidthPx * (0.05 + effective * 0.70);
+    rangePx = gapToClearPx + marginPastBank;
+  } else {
+    // Splash. Hoe verder buiten effective-zone, hoe verder vooral kort.
+    const outBy = Math.min(1.5, Math.max(0, offset - 1) + Math.max(0, -wind * 6));
+    const shortfall = ditchWidthPx * (0.15 + outBy * 0.55);
+    rangePx = Math.max(W * 0.04, gapToClearPx - shortfall);
+  }
+
+  /* === EASTER EGG: Hidde haalt het NOOIT. ===
+   * Speler met de naam "Hidde" (case-insensitive, whitespace genegeerd) krijgt
+   * altijd een plons, hoe perfect de timing ook is. */
+  const isHidde = /^\s*hidde\s*$/i.test(players[currentIdx].name || '');
+  if (isHidde) {
+    rangePx = Math.min(rangePx, gapToClearPx - ditchWidthPx * 0.25);
+  }
+
+  const targetMeters = rangePx / PX_PER_M;
+
+  const angle = 52 * Math.PI / 180;
+  const speedScale = W / 960;
+  const G = 0.42 * speedScale;
+  const v = Math.sqrt(Math.max(1, rangePx) * G / Math.sin(2 * angle));
+  player.vx =  v * Math.cos(angle);
+  player.vy = -v * Math.sin(angle);
+  player.spin = 0.05 + p * 0.06;
+  player.perfect = clears;        // success-frame als de speler überhaupt klaarkomt
+  player.apexTriggered = false;
+  player.power = p;               // freeze the meter at the launch value
+
+  lastLaunchMeta = { perfect: inPerfect, power: p, wind, targetMeters };
+
+  // Stacked themed sfx at takeoff: a wooden pole creak + the "HOEPLA!" launch.
+  sndJump();
+  sndLaunch();
+  showWordBanner('SALIRE', '#f6d77a');
+  if (inPerfect && clears) {
+    showLaunchToast('PERFECT!', '#f6d77a');
+    sndPerfect();
+    vibrate([20, 20, 30]);
+    burstGlitter(player.x, player.y - CHAR_SCALE * 30);
+  } else if (inGood && clears) {
+    showLaunchToast('GOED!', '#ffe091');
+  } else if (clears) {
+    showLaunchToast('NET HAALT \'T…', '#ffe091');
+  } else if (inZone) {
+    showLaunchToast('NET NIET — TE VEEL TEGENWIND', '#ffd6d6');
+  }
+}
+
+/* ---- Tap-anywhere gameplay -----------------------------------------------
+ * Geen knoppen meer: tik (of klik) ergens op het scherm en het spel
+ * reageert. Eerste tik = power-meter start. Tweede tik = lock & launch.
+ * Op een PC werkt SPATIE identiek. Interactieve elementen (sound-toggle,
+ * setup-dropdowns, pass-screen-knoppen) blijven gewoon klikbaar — we
+ * negeren taps waarvan het doel een button/input/select/a is. */
+function preventDefaultIfTouch(e) { if (e.cancelable) e.preventDefault(); }
+function unifiedTap() {
+  if (state === STATE.READY)         beginSweep();
+  else if (state === STATE.CLIMBING) launch();
+}
+
+// Tap anywhere — but only while a turn is actually live.
+function globalTap(e) {
+  if (state !== STATE.READY && state !== STATE.CLIMBING) return;
+  // Skip taps on real UI controls so they keep doing their own thing.
+  const t = e.target;
+  if (t && t.closest && t.closest('button, input, select, textarea, a, [data-interactive]')) {
+    return;
+  }
+  preventDefaultIfTouch(e);
+  unifiedTap();
+}
+document.addEventListener('pointerdown', globalTap, { passive: false });
+document.addEventListener('contextmenu', (e) => {
+  if (state === STATE.READY || state === STATE.CLIMBING) e.preventDefault();
+});
+
+// Hide the on-screen buttons entirely — keep the power-meter visualisation
+// because that IS the gameplay feedback.
+jumpBtn.style.display = 'none';
+jumpBtn.setAttribute('aria-hidden', 'true');
+climbBtn.style.display = 'none';
+climbBtn.setAttribute('aria-hidden', 'true');
+
+function keyDown(e) {
+  if (e.repeat) return;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (state === STATE.READY) beginSweep();
+    else if (state === STATE.CLIMBING) launch();
+    else if (state === STATE.PASS) advanceToNextPlayer();
+  } else if (e.code === 'Enter') {
+    e.preventDefault();
+    if (state === STATE.CLIMBING) launch();
+    else if (state === STATE.READY) beginSweep();
+    else if (state === STATE.PASS) advanceToNextPlayer();
+  }
+}
+window.addEventListener('keydown', keyDown);
+
+// Block iOS double-tap zoom
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+  const now = performance.now();
+  if (now - lastTouchEnd < 320 && e.target && (e.target.closest('.action-btn') || e.target.closest('canvas'))) {
+    e.preventDefault();
+  }
+  lastTouchEnd = now;
+}, { passive: false });
+
+/* ----------------------------- Particles -------------------------------- */
+function spawnParticle(x,y,color,count=1,vyMin=-2,vyMax=0) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random()-0.5)*3,
+      vy: vyMin + Math.random()*(vyMax-vyMin),
+      life: 30+Math.random()*20, color, size: 4
+    });
+  }
+}
+function spawnSplash(x) {
+  // More splash frames + droplets that fall back into water.
+  for (let i = 0; i < 70; i++) {
+    const angle = (-Math.PI/2) + (Math.random()-0.5) * Math.PI * 0.9;
+    const speed = 3 + Math.random()*9;
+    particles.push({
+      x: x + (Math.random()-0.5)*22,
+      y: WATER_TOP_Y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 60+Math.random()*40,
+      color: (i%3===0) ? '#ffffff' : (i%2 ? '#a9deff' : '#5cb0e6'),
+      size: 3 + Math.random()*3
+    });
+  }
+  // foam ring
+  for (let i = 0; i < 24; i++) {
+    const a = i / 24 * Math.PI * 2;
+    particles.push({
+      x: x + Math.cos(a)*4, y: WATER_TOP_Y + Math.sin(a)*1.5,
+      vx: Math.cos(a)*1.8, vy: Math.sin(a)*0.6 - 0.3,
+      life: 30, color: 'rgba(255,255,255,0.85)', size: 3
+    });
+  }
+}
+function burstGlitter(x, y) {
+  for (let i = 0; i < 40; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 1 + Math.random()*4;
+    particles.push({
+      x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s - 1,
+      life: 40 + Math.random()*30,
+      color: i%2 ? '#ffe091' : '#f6d77a',
+      size: 4, glitter: true
+    });
+  }
+}
+function spawnConfetti() {
+  const colors = ['#f6d77a', '#ffe091', '#fff', '#87e89a', '#9fd0ff'];
+  for (let i = 0; i < 120; i++) {
+    confetti.push({
+      x: W * Math.random(),
+      y: -10 - Math.random()*60,
+      vx: (Math.random()-0.5)*2.5,
+      vy: 1.5 + Math.random()*2,
+      rot: Math.random()*Math.PI*2,
+      vr: (Math.random()-0.5)*0.3,
+      size: 6 + Math.random()*6,
+      color: colors[i % colors.length],
+      life: 240
+    });
+  }
+}
+
+/* ----------------------------- Update ----------------------------------- */
+function update(dt) {
+  // Auto power-sweep during the CLIMBING state. Power oscillates 0→1→0.
+  if (state === STATE.CLIMBING && sweepStart) {
+    const elapsed = performance.now() - sweepStart;
+    const cycle = elapsed % (sweepPeriod * 2);
+    if (cycle < sweepPeriod) player.power = cycle / sweepPeriod;
+    else                     player.power = 1 - (cycle - sweepPeriod) / sweepPeriod;
+    player.climbProgress = player.power;
+    player.poleBend = player.power * 0.6;
+    setJumpBtnState();
+  }
+  // The visible marker tracks `player.power` whenever it's set.
+  if (player) {
+    const inZone = player.power >= zoneLo && player.power <= zoneHi;
+    powerMarker.style.left = (player.power * 100) + '%';
+    powerMarker.classList.toggle('in-zone', inZone && state === STATE.CLIMBING);
+  }
+
+  if (state === STATE.JUMPING) {
+    // Slow-mo at apex (~when vy crosses zero)
+    if (!player.apexTriggered && player.vy >= -0.5) {
+      player.apexTriggered = true;
+      slowmoUntil = performance.now() + 220;
+      // PERTICEA — mid-air shout
+      showWordBanner('PERTICEA', '#ffe091');
+      speakChant('Perticea', 0.85, 0.85);
+    }
+    const speedScale = W / 960;
+    const GRAV = 0.42 * speedScale;
+    player.vy += GRAV * dt;
+    player.x += player.vx * dt;
+    player.y += player.vy * dt;
+    player.poleAngle += player.spin * dt;
+    if (player.poleAngle > Math.PI) player.poleAngle = Math.PI;
+    player.poleBend = Math.max(0, player.poleBend - 0.03 * dt);
+
+    if (Math.random() < 0.5) {
+      spawnParticle(player.x-4, player.y-6, 'rgba(246,215,122,0.7)', 1, -0.5, 0.5);
+    }
+    if (player.y >= GROUND_Y) {
+      player.y = GROUND_Y;
+      const ditchEnd = DITCH_START + ditchWidthPx;
+      if (player.x >= ditchEnd + 4) {
+        player.landedSuccess = true;
+        spawnParticle(player.x, GROUND_Y, '#3a8e3a', 16, -3, 0);
+        resolveJump(true);
+      } else if (player.x > DITCH_START) {
+        player.splashed = true;
+        player.splashStartTime = performance.now();
+        player.y = WATER_TOP_Y + H * 0.005;
+        spawnSplash(player.x);
+        triggerShake(220, 14);
+        vibrate([40, 30, 60]);
+        resolveJump(false);
+      } else {
+        // Didn't even reach the ditch — still counts as fail.
+        spawnParticle(player.x, GROUND_Y, '#7a4f1a', 12, -2, 0);
+        resolveJump(false);
+      }
+    }
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 0.18 * dt; p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  // Confetti
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const c = confetti[i];
+    c.x += c.vx * dt; c.y += c.vy * dt;
+    c.vy += 0.05 * dt;
+    c.rot += c.vr * dt;
+    c.life -= dt;
+    if (c.y > H + 20 || c.life <= 0) confetti.splice(i, 1);
+  }
+}
+
+function triggerShake(ms, mag) {
+  shakeUntil = performance.now() + ms;
+  shakeMag = mag;
+}
+function applyShake() {
+  const now = performance.now();
+  if (now < shakeUntil) {
+    const left = (shakeUntil - now) / 220;
+    const dx = (Math.random()*2-1) * shakeMag * left;
+    const dy = (Math.random()*2-1) * shakeMag * left;
+    shake.style.transform = `translate(${dx}px, ${dy}px)`;
+  } else {
+    shake.style.transform = 'translate(0,0)';
+  }
+}
+
+/* ===================== DRAWING (proportional to W, H) ===================== */
+
+const clouds = [];
+function ensureClouds() {
+  if (clouds.length === 0) {
+    for (let i = 0; i < 5; i++) {
+      clouds.push({
+        x: Math.random()*W,
+        y: H*0.06 + Math.random()*H*0.2,
+        r: H*0.025 + Math.random()*H*0.04,
+        s: 0.15 + Math.random()*0.3
+      });
+    }
+  }
+}
+
+function drawBackground() {
+  // Sky gradient as fallback / blends behind everything
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y + H*0.04);
+  sky.addColorStop(0, '#cfeaf7');
+  sky.addColorStop(1, '#ffffff');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // Sun
+  ctx.fillStyle = 'rgba(255,225,150,0.85)';
+  ctx.beginPath(); ctx.arc(W*0.82, H*0.14, H*0.05, 0, Math.PI*2); ctx.fill();
+
+  // Drifting clouds (kept procedural for life)
+  ensureClouds();
+  const windDrift = wind * 1.5;
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  for (const c of clouds) {
+    c.x += c.s + windDrift;
+    if (c.x - c.r > W) c.x = -c.r;
+    if (c.x + c.r < 0) c.x = W + c.r;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r, 0, Math.PI*2);
+    ctx.arc(c.x + c.r*0.7, c.y + 4, c.r*0.8, 0, Math.PI*2);
+    ctx.arc(c.x - c.r*0.6, c.y + 3, c.r*0.7, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Wind-label op de canvas is verwijderd — wind staat al duidelijk in de
+  // HUD-balk bovenaan, dubbele tekst leidde af.
+}
+
+/* New flag-mast asset (1024×1536) bevat de complete mast + SPL-vlag + grasbasis.
+ * We renderen 'm in 4 sub-rects: 3 statisch (boven vlag / mast naast vlag /
+ * onder vlag) en 1 dynamisch (de vlag-rechthoek met sliced sine-wave). De
+ * oude procedurele mast-tekening is verwijderd — de gouden mast komt nu uit
+ * de PNG zelf. */
+const FLAG_ASSET_W = 1024, FLAG_ASSET_H = 1536;
+const FLAG_MAST_CENTER_COL = 270;   // x-col van mast-as in asset
+const FLAG_MAST_BASE_ROW = 1415;    // y-row waar mast-basis (gras) eindigt
+const FLAG_BBOX_X0 = 296, FLAG_BBOX_X1 = 947;  // navy-doek horizontale extent
+const FLAG_BBOX_Y0 = 224, FLAG_BBOX_Y1 = 718;  // navy-doek verticale extent
+
+function drawWavingFlag(bankX0, bankOffsetY, scale) {
+  if (!IMG.flag.complete || !IMG.flag.naturalWidth) return;
+
+  // Hoeveelheid mast-hoogte die we op canvas willen zien (basis → spike-top),
+  // ongeveer 24-34 % van canvas-hoogte. Asset-mast loopt van rij 109 (spike)
+  // tot rij 1415 (gras-basis) = 1306 px in PNG-eenheden.
+  const minMastH    = H * 0.24;
+  const desiredH    = 420 * scale;
+  const mastH       = Math.max(minMastH, Math.min(desiredH, H * 0.34));
+  const s           = mastH / (FLAG_MAST_BASE_ROW - 109);   // schaalfactor PNG→canvas
+
+  // Anchor: mast-basis op GROUND_Y. Mast staat nu op de RECHTER oever,
+  // ~25% vanaf de cliff-edge naar binnen. (bankX0 wordt genegeerd — we
+  // berekenen poleX direct vanuit de ditch-grens.)
+  const ditchEnd = DITCH_START + ditchWidthPx;
+  const poleX = ditchEnd + (W - ditchEnd) * 0.25;
+  const drawY = GROUND_Y - FLAG_MAST_BASE_ROW * s;
+  const drawX = poleX - FLAG_MAST_CENTER_COL * s;
+
+  const FW  = FLAG_BBOX_X1 - FLAG_BBOX_X0;   // 651
+  const FH  = FLAG_BBOX_Y1 - FLAG_BBOX_Y0;   // 494
+
+  /* ----- Statische rendering: 3 sub-rects om de flag-rechthoek heen ----- */
+  // A) Bovenkant van asset (spike + mast boven vlag): rijen 0..FLAG_BBOX_Y0
+  ctx.drawImage(IMG.flag,
+    0, 0, FLAG_ASSET_W, FLAG_BBOX_Y0,
+    drawX, drawY, FLAG_ASSET_W * s, FLAG_BBOX_Y0 * s);
+  // B) Mast-strip links van de vlag (rijen FLAG_BBOX_Y0..Y1, cols 0..FLAG_BBOX_X0)
+  ctx.drawImage(IMG.flag,
+    0, FLAG_BBOX_Y0, FLAG_BBOX_X0, FH,
+    drawX, drawY + FLAG_BBOX_Y0 * s, FLAG_BBOX_X0 * s, FH * s);
+  // C) Onderkant van asset (mast onder vlag + gras-basis): rijen FLAG_BBOX_Y1..H
+  ctx.drawImage(IMG.flag,
+    0, FLAG_BBOX_Y1, FLAG_ASSET_W, FLAG_ASSET_H - FLAG_BBOX_Y1,
+    drawX, drawY + FLAG_BBOX_Y1 * s, FLAG_ASSET_W * s, (FLAG_ASSET_H - FLAG_BBOX_Y1) * s);
+
+  /* ----- Dynamische rendering: flag-rechthoek met sliced sine-wave -----
+   * De vlag wappert in de wind-richting:
+   *   wind >= 0 (mee/geen): fly-zijde naar rechts (asset default)
+   *   wind <  0 (tegen):    fly-zijde naar links (horizontaal gespiegeld
+   *                         rondom de mast-as)
+   * Amplitude & snelheid schalen met |wind| zodat sterke wind ook
+   * vigoureuzer wapperen oplevert. */
+  const stripCount = 28;
+  const stripWdest = (FW * s) / stripCount;
+  const stripWsrc  = FW / stripCount;
+  const windMag    = Math.min(1, Math.abs(wind) * 20);   // 0..1
+  const speedFact  = 0.6 + windMag * 1.4;
+  const ampFact    = 0.5 + windMag * 1.1;
+  const t = performance.now() * 0.0035 * speedFact;
+  const baseDX = drawX + FLAG_BBOX_X0 * s;
+  const baseDY = drawY + FLAG_BBOX_Y0 * s;
+  const mastXCanvas = drawX + FLAG_MAST_CENTER_COL * s;
+  const flipX = wind < 0;
+
+  ctx.save();
+  if (flipX) {
+    // Spiegel het flag-frame rondom de mast-as
+    ctx.translate(mastXCanvas * 2, 0);
+    ctx.scale(-1, 1);
+  }
+  for (let i = 0; i < stripCount; i++) {
+    const u   = i / (stripCount - 1);
+    const srcX = FLAG_BBOX_X0 + i * stripWsrc;
+    const amp  = u * u * 7 * scale * ampFact;
+    const dy   = Math.sin(t - u * 4) * amp;
+    const skew = Math.cos(t - u * 4) * 0.04 * u;
+    ctx.save();
+    ctx.translate(baseDX + i * stripWdest, baseDY + dy);
+    ctx.transform(1, skew, 0, 1, 0, 0);
+    ctx.drawImage(IMG.flag,
+      srcX, FLAG_BBOX_Y0, stripWsrc + 1, FH,
+      0, 0, stripWdest + 1, FH * s);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* Scheidsrechter rechts in het gras. Hand omhoog (referee.png) tijdens SETUP/
+ * READY/CLIMBING — wacht-houding. Hand omlaag (referee2.png) tijdens en na
+ * de sprong. Beide assets zijn 1024×1536, zelfde compositie zodat de pose
+ * wisselt zonder dat de stoel/paraplu verspringt. */
+const REF_ASSET_W = 1024, REF_ASSET_H = 1536;
+const REF_BASE_ROW = 1373;   // bottom van zichtbare content (grass-tufts onder stoel) — anchor op GROUND_Y zodat de referee even ver "in de grond" staat als de vlaggenmast
+function drawReferee() {
+  const handUp = (state === STATE.SETUP || state === STATE.READY || state === STATE.CLIMBING);
+  const img = handUp ? IMG.refereeUp : IMG.refereeDown;
+  if (!img.complete || !img.naturalWidth) return;
+
+  // Render-hoogte: ongeveer 28% van canvas-hoogte. Schaal in PNG-eenheden.
+  const targetH = H * 0.28;
+  const s = targetH / REF_ASSET_H;
+
+  // Positioneer rechts in het gras, dieper de bank in dan de vlag.
+  const ditchEnd = DITCH_START + ditchWidthPx;
+  const refX = ditchEnd + (W - ditchEnd) * 0.65;
+  const drawW = REF_ASSET_W * s;
+  const drawH = REF_ASSET_H * s;
+  const drawX = refX - drawW / 2;
+  const drawY = GROUND_Y - REF_BASE_ROW * s;     // grass-base lijnt uit met GROUND_Y
+
+  ctx.drawImage(img, drawX, drawY, drawW, drawH);
+}
+
+function drawGround() {
+  const ditchEnd = DITCH_START + ditchWidthPx;
+
+  // Dirt area is now CAPPED at a thin strip below GROUND_Y so the scene
+  // stays tightly cropped.
+  const DIRT_H_MAX  = H * 0.22;
+  const dirtH       = Math.min(H - GROUND_Y, DIRT_H_MAX);
+  const dirtBottom  = GROUND_Y + dirtH;
+
+  /* ---------- Step 1: HILLS panorama (back) ----------
+   * 1536×1024 PNG, sky transparant boven, hills+castle in onderhelft.
+   * We schalen op breedte W en anchoren row HILLS_BOTTOM_ROW op GROUND_Y. */
+  if (IMG.bgHills.complete && IMG.bgHills.naturalWidth) {
+    const scl   = W / HILLS_PNG_W;
+    const drawH = HILLS_PNG_H * scl;
+    const drawY = GROUND_Y - HILLS_BOTTOM_ROW * scl;
+    ctx.drawImage(IMG.bgHills, 0, drawY, W, drawH);
+  } else {
+    ctx.fillStyle = '#8fb87a';
+    ctx.fillRect(0, GROUND_Y - H*0.18, W, H*0.18);
+  }
+
+  /* ---------- Step 2: WATER laag (bg-water.png) onder GROUND_Y ----------
+   * Full-width gerenderd van GROUND_Y tot canvas-onderkant met een subtiele
+   * golfbeweging — het beeld wordt in 24 verticale strips verdeeld die elk
+   * met een kleine sinus-offset bewegen, zodat het wateroppervlak licht
+   * deint zonder dat de waterlijn naar boven uit GROUND_Y kruipt. */
+  ctx.fillStyle = '#2e6f7a';
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+  if (IMG.bgWater.complete && IMG.bgWater.naturalWidth) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, GROUND_Y, W, H - GROUND_Y);
+    ctx.clip();
+    const wImg = IMG.bgWater;
+    const strips = 24;
+    const srcStripW = wImg.naturalWidth / strips;
+    const dstStripW = W / strips;
+    const tw = performance.now() * 0.0009;
+    for (let i = 0; i < strips; i++) {
+      const dy = Math.sin(tw + i * 0.45) * 1.8;   // ~1.8 px deining
+      ctx.drawImage(wImg,
+        i * srcStripW, 0, srcStripW + 1, wImg.naturalHeight,
+        i * dstStripW, GROUND_Y + dy, dstStripW + 1, H - GROUND_Y);
+    }
+    ctx.restore();
+  }
+
+  /* ---------- Step 3: BANK PNGs (links + rechts) ----------
+   * Elke bank bevat gras-top + cliff + eigen water-overgang. We schalen zo
+   * dat de cliff-water-overgang in de PNG exact landt op DITCH_START / ditchEnd
+   * en de grass-top-row landt op GROUND_Y. */
+  if (IMG.bgLeft.complete && IMG.bgLeft.naturalWidth) {
+    const scl = DITCH_START / BANK_DITCH_EDGE_COL_L;
+    const drawW = BANK_PNG_W * scl;
+    const drawH = BANK_PNG_H * scl;
+    const drawY = GROUND_Y - BANK_GRASS_TOP_ROW_L * scl;
+    ctx.drawImage(IMG.bgLeft, 0, drawY, drawW, drawH);
+  }
+  if (IMG.bgRight.complete && IMG.bgRight.naturalWidth) {
+    const scl = (W - ditchEnd) / (BANK_PNG_W - BANK_DITCH_EDGE_COL_R);
+    const drawW = BANK_PNG_W * scl;
+    const drawH = BANK_PNG_H * scl;
+    const drawX = ditchEnd - BANK_DITCH_EDGE_COL_R * scl;
+    const drawY = GROUND_Y - BANK_GRASS_TOP_ROW_R * scl;
+    ctx.drawImage(IMG.bgRight, drawX, drawY, drawW, drawH);
+  }
+
+  /* Step 4 (navy fill onder dirtBottom) verwijderd — banks van laag 2/3
+   * renderen tot ver onder de canvas-rand dus de fill kwam BOVEN de bank
+   * te liggen als twee lelijke navy-rechthoeken. Eventuele sky-leak op heel
+   * tall portrait viewports vangen we op via een canvas background-color
+   * (page CSS) ipv hier overheen schilderen. */
+
+  // Animated flag on the left bank — sized off CHAR_SCALE
+  drawWavingFlag(0, 0, CHAR_SCALE * 0.45);
+
+  // Reflection of jumper in the water
+  if (player && (state === STATE.JUMPING || state === STATE.CLIMBING || state === STATE.READY) && !player.splashed) {
+    const reflX = player.x;
+    const reflBase = GROUND_Y + H * 0.005;
+    if (reflX > DITCH_START - 4 && reflX < ditchEnd + 4) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(DITCH_START, GROUND_Y, ditchWidthPx, H - GROUND_Y);
+      ctx.clip();
+      ctx.globalAlpha = 0.28;
+      ctx.translate(reflX, reflBase * 2 - player.y);
+      ctx.scale(1, -1);
+      ctx.translate(-reflX, -player.y);
+      drawCharacterAt(reflX, player.y, 0, false, true);
+      ctx.restore();
+    }
+  }
+
+  // Ripples
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1.5;
+  const t = performance.now() * 0.003;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    const y = GROUND_Y + H*0.025 + i * (H*0.022);
+    ctx.moveTo(DITCH_START + 6, y);
+    for (let x = DITCH_START + 6; x <= ditchEnd - 6; x += 8) {
+      ctx.lineTo(x, y + Math.sin(x*0.05 + t + i) * 2);
+    }
+    ctx.stroke();
+  }
+
+  // Distance markers (subtle, on right bank grass)
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillStyle = 'rgba(11,30,63,0.5)';
+  ctx.font = 'bold ' + Math.max(10, H*0.016) + 'px Georgia';
+  ctx.textAlign = 'center';
+  for (let m = 1; m <= 14; m++) {
+    const mx = ditchEnd + m * PX_PER_M;
+    if (mx > W - 10) break;
+    ctx.beginPath();
+    ctx.moveTo(mx, GROUND_Y + H*0.005); ctx.lineTo(mx, GROUND_Y + H*0.02);
+    ctx.stroke();
+    if (m % 2 === 0) ctx.fillText(m + 'm', mx, GROUND_Y + H*0.045);
+  }
+}
+
+/* ---------- Character drawing: PNG sprites at (cx, cy) where cy is FEET ----
+ * Three poses are loaded from disk:
+ *   sprite-idle.png  — standing (used during READY / CLIMBING / JUMPING)
+ *   sprite-cheer.png — arms-up celebration (used after a successful land)
+ *   sprite-wet.png   — soaked & defeated (used after a splash)
+ * The pole is drawn separately and visually attaches near the character's hands.
+ * ------------------------------------------------------------------------- */
+function drawCharacterAt(cx, cy, rot, wet, reflectionMode=false) {
+  // Named-player sprite overrides take priority. 4-frame sheets get the
+  // right pose (READY/JUMP/FAIL/SUCCESS) sliced out; single-pose legacy
+  // images are drawn for every state.
+  const entry = (state !== STATE.SETUP && state !== STATE.OVER && players[currentIdx])
+    ? getNamedSprite(players[currentIdx].name) : null;
+  const named = entry ? entry.img : null;
+
+  let sprite, frames = 1, frameIdx = 0;
+  const success = !!(player && player.landedSuccess);
+
+  if (named && named.complete && named.naturalWidth) {
+    sprite = named;
+    frames = entry.frames || 1;
+    if (frames >= 4) {
+      if (wet)                                    frameIdx = FRAME_FAIL;
+      else if (state === STATE.LANDED && success) frameIdx = FRAME_SUCCESS;
+      else if (state === STATE.JUMPING)           frameIdx = FRAME_JUMP;
+      else                                        frameIdx = FRAME_READY;
+    }
+  } else if (wet) sprite = IMG.spriteWet;
+  else if (state === STATE.LANDED && success) sprite = IMG.spriteCheer;
+  else sprite = IMG.spriteIdle;
+
+  if (!sprite || !sprite.complete || !sprite.naturalWidth) return;
+
+  const frameW = sprite.naturalWidth / frames;
+  const frameH = sprite.naturalHeight;
+
+  // Target character height in canvas px. CHAR_SCALE is calibrated to old art;
+  // multiplier picked so the sprite reads at the same on-screen size as before.
+  const targetH = CHAR_SCALE * 44;
+  const aspect = frameW / frameH;
+  const targetW = targetH * aspect;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot);
+  // All sprites are drawn in their natural facing (right). The old mirror
+  // flip is gone — both the bundled art and 4-frame uploads should look the
+  // same way the jump goes.
+
+  // Crisp scaling for sprite-sheet uploads.
+  const prevSmoothing = ctx.imageSmoothingEnabled;
+  if (frames >= 4 && entry && !entry.builtin) ctx.imageSmoothingEnabled = false;
+
+  // Ground shadow (skip in reflection)
+  if (!wet && state !== STATE.JUMPING && !reflectionMode) {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(0, 4, targetW * 0.35, 4, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Emotion tints ONLY for legacy single-pose sprites — 4-frame sheets
+  // already contain artwork for the FAIL / SUCCESS poses.
+  const showingNamed = !!named && sprite === named;
+  const useTints = showingNamed && frames < 4;
+  if (useTints && state === STATE.LANDED && success) {
+    ctx.shadowColor = 'rgba(246,215,122,0.85)';
+    ctx.shadowBlur = 24;
+  }
+
+  const FOOT_FRAC_DEFAULT = 0.987;
+  const footFrac = (entry && entry.footFracs && entry.footFracs[frameIdx])
+    ? entry.footFracs[frameIdx] : FOOT_FRAC_DEFAULT;
+  ctx.drawImage(
+    sprite,
+    frameIdx * frameW, 0, frameW, frameH,
+    -targetW * 0.5, -targetH * footFrac, targetW, targetH
+  );
+  ctx.shadowBlur = 0;
+
+  if (useTints && wet) {
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = 'rgba(40, 100, 180, 0.45)';
+    ctx.fillRect(-targetW * 0.6, -targetH, targetW * 1.2, targetH * 1.1);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  ctx.imageSmoothingEnabled = prevSmoothing;
+  ctx.restore();
+}
+
+/* Returns the character's approximate HAND y-position (relative to feet=0).
+ * Used by the pole drawing so the pole appears to come out of the hands.
+ * The idle sprite holds hands ~52% up the body from feet. */
+function characterHandY() {
+  return -CHAR_SCALE * 44 * 0.55;
+}
+
+/* Nieuwe pool-stok (poolstok.png, 2172×724) — de WATER-kant van de stok zit
+ * VAST in het midden van de sloot (dit is het draaipunt). De HANDLE-kant
+ * volgt de speler: bij start staat ie tegen de linker oever, tijdens de
+ * sprong draait ie mee met de positie van de speler, na succesvolle landing
+ * rust ie tegen de rechter oever, en bij splash ligt ie in het water naast
+ * de speler. We draaien dus rondom een vast pivot-punt. */
+const POLE_PIVOT_COL  = 2043;    // water-splash centroid in asset
+const POLE_PIVOT_ROW  = 365;
+const POLE_HANDLE_COL = 40;      // links uiteinde, handle waar speler vastpakt
+const POLE_HANDLE_ROW = 359;
+const POLE_ASSET_W = 2172, POLE_ASSET_H = 724;
+const POLE_NATURAL_LEN = POLE_PIVOT_COL - POLE_HANDLE_COL;  // 2003
+
+function drawPole() {
+  if (!IMG.pole.complete || !IMG.pole.naturalWidth) return;
+  if (!player) return;
+
+  // Pivot in canvas-coords: midden van de sloot, en lager in beeld — net
+  // boven de waterbodem van de oevers (= waar laag 2/3 met hun water-strook
+  // visueel eindigen). We berekenen die bodem op basis van de bank-rendering
+  // (zelfde formule als drawGround Step 3) en trekken er ~1 cm vanaf.
+  const ditchEnd = DITCH_START + ditchWidthPx;
+  const bankScaleL = DITCH_START / BANK_DITCH_EDGE_COL_L;
+  const BANK_VISIBLE_BOTTOM_ROW = 1165;        // measured: laatste rij content in bg-left
+  const bankBottomY = GROUND_Y + (BANK_VISIBLE_BOTTOM_ROW - BANK_GRASS_TOP_ROW_L) * bankScaleL;
+  const oneCmInPx = 38 * (typeof dpr !== 'undefined' ? dpr : 1);
+  const pivotX = (DITCH_START + ditchEnd) / 2;
+  const pivotY = bankBottomY - oneCmInPx;
+
+  // Handle-target: de hand van de speler. We benaderen die op chest-hoogte.
+  // Bij splash ligt de hand ongeveer op waterniveau.
+  let handX = player.x;
+  let handY;
+  if (state === STATE.LANDED && player.splashed) {
+    handY = WATER_TOP_Y + H * 0.012;
+  } else {
+    handY = player.y - CHAR_SCALE * 22;
+  }
+
+  // Pool-stok-lengte op canvas vasthouden (echte stok is rigid). We schalen
+  // het asset zodat de handle ALTIJD bij de speler-hand uitkomt — pivot blijft
+  // op z'n vaste punt, dus de waarneembare lengte varieert wel ietsje afhankelijk
+  // van waar de speler is. Dit ziet er natuurlijk uit zolang de pivot in water
+  // blijft.
+  const dx = handX - pivotX;
+  const dy = handY - pivotY;
+  const desiredCanvasLen = Math.max(W * 0.18, Math.hypot(dx, dy));
+  const scl = desiredCanvasLen / POLE_NATURAL_LEN;
+
+  // Rotatie: handle = aan ene kant van pivot. Asset's natural orientation =
+  // handle aan de LINKERkant van pivot (angle ≈ π relatief). Dus rotatie =
+  // atan2(dy, dx) − π.
+  const rot = Math.atan2(dy, dx) - Math.PI;
+
+  ctx.save();
+  ctx.translate(pivotX, pivotY);
+  ctx.rotate(rot);
+  // Draw met PIVOT_COL,PIVOT_ROW op origin
+  ctx.drawImage(IMG.pole,
+    -POLE_PIVOT_COL * scl, -POLE_PIVOT_ROW * scl,
+    POLE_ASSET_W * scl, POLE_ASSET_H * scl);
+  ctx.restore();
+}
+
+function drawPlayer() {
+  if (!player) return;
+  const s = CHAR_SCALE;
+  ctx.save();
+  ctx.translate(player.x, player.y);
+
+  if (state === STATE.LANDED && player.splashed) {
+    // Character actively SINKS into the ditch over ~1.2 s, with the wet sprite
+    // gradually disappearing below the waterline. A few bubbles surface.
+    const elapsed = (performance.now() - (player.splashStartTime || performance.now())) / 1000;
+    const sinkProgress = Math.min(1, elapsed / 1.2);
+    const sinkDepth = sinkProgress * (H - GROUND_Y) * 0.55;
+    const wobble = Math.sin(elapsed * 6) * (1 - sinkProgress) * 3;
+    // Clip so the sinking character is hidden once below the water surface fully.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(DITCH_START, WATER_TOP_Y - 4, ditchWidthPx, H - WATER_TOP_Y + 4);
+    ctx.clip();
+    // Translate the player downward as they sink
+    ctx.translate(0, sinkDepth + wobble);
+    // Fade out as they sink deeper
+    ctx.globalAlpha = Math.max(0.25, 1 - sinkProgress * 0.7);
+    drawCharacterAt(0, 0, 0, true);
+    ctx.restore();
+    ctx.restore();
+    // Surfacing bubbles
+    if (Math.random() < 0.4 && sinkProgress < 1) {
+      particles.push({
+        x: player.x + (Math.random() - 0.5) * 18,
+        y: WATER_TOP_Y + sinkDepth + 4,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: -1.5 - Math.random() * 0.8,
+        life: 40,
+        color: 'rgba(255,255,255,0.85)',
+        size: 2 + Math.random() * 2
+      });
+    }
+    return;
+  }
+
+  // Pool-stok wordt nu apart getekend in render() (drawPole), in world coords,
+  // omdat het pivot-punt vast in de sloot zit en niet relatief aan de speler.
+  if (state === STATE.READY || state === STATE.CLIMBING) {
+    drawCharacterAt(0, 0, 0, false);
+  } else if (state === STATE.JUMPING) {
+    drawCharacterAt(0, 0, player.poleAngle * 0.2, false);
+  } else {
+    drawCharacterAt(0, 0, 0, false);
+  }
+  ctx.restore();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.life / 40));
+    const sz = p.size || 4;
+    if (p.glitter) {
+      // diamond
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - sz);
+      ctx.lineTo(p.x + sz, p.y);
+      ctx.lineTo(p.x, p.y + sz);
+      ctx.lineTo(p.x - sz, p.y);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillRect(p.x - sz/2, p.y - sz/2, sz, sz);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawConfetti() {
+  for (const c of confetti) {
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.rot);
+    ctx.fillStyle = c.color;
+    ctx.fillRect(-c.size/2, -c.size/4, c.size, c.size/2);
+    ctx.restore();
+  }
+}
+
+function render() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#9ed7f5';
+  ctx.fillRect(0, 0, W, H);
+  drawBackground();
+  drawGround();
+  drawReferee();      // scheidsrechter op rechter oever, ná banks, vóór particles/player
+  drawPole();         // pool-stok met pivot in water, in world coords, vóór de speler
+  drawParticles();
+  drawPlayer();
+  drawConfetti();
+}
+
+/* --------------------------- Achievements ------------------------------- */
+let achievementsGiven = {};
+let achTimeout = null;
+function showAchievement(name) {
+  achNameEl.textContent = name;
+  achievementEl.classList.add('show');
+  if (achTimeout) clearTimeout(achTimeout);
+  achTimeout = setTimeout(() => achievementEl.classList.remove('show'), 2400);
+}
+function awardOnce(key, name) {
+  if (achievementsGiven[key]) return;
+  achievementsGiven[key] = true;
+  showAchievement(name);
+}
+function checkAchievements(success) {
+  const idx = currentIdx;
+  const p = players[idx];
+  // 3 on a row
+  if ((recentClearStreak[idx] || 0) >= 3) awardOnce('streak3_' + idx, p.name + ' — 3 op een rij');
+  // 4 shots in one round (across all players this round?). We track this loosely:
+  if (success === false) {
+    // count shots already taken this round for everyone
+    let roundShots = 0;
+    players.forEach(pp => roundShots += 0); // baseline placeholder
+    // Use cumulative: when total shots crosses round*4
+    if (totalShots >= 4 * round) awardOnce('thirsty_r' + round, 'Dorstige ronde · 4+ shots');
+  }
+  // perfect launch
+  if (success && lastLaunchMeta && lastLaunchMeta.perfect) {
+    awardOnce('perfect_' + idx, p.name + ' — Perfecte sprong!');
+  }
+  // Splash on a near miss (just barely failed) — when fell <0.5m short of bank
+  if (!success && player) {
+    const ditchEnd = DITCH_START + ditchWidthPx;
+    if (player.x > ditchEnd - PX_PER_M * 0.5 && player.x < ditchEnd) {
+      awardOnce('justmissed_' + idx + '_' + round, 'Bijna! Net niet · ' + p.name);
+    }
+  }
+}
+
+/* ------------------------ Launch toast (PERFECT/GOED) ------------------- */
+let toastTimeout;
+function showLaunchToast(text, color) {
+  launchToast.textContent = text;
+  launchToast.style.color = color;
+  launchToast.classList.add('show');
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => launchToast.classList.remove('show'), 700);
+}
+
+/* ------------------------ Chant: SALIRE / PERTICEA / LONGA -------------- */
+const wordBanner = document.getElementById('wordBanner');
+let bannerTimer = null;
+function showWordBanner(text, color) {
+  wordBanner.textContent = text;
+  if (color) wordBanner.style.color = color;
+  // restart animation
+  wordBanner.classList.remove('show');
+  // force reflow so the transition runs again
+  void wordBanner.offsetWidth;
+  wordBanner.classList.add('show');
+  if (bannerTimer) clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => wordBanner.classList.remove('show'), 800);
+}
+
+let ttsVoice = null;
+/* ===== Chant disabled =====================================================
+ * The Latin scream (SALIRE / PERTICEA / LONGA) was distracting. speakChant
+ * is now a no-op so every existing call site still works, but no voice
+ * synthesis fires. The themed sound effects below replace it. */
+function pickVoice() {}
+function speakChant(/* word, pitchBias, rateBias */) { /* intentionally silent */ }
+
+/* ===== Themed Frisian sound effects =======================================
+ * All effects are procedurally generated via Web Audio — no external files.
+ * Theme: Frisian fierljeppen on a sloot. Cartoonish, loud, a little silly.
+ * Each effect plays a small composition of oscillators + noise so it feels
+ * richer than a single beep. */
+function _noiseBuf(durSec, fadeOut=true) {
+  const a = audio(); if (!a) return null;
+  const len = Math.max(1, Math.floor(a.sampleRate * durSec));
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const env = fadeOut ? (1 - i/len) : 1;
+    d[i] = (Math.random()*2-1) * env;
+  }
+  return buf;
+}
+function _tone(freq, dur, type='sine', vol=0.2, slideTo=null, t0=null) {
+  const a = audio(); if (!a) return;
+  if (t0 == null) t0 = a.currentTime;
+  const o = a.createOscillator(); const g = a.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t0);
+  if (slideTo != null) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+  g.gain.setValueAtTime(vol, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+function _noise(dur, vol=0.2, freq=1000, q=1, t0=null) {
+  const a = audio(); if (!a) return;
+  if (t0 == null) t0 = a.currentTime;
+  const buf = _noiseBuf(dur); if (!buf) return;
+  const src = a.createBufferSource(); src.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+  const g = a.createGain(); g.gain.setValueAtTime(vol, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  src.connect(f); f.connect(g); g.connect(a.destination);
+  src.start(t0);
+}
+
+/* --- SPRINGEN: takeoff. A wooden pole creak + cartoony "BOIIIING" + a
+ * subtle Frisian cow-moo in the distance because why not. */
+function sndJump() {
+  if (!soundOn) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime;
+  // Wooden creak (sawtooth slide up)
+  _tone(180, 0.15, 'sawtooth', 0.18, 320, t);
+  // Boing — square wave bounce
+  _tone(160, 0.35, 'square', 0.22, 540, t + 0.05);
+  _tone(540, 0.20, 'square', 0.15, 740, t + 0.20);
+  // Air whoosh — pink noise
+  _noise(0.40, 0.10, 800, 1.5, t + 0.10);
+  // Distant moo at low volume (~3% chance)
+  if (Math.random() < 0.10) {
+    _tone(120, 0.55, 'triangle', 0.08, 95, t + 0.35);
+    _tone(90, 0.45, 'triangle', 0.06, 75, t + 0.55);
+  }
+}
+
+/* --- NEERKOMEN: landing on grass. Soft thud + grass rustle. Used when the
+ * jumper successfully reaches the far bank. */
+function sndLand() {
+  if (!soundOn) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime;
+  // Thud — low sine drop
+  _tone(120, 0.18, 'sine', 0.32, 50, t);
+  // Body-on-grass crunch (noise, mid-band)
+  _noise(0.22, 0.18, 350, 2, t + 0.02);
+  // Tiny secondary "puff" of dust
+  _noise(0.16, 0.10, 1400, 1, t + 0.10);
+}
+
+/* --- SUCCES: cleared the ditch. A goofy little victory fanfare + sheep "baa"
+ * + a tiny cheering crowd. Frisian countryside vibe. */
+function sndSuccess() {
+  if (!soundOn) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime;
+  // Major arpeggio (C → E → G → C)
+  _tone(523, 0.12, 'triangle', 0.25, null, t);
+  _tone(659, 0.12, 'triangle', 0.25, null, t + 0.10);
+  _tone(784, 0.14, 'triangle', 0.25, null, t + 0.20);
+  _tone(1046, 0.28, 'triangle', 0.30, null, t + 0.32);
+  // Sheep baa (vibrato'd square)
+  const o = a.createOscillator(), g = a.createGain(), lfo = a.createOscillator(), lfoG = a.createGain();
+  o.type = 'square'; o.frequency.value = 420;
+  lfo.frequency.value = 22; lfoG.gain.value = 30;
+  lfo.connect(lfoG); lfoG.connect(o.frequency);
+  g.gain.setValueAtTime(0.12, t + 0.55);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+  o.connect(g); g.connect(a.destination);
+  o.start(t + 0.55); o.stop(t + 0.90);
+  lfo.start(t + 0.55); lfo.stop(t + 0.90);
+  // Crowd cheer (noise + filter)
+  _noise(0.50, 0.14, 1200, 0.8, t + 0.30);
+}
+
+/* --- FAIL: splash into the ditch. Cartoony BONK + huge splash + sad
+ * trombone (waaaaaa-waaaaa) + glug-glug bubbles. */
+function sndSplash() {
+  if (!soundOn) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime;
+  // Cartoon BONK (high-pitched thud)
+  _tone(620, 0.08, 'square', 0.20, 180, t);
+  // Huge water splash (low-pass filtered white noise, two layers)
+  _noise(0.55, 0.32, 850, 0.8, t + 0.04);
+  _noise(0.35, 0.22, 2200, 0.6, t + 0.08);
+  // Bubbles (3 short ascending blips)
+  _tone(540, 0.10, 'sine', 0.10, 720, t + 0.40);
+  _tone(620, 0.10, 'sine', 0.10, 820, t + 0.55);
+  _tone(700, 0.10, 'sine', 0.10, 920, t + 0.70);
+  // Sad trombone wah-waaaaa (slide down)
+  _tone(440, 0.18, 'sawtooth', 0.15, 330, t + 0.75);
+  _tone(330, 0.22, 'sawtooth', 0.15, 220, t + 0.95);
+  _tone(220, 0.45, 'sawtooth', 0.18, 110, t + 1.18);
+}
+
+/* --- TAP feedback while the power meter sweeps — sharp little tick. */
+function sndTap() {
+  if (!soundOn) return;
+  _tone(880 + Math.random()*200, 0.06, 'square', 0.06);
+}
+
+/* --- LAUNCH: when the SPRING button fires. Stronger than sndJump — it's
+ * the moment the pole flexes and CATAPULTS. Frisian "HOEPLA!"-energy. */
+function sndLaunch() {
+  if (!soundOn) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime;
+  // Pole flex (sawtooth glide up)
+  _tone(150, 0.20, 'sawtooth', 0.20, 480, t);
+  // KNAL — short bass thud
+  _tone(80, 0.12, 'sine', 0.30, 40, t + 0.05);
+  // Whoosh through the air
+  _noise(0.45, 0.14, 1100, 1.2, t + 0.10);
+  // "Yippee" mini-arpeggio
+  _tone(660, 0.10, 'triangle', 0.18, null, t + 0.18);
+  _tone(880, 0.10, 'triangle', 0.18, null, t + 0.26);
+  _tone(1100, 0.14, 'triangle', 0.20, null, t + 0.34);
+}
+
+/* --- PERFECT: hit the gold zone exactly. Sparkle bell + small chime. */
+function sndPerfect() {
+  if (!soundOn) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime;
+  _tone(1320, 0.18, 'sine', 0.18, null, t);
+  _tone(1760, 0.20, 'sine', 0.16, null, t + 0.08);
+  _tone(2640, 0.30, 'sine', 0.14, null, t + 0.16);
+  // Glittering bells (high-freq noise wisps)
+  _noise(0.30, 0.06, 4000, 4, t + 0.04);
+  _noise(0.20, 0.05, 5500, 4, t + 0.20);
+}
+
+/* --- CHEER: end-of-round small applause. */
+function sndCheer() {
+  if (!soundOn) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime;
+  _noise(0.80, 0.20, 1500, 0.6, t);
+  // Three quick whistles
+  _tone(1200, 0.08, 'sine', 0.10, 1600, t + 0.10);
+  _tone(1400, 0.08, 'sine', 0.10, 1800, t + 0.30);
+  _tone(1600, 0.10, 'sine', 0.12, 2000, t + 0.50);
+}
+
+/* --- COW MOO: random ambient occasionally (countryside vibe). */
+function sndMoo() {
+  if (!soundOn) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime;
+  _tone(140, 0.50, 'triangle', 0.15, 105, t);
+  _tone(108, 0.45, 'triangle', 0.13, 92, t + 0.50);
+}
+
+/* ============================ Simulation ===============================
+ * Pure-math model — does NOT use the live canvas. Models an "average player"
+ * who taps until somewhere in [0.65, 1.0] uniformly, releases at random,
+ * lands inside perfect zone with the natural ~40 % rate, with random wind.
+ * Logs per-round success rates. Runs once on page load.
+ * ======================================================================= */
+function simulateOnce(roundIdx, noiseMs=150) {
+  // "average player" model: aims to press SPRING at the centre of the zone (bar at 0.5).
+  // Their press lands at the intended moment + uniform noise in ±noiseMs.
+  const idx = Math.min(roundIdx - 1, SWEEP_PERIODS.length - 1);
+  const T  = SWEEP_PERIODS[idx];
+  const wZ = PERFECT_WIDTHS[idx];
+  const lo = 0.5 - wZ/2, hi = 0.5 + wZ/2;
+  // The bar passes 0.5 going up at t=T/2 and going down at t=T+T/2.
+  // Pick the closer target on each trial.
+  const target = T/2;       // first crossing
+  const noisy  = target + (Math.random()*2 - 1) * noiseMs;
+  let power;
+  if (noisy < 0)        power = 0;
+  else if (noisy <= T)  power = noisy / T;                 // still rising phase
+  else if (noisy <= 2*T) power = 1 - (noisy - T) / T;      // falling phase
+  else                  power = 0;
+  return power >= lo && power <= hi;
+}
+function runSimulation(trials = 1000) {
+  const out = [];
+  for (let r = 1; r <= SWEEP_PERIODS.length; r++) {
+    let s = 0;
+    for (let i = 0; i < trials; i++) if (simulateOnce(r, 150)) s++;
+    out.push({ round: r, ditch: ditchMetersForRound(r), pct: s / trials });
+  }
+  return out;
+}
+const SIM = runSimulation(1000);
+console.group('Fierljeppen v2 — sim (1000 jumps/round)');
+SIM.forEach(r => console.log(`  Ronde ${r.round} (${r.ditch.toFixed(1)} m): ${(r.pct*100).toFixed(1)}% success · ${(100 - r.pct*100).toFixed(1)}% fail`));
+console.groupEnd();
+simReadout.textContent = 'sim: ' + SIM.map(r => `R${r.round}=${Math.round((1-r.pct)*100)}%f`).join(' ');
+
+/* ----------------------------- Loop ------------------------------------- */
+let lastTs = performance.now();
+function loop() {
+  const now = performance.now();
+  let raw = (now - lastTs) / 16.6667;   // 1.0 = a 60fps frame
+  lastTs = now;
+  if (raw > 3) raw = 3;
+  // slow-mo
+  timeScale = (now < slowmoUntil) ? 0.35 : 1.0;
+  update(raw * timeScale);
+  render();
+  applyShake();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* Re-init clouds on resize so they fill the new canvas size */
+window.addEventListener('resize', () => { clouds.length = 0; });
+
+/* Style: the climb button gets a gold "started" appearance after press. */
+const _climbStartedStyle = document.createElement('style');
+_climbStartedStyle.textContent = `
+  .action-btn.done {
+    background: linear-gradient(180deg, #163066 0%, #0b1e3f 100%);
+    opacity: 0.5;
+  }
+`;
+document.head.appendChild(_climbStartedStyle);
+
+</script>
+</body>
+</html>
