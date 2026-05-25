@@ -186,23 +186,28 @@
     filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
   }
 
-  /* ===== Level dots (top center, poster style) ===== */
+  /* ===== Level dots (top center, poster style) =====
+   * Adaptief in maat: bij veel rondes (15+) krimpen de bollen via CSS-vars
+   * die in renderLevelDots() worden ingesteld op basis van MAX_ROUNDS. */
   #levelDots {
     position: absolute;
     top: max(72px, calc(env(safe-area-inset-top) + 62px));
     left: 50%;
     transform: translateX(-50%);
-    display: flex; gap: 8px;
+    display: flex; gap: var(--dot-gap, 8px);
     pointer-events: none;
     z-index: 3;
+    max-width: 94vw;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   .level-dot {
-    width: 28px; height: 28px;
+    width: var(--dot-size, 28px); height: var(--dot-size, 28px);
     border-radius: 50%;
     border: 2px solid #f6d77a;
     background: rgba(11,30,63,0.85);
     color: #f6d77a;
-    font-size: 12px; font-weight: bold;
+    font-size: var(--dot-font, 12px); font-weight: bold;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   }
@@ -462,6 +467,19 @@
     z-index: 10;
     animation: fadeIn 0.25s ease-out;
   }
+  /* Game-over screen iets transparanter + minder blur zodat de winner-confetti
+   * door de scoreboard heen blijft fonkelen. De content blijft prima leesbaar
+   * dankzij de drop-shadow op tekst en de ronde card-paneeltjes. */
+  #gameover {
+    background: rgba(11, 30, 63, 0.80);
+    backdrop-filter: blur(1px);
+  }
+  #gameover .scoreboard {
+    background: rgba(11, 30, 63, 0.75);
+    border-radius: 12px;
+    padding: 10px 14px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+  }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .overlay h1 {
     margin: 6px 0 4px;
@@ -565,6 +583,46 @@
   .count-label {
     font-size: 11px; opacity: 0.75; letter-spacing: 2px;
     margin-bottom: 2px;
+  }
+
+  /* Moeilijkheidskiezer (segmented control) op het start-scherm */
+  .diff-row {
+    display: flex;
+    gap: 6px;
+    margin: 4px 0 8px;
+    width: 100%;
+    max-width: 360px;
+  }
+  .diff-btn {
+    flex: 1 1 0;
+    padding: 8px 6px;
+    border: 1.5px solid rgba(246,215,122,0.45);
+    background: rgba(11,30,63,0.55);
+    color: #f3eed7;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    text-align: center;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .diff-btn small {
+    display: block;
+    font-size: 9px;
+    font-weight: normal;
+    opacity: 0.7;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+  .diff-btn:hover { border-color: #f6d77a; background: rgba(246,215,122,0.10); }
+  .diff-btn:active { transform: translateY(1px); }
+  .diff-btn.selected {
+    background: rgba(246,215,122,0.20);
+    border-color: #f6d77a;
+    color: #f6d77a;
+    box-shadow: inset 0 0 8px rgba(246,215,122,0.25);
   }
   #nameInputs {
     display: flex;
@@ -828,6 +886,380 @@
   }
   .icon-btn.off { opacity: 0.4; }
 
+  /* ===== Power-up UI =================================================
+   * ⭐ token-knop in cornerControls + modal-picker met sprite-sheet.
+   * De sprite-sheet (Power-ups.png) is 4 kolommen × 2 rijen. Iedere
+   * cel laden we via CSS background-position trick: container krijgt
+   * background-size:400% 200% (de PNG is dus 4× breder en 2× hoger dan
+   * het cel-vlak) en we shiften via background-position-x/y in stappen
+   * van 33.33% (kolom) en 100% (rij). */
+  /* Big power-up button — staat groot onder de powerbar binnen #actionBar.
+   * Goud wanneer tokens beschikbaar, gegrijsd wanneer 0. Pulsanimatie trekt
+   * de aandacht zodra je een token verdient. */
+  #puBtn {
+    position: relative;
+    width: 100%;
+    min-height: 54px;
+    padding: 8px 16px;
+    border: 2.5px solid #f6d77a;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(11,30,63,0.92) 0%, rgba(11,30,63,0.78) 100%);
+    color: #f6d77a;
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.06);
+    transition: transform 0.1s, background 0.15s, box-shadow 0.15s;
+  }
+  #puBtn:active { transform: translateY(1px); }
+  #puBtn .pu-big-icon { font-size: 24px; line-height: 1; }
+  #puBtn .pu-big-label { font-size: 18px; }
+  #puBtn.has-tokens {
+    background: linear-gradient(180deg, #f6d77a 0%, #d4a73a 100%);
+    color: #0b1e3f;
+    box-shadow: 0 0 18px rgba(246,215,122,0.6), 0 4px 12px rgba(0,0,0,0.4);
+    animation: puPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes puPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.03); }
+  }
+  #puBtn .token-count {
+    position: absolute;
+    top: -6px; right: -6px;
+    min-width: 24px; height: 24px;
+    padding: 0 6px;
+    background: #ff8a8a;
+    color: #0b1e3f;
+    border: 2px solid #0b1e3f;
+    border-radius: 12px;
+    font-size: 13px; font-weight: bold;
+    line-height: 20px;
+    text-align: center;
+    letter-spacing: 0;
+  }
+  #puBtn[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+    animation: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+
+  /* Active-buff strip (laat zien welke power-ups deze beurt actief zijn) */
+  #activeBuffs {
+    position: absolute;
+    top: calc(max(10px, env(safe-area-inset-top)) + 56px);
+    right: 10px;
+    display: flex; gap: 4px;
+    z-index: 9998;
+    pointer-events: none;
+  }
+  #activeBuffs .buff-pill {
+    background: rgba(11,30,63,0.85);
+    border: 1.5px solid #f6d77a;
+    border-radius: 14px;
+    padding: 3px 8px 3px 28px;
+    color: #f6d77a;
+    font-size: 11px; font-weight: bold;
+    letter-spacing: 1px;
+    position: relative;
+  }
+  #activeBuffs .buff-pill::before {
+    content: '';
+    position: absolute;
+    left: 4px; top: 50%;
+    transform: translateY(-50%);
+    width: 20px; height: 20px;
+    background-image: url('Power-ups.png');
+    background-size: 400% 200%;
+    background-repeat: no-repeat;
+    border-radius: 4px;
+  }
+  #activeBuffs .buff-pill[data-pu="mulligan"]::before        { background-position: 0%      0%; }
+  #activeBuffs .buff-pill[data-pu="windschot"]::before       { background-position: 33.33%  0%; }
+  #activeBuffs .buff-pill[data-pu="brede-zone"]::before      { background-position: 66.67%  0%; }
+  #activeBuffs .buff-pill[data-pu="sluwe-vos"]::before       { background-position: 100%    0%; }
+  #activeBuffs .buff-pill[data-pu="saboteur"]::before        { background-position: 0%      100%; }
+  #activeBuffs .buff-pill[data-pu="wodka"]::before           { background-position: 33.33%  100%; }
+  #activeBuffs .buff-pill[data-pu="dubbele-shot"]::before    { background-position: 66.67%  100%; }
+  #activeBuffs .buff-pill[data-pu="zwaardere-borrel"]::before{ background-position: 100%    100%; }
+  #activeBuffs .buff-pill[data-pu="helikopterview"]::before {
+    background-image: url('Helikopterview.png');
+    background-size: cover;
+    background-position: center;
+  }
+  #activeBuffs .buff-pill[data-pu="friese-vloek"]::before {
+    background-image: url('screw-you-all.png');
+    background-size: cover;
+    background-position: center;
+  }
+  #activeBuffs .buff-pill.debuff {
+    border-color: #ff8a8a;
+    color: #ff8a8a;
+  }
+
+  /* Picker-overlay */
+  #puPicker[hidden] { display: none !important; }
+  #puPicker {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: fadeIn 0.2s ease-out;
+  }
+  #puPicker .pu-card {
+    background: #0b1e3f;
+    border: 2px solid #f6d77a;
+    border-radius: 18px;
+    padding: 18px 16px 14px;
+    max-width: 460px;
+    width: 100%;
+    color: #f3eed7;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.6);
+  }
+  #puPicker h2 {
+    color: #f6d77a;
+    font-size: 18px;
+    letter-spacing: 2px;
+    margin: 0 0 4px;
+    text-align: center;
+  }
+  #puPicker .pu-sub {
+    color: #d6cda3;
+    font-size: 13px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  #puPicker .pu-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);   /* 11 PUs = 4+4+3 */
+    gap: 8px;
+  }
+  #puPicker .pu-card {
+    max-width: 560px;
+  }
+  @media (max-width: 460px) {
+    #puPicker .pu-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 360px) {
+    #puPicker .pu-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  #puPicker .pu-slot {
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(246,215,122,0.4);
+    border-radius: 12px;
+    padding: 8px 6px 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  #puPicker .pu-slot:hover, #puPicker .pu-slot:focus-visible {
+    border-color: #f6d77a;
+    background: rgba(246,215,122,0.10);
+    transform: translateY(-2px);
+  }
+  #puPicker .pu-slot .pu-icon {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background-image: url('Power-ups.png');
+    background-size: 400% 200%;
+    background-repeat: no-repeat;
+    border-radius: 8px;
+  }
+  #puPicker .pu-slot[data-pu="mulligan"]         .pu-icon { background-position: 0%      0%; }
+  #puPicker .pu-slot[data-pu="windschot"]        .pu-icon { background-position: 33.33%  0%; }
+  #puPicker .pu-slot[data-pu="brede-zone"]       .pu-icon { background-position: 66.67%  0%; }
+  #puPicker .pu-slot[data-pu="sluwe-vos"]        .pu-icon { background-position: 100%    0%; }
+  #puPicker .pu-slot[data-pu="saboteur"]         .pu-icon { background-position: 0%      100%; }
+  #puPicker .pu-slot[data-pu="wodka"]            .pu-icon { background-position: 33.33%  100%; }
+  #puPicker .pu-slot[data-pu="dubbele-shot"]     .pu-icon { background-position: 66.67%  100%; }
+  #puPicker .pu-slot[data-pu="zwaardere-borrel"] .pu-icon { background-position: 100%    100%; }
+  /* Helikopterview heeft een EIGEN PNG, niet uit de 4×2 sprite-sheet */
+  #puPicker .pu-slot[data-pu="helikopterview"] .pu-icon {
+    background-image: url('Helikopterview.png');
+    background-size: cover;
+    background-position: center;
+  }
+  /* Friese Vloek — eigen PNG (screw-you-all.png), bom + shotjes-explosie. */
+  #puPicker .pu-slot[data-pu="friese-vloek"] .pu-icon {
+    background-image: url('screw-you-all.png');
+    background-size: cover;
+    background-position: center;
+  }
+  /* Schone Lei — CSS-only refresh-pijl op gouden gradient (geen PNG nodig) */
+  #puPicker .pu-slot[data-pu="schone-lei"] .pu-icon {
+    background: radial-gradient(circle at 30% 30%, #ffeb9e 0%, #d4a73a 55%, #7a5a14 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 38px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 14px rgba(246,215,122,0.6);
+    box-shadow: inset 0 0 16px rgba(0,0,0,0.25);
+  }
+  #puPicker .pu-slot[data-pu="schone-lei"] .pu-icon::before {
+    content: '🔄';
+  }
+  #activeBuffs .buff-pill[data-pu="schone-lei"]::before {
+    background: radial-gradient(circle, #ffeb9e 0%, #d4a73a 100%);
+  }
+  /* Top-tier slot: gouden gloed-rand + lichte schaal-pulse zodat 'ie eruit
+   * springt tussen de standaard 8 PUs. */
+  #puPicker .pu-slot.top-tier {
+    border-color: #f6d77a;
+    background: linear-gradient(180deg, rgba(246,215,122,0.18) 0%, rgba(246,215,122,0.05) 100%);
+    box-shadow: 0 0 14px rgba(246,215,122,0.45), inset 0 0 12px rgba(246,215,122,0.15);
+    animation: topTierGlow 2.4s ease-in-out infinite;
+  }
+  #puPicker .pu-slot.top-tier .pu-name {
+    color: #ffe091;
+    text-shadow: 0 0 8px rgba(246,215,122,0.6);
+  }
+  @keyframes topTierGlow {
+    0%, 100% { box-shadow: 0 0 14px rgba(246,215,122,0.45), inset 0 0 12px rgba(246,215,122,0.15); }
+    50%      { box-shadow: 0 0 22px rgba(246,215,122,0.75), inset 0 0 18px rgba(246,215,122,0.25); }
+  }
+  #puPicker .pu-slot .pu-name {
+    color: #f6d77a;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    margin-top: 5px;
+  }
+  #puPicker .pu-slot .pu-desc {
+    color: #d6cda3;
+    font-size: 10px;
+    line-height: 1.25;
+    margin-top: 3px;
+  }
+  #puPicker .pu-type {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+  #puPicker .pu-type.def { background: rgba(135,232,154,0.18); color: #87e89a; }
+  #puPicker .pu-type.off { background: rgba(255,138,138,0.18); color: #ff8a8a; }
+  #puPicker .pu-cancel {
+    margin-top: 14px;
+    width: 100%;
+  }
+  /* Target-picker (stap 2 voor offensieve power-ups) — spelers grid */
+  #puPicker .target-slot {
+    aspect-ratio: auto;
+    padding: 12px 8px 10px;
+  }
+  #puPicker .target-slot .target-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1a3870 0%, #0b1e3f 100%);
+    border: 2px solid #f6d77a;
+    color: #f6d77a;
+    font-size: 22px;
+    font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 6px;
+  }
+  #puPicker .target-slot .pu-name { margin-top: 2px; }
+
+  /* Wodka-blur effect — wazigheid + dronken wobble. Geldt voor zowel het
+   * canvas (de scene) ALS de actie-balk met powerbar, zodat de target
+   * z'n eigen powermeter ook niet scherp kan timen. De wobble is een
+   * onregelmatige translate-animatie die de bar lijkt te laten zwabberen. */
+  #wrap.wodka-blur > #shake > canvas {
+    filter: blur(8px);
+    transition: filter 0.6s ease-out;
+  }
+  #wrap.wodka-blur #actionBar {
+    filter: blur(6px) saturate(1.3) hue-rotate(-5deg);
+    transition: filter 0.6s ease-out;
+    animation: wodkaWobble 2.4s ease-in-out infinite;
+    transform-origin: 50% 50%;
+  }
+  #wrap.wodka-blur #actionBar .inner {
+    animation: wodkaWobbleInner 1.9s ease-in-out infinite;
+  }
+  /* Bij uitschakelen netjes terug naar normaal */
+  #actionBar {
+    transition: filter 0.4s ease-out;
+  }
+  @keyframes wodkaWobble {
+    0%   { transform: translate( 0px,  0px) rotate( 0deg); }
+    15%  { transform: translate(-10px, -6px) rotate(-1.2deg); }
+    32%  { transform: translate( 12px,  4px) rotate( 1.4deg); }
+    50%  { transform: translate(-6px,  8px) rotate(-0.8deg); }
+    67%  { transform: translate( 8px, -10px) rotate( 1.0deg); }
+    82%  { transform: translate(-12px,  2px) rotate(-0.6deg); }
+    100% { transform: translate( 0px,  0px) rotate( 0deg); }
+  }
+  @keyframes wodkaWobbleInner {
+    0%   { transform: translate( 0px,  0px) skewX(0deg); }
+    20%  { transform: translate( 6px, -4px) skewX( 1.5deg); }
+    40%  { transform: translate(-4px,  6px) skewX(-1.2deg); }
+    60%  { transform: translate( 8px,  3px) skewX( 0.8deg); }
+    80%  { transform: translate(-6px, -5px) skewX(-1.8deg); }
+    100% { transform: translate( 0px,  0px) skewX(0deg); }
+  }
+
+  /* Saboteur — naast de verborgen gouden zone schuift de héle powerbar én
+   * het 'POWER'-label van links naar rechts (en terug). De animaties hebben
+   * verschillende durations zodat ze NIET synchroon lopen — bar en tekst
+   * lijken los van elkaar te zwabberen, wat het richten extra lastig maakt.
+   * De translate-range is gebaseerd op een fractie van de container-breedte
+   * (max 18 % opzij) zodat 't op elk scherm goed leesbaar/storend is. */
+  #wrap.saboteur-active #powerWrap {
+    animation: saboteurSlide 3.2s ease-in-out infinite;
+  }
+  #wrap.saboteur-active #powerLabel {
+    animation: saboteurLabel 2.1s ease-in-out infinite;
+  }
+  @keyframes saboteurSlide {
+    0%   { transform: translateX(-16%); }
+    50%  { transform: translateX( 16%); }
+    100% { transform: translateX(-16%); }
+  }
+  @keyframes saboteurLabel {
+    0%   { transform: translateX( 22%); }
+    50%  { transform: translateX(-22%); }
+    100% { transform: translateX( 22%); }
+  }
+
+  /* Mulligan-toast (groot midden-scherm) */
+  #mulliganToast {
+    position: absolute;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.6);
+    background: rgba(246,215,122,0.96);
+    color: #0b1e3f;
+    border-radius: 18px;
+    padding: 16px 26px;
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.2s ease-out, transform 0.3s cubic-bezier(.34,1.56,.64,1);
+  }
+  #mulliganToast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
   /* ===== Pass-the-phone — large, readable from across the table ===== */
   #pass .who {
     font-size: clamp(28px, 7vw, 50px);
@@ -924,21 +1356,69 @@
     transform: translate(-50%, -50%) scale(1) rotate(-4deg);
   }
 
+  /* Shot-banger — bij plons: aantal shots dat gedronken moet worden knalt
+   * herhaaldelijk in beeld, in dezelfde stijl als SALIRE/LONGA. Looping
+   * animatie tot de gebruiker doorklikt (advanceToNextPlayer haalt 'm weg). */
+  #shotBanger {
+    position: absolute;
+    left: 50%; top: 48%;
+    transform: translate(-50%, -50%) scale(0.3) rotate(-8deg);
+    color: #ff8a8a;
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    font-size: clamp(64px, 18vw, 170px);
+    font-weight: bold;
+    letter-spacing: 6px;
+    text-shadow:
+      0 0 36px rgba(255,90,90,0.95),
+      0 6px 24px rgba(0,0,0,0.75),
+      4px 6px 0 #4a0808;
+    opacity: 0;
+    pointer-events: none;
+    /* z-index hoog genoeg om bovenop het pass-overlay (.overlay) te zweven —
+     * .overlay heeft geen expliciete z-index dus default stacking volgt DOM-
+     * order; we gooien er 200 op zodat we zeker boven het fail-menu zitten
+     * maar onder de picker (z=9999) en corner-controls. */
+    z-index: 200;
+    white-space: nowrap;
+    -webkit-text-stroke: 2px #4a0808;
+  }
+  #shotBanger.banging {
+    animation: shotBang 1.5s ease-in-out infinite;
+  }
+  @keyframes shotBang {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.25) rotate(-10deg); }
+    18%  { opacity: 1; transform: translate(-50%, -50%) scale(1.18) rotate(-6deg); }
+    32%  { opacity: 1; transform: translate(-50%, -50%) scale(0.96) rotate(-3deg); }
+    48%  { opacity: 1; transform: translate(-50%, -50%) scale(1.06) rotate(-5deg); }
+    66%  { opacity: 1; transform: translate(-50%, -50%) scale(1.0)  rotate(-3deg); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.4)  rotate( 8deg); }
+  }
+
+  /* Launch-toast (PERFECT/GOED/NET NIET TE VEEL TEGENWIND etc.) — geplaatst
+   * ONDER de powerbar, in de strook tussen de bar en de schermrand. Kleiner
+   * lettertype dan voorheen zodat lange teksten in één regel passen. */
   #launchToast {
     position: absolute;
-    left: 50%; top: 28%;
-    transform: translate(-50%, -50%) scale(0.4);
+    left: 50%;
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    transform: translateX(-50%) scale(0.6);
     color: #f6d77a;
-    font-size: clamp(40px, 12vw, 90px);
+    font-size: clamp(20px, 4.6vw, 38px);
     font-weight: bold;
-    letter-spacing: 4px;
-    text-shadow: 0 4px 18px rgba(0,0,0,0.6), 0 0 28px rgba(246,215,122,0.6);
+    letter-spacing: 3px;
+    text-shadow: 0 3px 12px rgba(0,0,0,0.65), 0 0 18px rgba(246,215,122,0.55);
     opacity: 0;
     pointer-events: none;
     z-index: 6;
+    white-space: nowrap;
+    max-width: 96vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
     transition: opacity 0.25s, transform 0.35s cubic-bezier(.2,1.6,.4,1);
   }
-  #launchToast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #launchToast.show { opacity: 1; transform: translateX(-50%) scale(1); }
 
   /* ===== Scoreboard ===== */
   .scoreboard {
@@ -1010,6 +1490,11 @@
         </div>
         <div id="powerLabel">POWER</div>
       </div>
+      <button id="puBtn" class="pu-big-btn" type="button" aria-label="Power-up gebruiken" disabled data-interactive>
+        <span class="pu-big-icon">⭐</span>
+        <span class="pu-big-label">POWER-UP</span>
+        <span class="token-count" id="puTokenCount" hidden>0</span>
+      </button>
       <div id="buttonRow">
         <button id="climbBtn" class="action-btn" type="button">
           <span class="label">POWER</span>
@@ -1027,6 +1512,7 @@
 
   <div id="launchToast"></div>
   <div id="wordBanner"></div>
+  <div id="shotBanger"></div>
   <div id="achievement">
     <div class="ach-title">ACHIEVEMENT</div>
     <div class="ach-name">—</div>
@@ -1037,6 +1523,22 @@
     <button class="icon-btn" id="layoutToggle" aria-label="Layout wisselen" title="Layout: mobiel ↔ desktop">📱</button>
     <button class="icon-btn" id="castBtn" aria-label="Cast naar TV" title="Cast naar TV">📺</button>
     <button class="icon-btn" id="soundToggle" aria-label="Geluid aan/uit" title="Geluid">🔊</button>
+  </div>
+
+  <!-- Active buffs / debuffs strip (verschijnt tijdens beurt) -->
+  <div id="activeBuffs"></div>
+
+  <!-- Mulligan-toast (gratis retry na plons) -->
+  <div id="mulliganToast">MULLIGAN!</div>
+
+  <!-- Power-up picker overlay -->
+  <div id="puPicker" hidden data-interactive>
+    <div class="pu-card" data-interactive>
+      <h2>POWER-UP KIEZEN</h2>
+      <div class="pu-sub" id="puPickerSub">Eén keer per beurt</div>
+      <div class="pu-grid" id="puGrid"></div>
+      <button class="btn secondary pu-cancel" id="puCancelBtn">ANNULEREN</button>
+    </div>
   </div>
 
   <!-- Cast-uitleg popup (fallback voor browsers zonder Presentation API) -->
@@ -1066,7 +1568,7 @@
 
   <!-- Setup -->
   <div id="setup" class="overlay">
-<img class="logo" src="logo.png" alt="SPL — Salire Perticea Longa" onerror="this.style.display='none'" />
+<img class="logo setup-logo" src="logo.png" alt="SPL — Salire Perticea Longa" onerror="this.style.display='none'" />
     <h1>FIERLJEPPEN</h1>
     <div class="latin">— Salire Perticea Longa —</div>
     <p>Polsstokverspringen drankspel. Wie de sloot niet haalt: <strong style="color:#ffe091">SHOTJE</strong>.</p>
@@ -1080,6 +1582,18 @@
       </div>
       <div class="count-label">NAMEN</div>
       <div id="nameInputs"></div>
+      <div class="count-label" style="margin-top:8px;">RONDES</div>
+      <div class="count-row">
+        <button class="count-btn" id="roundsMinusBtn" aria-label="Minder rondes" type="button">–</button>
+        <div class="count-display" id="roundsDisplay">10</div>
+        <button class="count-btn" id="roundsPlusBtn" aria-label="Meer rondes" type="button">+</button>
+      </div>
+      <div class="count-label" style="margin-top:8px;">MOEILIJKHEID</div>
+      <div class="diff-row" id="diffPicker">
+        <button class="diff-btn" data-diff="makkie"   type="button">MAKKIE<small>brede sloot</small></button>
+        <button class="diff-btn" data-diff="doenlijk" type="button">DOENLIJK<small>tussenweg</small></button>
+        <button class="diff-btn selected" data-diff="pittig" type="button">PITTIG<small>standaard</small></button>
+      </div>
       <button class="btn big" id="startBtn">START</button>
       <button class="btn secondary" id="openCharsBtn" type="button" hidden>👤 BEHEER KARAKTERS</button>
     </div>
@@ -1312,6 +1826,39 @@ window.addEventListener('orientationchange', () => {
 });
 
 resize();
+
+/* ============================================================================
+ *  GEHEIME CHEAT 2: Hidde-unlock
+ *  --------------------------------------------------------------------------
+ *  Hidde mag normaal nooit halen (easter egg). De geheime switch:
+ *    → tik 5× op het SPL-logo op het setup-scherm BINNEN 3 seconden
+ *    → toggle localStorage 'spl_hidde_unlocked' (0/1)
+ *  Bij elke toggle een toast zodat duidelijk is wat er gebeurd is.
+ * ============================================================================ */
+(function setupHiddeUnlockCheat() {
+  const LOGO_KEY = 'spl_hidde_unlocked';
+  const setupLogo = document.querySelector('.setup-logo');
+  if (!setupLogo) return;
+  let taps = [];
+  const WINDOW_MS = 3000;
+  const REQUIRED  = 5;
+  setupLogo.addEventListener('click', () => {
+    const now = performance.now();
+    taps.push(now);
+    taps = taps.filter(t => now - t <= WINDOW_MS);
+    if (taps.length >= REQUIRED) {
+      taps = [];
+      const cur = lsGet(LOGO_KEY, '0') === '1';
+      const next = !cur;
+      lsSet(LOGO_KEY, next ? '1' : '0');
+      if (typeof showAchievement === 'function') {
+        showAchievement(next
+          ? '🤫 Hidde mag meespelen…'
+          : 'Hidde haalt \'t weer nooit');
+      }
+    }
+  });
+})();
 
 /* ----------------------------- Image assets ----------------------------- */
 const IMG = {
@@ -1645,15 +2192,80 @@ const BASE_DIST_SLOPE  = 5.5;
  *   • Sweep-periodes ~halveren over de rondes (was 2200→850, nu 1500→425).
  *   • Zone-start smaller én halveert verlies-per-clear sneller.
  *   • Sloot-uitbreiding per clear bijna verdubbeld (0.45 → 0.80 m). */
+/* Aantal speel-rondes per game — instelbaar in het setup-scherm (3-20).
+ * Default 10. localStorage 'spl_rounds' bewaart de keuze tussen sessies. */
+const ROUNDS_MIN = 3;
+const ROUNDS_MAX = 20;
+const ROUNDS_DEFAULT = 10;
+const ROUNDS_KEY = 'spl_rounds';
+let MAX_ROUNDS   = ROUNDS_DEFAULT;
 const SWEEP_PERIODS  = [1500, 1150, 900, 700, 550, 425];
 const PERFECT_WIDTHS = [0.32, 0.24, 0.18, 0.14, 0.10, 0.08];
 
 const DITCH_START_M = 4.0;
-const DITCH_PER_CLEAR_M = 0.80;      // was 0.45
-const DITCH_CAP_M = 14.0;            // iets hogere ceiling om langere sessies te kunnen halen
-const ZONE_START = 0.32;             // was 0.42
-const ZONE_PER_CLEAR = 0.032;        // was 0.018
-const ZONE_FLOOR = 0.06;             // was 0.10
+const DITCH_CAP_M = 14.0;
+/* Difficulty-profielen — kiesbaar op het setup-scherm. Pittig = de oude
+ * "huidige" balans; Doenlijk en Makkie zijn progressief zachter.
+ *  • ditchPerClear   = meters sloot-aanwas per geslaagde sprong
+ *  • zonePerClear    = afname van gouden-zone-breedte per cumulatieve clear
+ *  • zoneStart       = beginbreedte gouden zone (fractie van bar)
+ *  • zoneFloor       = onderste limiet zone-breedte
+ *  • sweepStreakMul  = base-period × mul^streak (lager = sneller sweep-up)
+ *  • sweepFloor      = ondergrens sweep-period (ms) — niet onspeelbaar snel  */
+const DIFFICULTY_PROFILES = {
+  makkie: {
+    name: 'Makkie',
+    ditchPerClear: 0.20,
+    zonePerClear:  0.008,
+    zoneStart:     0.42,
+    zoneFloor:     0.20,
+    sweepStreakMul: 0.93,
+    sweepFloor:    380,
+  },
+  doenlijk: {
+    name: 'Doenlijk',
+    ditchPerClear: 0.30,
+    zonePerClear:  0.012,
+    zoneStart:     0.36,
+    zoneFloor:     0.14,
+    sweepStreakMul: 0.90,
+    sweepFloor:    310,
+  },
+  pittig: {
+    name: 'Pittig',
+    ditchPerClear: 0.40,
+    zonePerClear:  0.016,
+    zoneStart:     0.32,
+    zoneFloor:     0.10,
+    sweepStreakMul: 0.85,
+    sweepFloor:    250,
+  },
+};
+const DIFF_KEY = 'spl_difficulty';
+function getDifficulty() {
+  const stored = (typeof lsGet === 'function') ? lsGet(DIFF_KEY, 'pittig') : 'pittig';
+  return DIFFICULTY_PROFILES[stored] ? stored : 'pittig';
+}
+function getDifficultyProfile() {
+  return DIFFICULTY_PROFILES[getDifficulty()];
+}
+/* Aliases voor backward-compat — alle bestaande call-sites lezen deze namen,
+ * we vullen ze runtime in op basis van het gekozen profiel. */
+let DITCH_PER_CLEAR_M = DIFFICULTY_PROFILES.pittig.ditchPerClear;
+let ZONE_START        = DIFFICULTY_PROFILES.pittig.zoneStart;
+let ZONE_PER_CLEAR    = DIFFICULTY_PROFILES.pittig.zonePerClear;
+let ZONE_FLOOR        = DIFFICULTY_PROFILES.pittig.zoneFloor;
+let SWEEP_STREAK_MUL  = DIFFICULTY_PROFILES.pittig.sweepStreakMul;
+let SWEEP_FLOOR_MS    = DIFFICULTY_PROFILES.pittig.sweepFloor;
+function applyDifficultyProfile() {
+  const p = getDifficultyProfile();
+  DITCH_PER_CLEAR_M = p.ditchPerClear;
+  ZONE_START        = p.zoneStart;
+  ZONE_PER_CLEAR    = p.zonePerClear;
+  ZONE_FLOOR        = p.zoneFloor;
+  SWEEP_STREAK_MUL  = p.sweepStreakMul;
+  SWEEP_FLOOR_MS    = p.sweepFloor;
+}
 function ditchMetersForRound(r) {
   // Width depends on cumulative clears, not the round counter. Each successful
   // jump in the game so far widens the next ditch by DITCH_PER_CLEAR_M.
@@ -1729,6 +2341,21 @@ soundToggle.addEventListener('click', () => {
   refreshSoundIcon();
   if (soundOn) sndTap();
   refreshMusic();
+});
+
+/* Power-up button + picker handlers — wiring.
+ * Let op: de cancel-knop heeft GEEN vaste addEventListener — z'n onclick wordt
+ * per stap dynamisch gezet door renderPowerUpStep() / renderTargetStep(), zodat
+ * 'TERUG' op stap 2 terugkeert naar stap 1 ipv de picker te sluiten. */
+const puBtn = document.getElementById('puBtn');
+if (puBtn) puBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  openPowerUpPicker();
+});
+// Click op overlay-achtergrond (buiten de card) sluit de picker
+const puPickerEl = document.getElementById('puPicker');
+if (puPickerEl) puPickerEl.addEventListener('click', (e) => {
+  if (e.target === puPickerEl) closePowerUpPicker();
 });
 
 /* ----------------------------- Background music -----------------------
@@ -1951,7 +2578,8 @@ function vibrate(pattern) {
 /* ----------------------------- Game state ------------------------------- */
 const STATE = {
   SETUP:'setup', READY:'ready', CLIMBING:'climbing',
-  JUMPING:'jumping', LANDED:'landed', PASS:'pass', OVER:'over'
+  JUMPING:'jumping', LANDED:'landed', PASS:'pass',
+  CELEBRATION:'celebration', OVER:'over'
 };
 let state = STATE.SETUP;
 let players = [];
@@ -1972,11 +2600,367 @@ let totalShots = 0;
 let totalClears = 0;             // cumulative successful jumps, drives ditch widening
 let clearStreakSinceFail = 0;    // resets on any fail, drives sweep-speed multiplier
 let lastLaunchMeta = null;  // { perfect, power, wind } — used by pass screen
+let lastFailShots = 0;      // # shots dat de laatst-gefailde speler moet drinken
+                            // — gelezen door showPassScreen om de shot-banger
+                            //   in het fail-menu te starten
+let celebration = null;     // { winner, startTime, duration } — actieve celebration-state
+                            // wordt door drawCelebration() gelezen en draait 5s
 let recentClearStreak = {}; // playerIdx -> consecutive clears
 let timeScale = 1;          // slow-mo factor
 let slowmoUntil = 0;
 let shakeUntil = 0;
 let shakeMag = 0;
+
+/* =============================================================================
+ *  POWER-UPS — 8 cards, 4 defensive + 4 offensive
+ * -----------------------------------------------------------------------------
+ *  Verdienen:
+ *    • Streak-hartjes: elke geslaagde sprong = +1 hartje, PERFECT = +2 hartjes.
+ *    • Plons resets de hartjes naar 0.
+ *    • Bij 3 hartjes verdien je 1 token; overschot blijft staan (dus 2 perfects
+ *      = 4 hartjes = 1 token + 1 hartje staat klaar).
+ *  Gebruiken:
+ *    • Tijdens je READY-state (vóór de sweep start) tik je de ⭐ in cornerControls.
+ *    • Defensive PU = direct toegepast op JOUW beurt (zone, sweep, wind, mulligan).
+ *    • Offensive PU = staat klaar voor de VOLGENDE speler in pass-volgorde.
+ *  Per beurt max 1 power-up gebruik.
+ * ===========================================================================*/
+/* Token-economy — getuned op 2× sneller dan v1:
+ *   • Clear = 2 hartjes (was 1)
+ *   • Perfect = 4 hartjes (was 2) + 1 instant token
+ *   • 3 hartjes = 1 streak-token (overschot blijft staan)
+ * Netto: 1 perfect levert 2 tokens op + 1 hartje, 2 clears = 1 token, 3 clears = 2 tokens. */
+const TOKENS_PER_STREAK = 3;
+const HEARTS_PER_CLEAR  = 2;            // normale clear-bonus
+const PERFECT_HEARTS    = 4;            // perfect = extra hartjes-boost
+/* Per power-up:
+ *   cost   = aantal tokens dat de gebruiker betaalt
+ *   stacks = true → meerdere instances stapelen het effect (multiplicatief
+ *            voor multipliers, additief voor shot-penalty / mulligan-retries) */
+/* Token-kosten gebalanceerd naar effect-sterkte:
+ *   1 ⭐ — milde / voorwaardelijke boost (Windschot, Mulligan)
+ *   2 ⭐ — degelijke help / vaste disruptie (Brede Zone, Saboteur)
+ *   3 ⭐ — zware impact (Sluwe Vos 50% trager, Wodka chaos,
+ *          Zwaardere Borrel combo, Dubbele Shot extreme penalty) */
+const POWERUPS = [
+  { id: 'mulligan',         row: 0, col: 0, type: 'def', cost: 1, stacks: true,  name: 'Mulligan',         desc: 'Plons → één gratis retry' },
+  { id: 'windschot',        row: 0, col: 1, type: 'def', cost: 1, stacks: false, name: 'Windschot',        desc: 'Wind = 0 dit beurt' },
+  { id: 'brede-zone',       row: 0, col: 2, type: 'def', cost: 2, stacks: true,  name: 'Brede Zone',       desc: 'Gouden zone +40%' },
+  { id: 'sluwe-vos',        row: 0, col: 3, type: 'def', cost: 3, stacks: true,  name: 'Sluwe Vos',        desc: 'Sweep 100% trager' },
+  { id: 'saboteur',         row: 1, col: 0, type: 'off', cost: 2, stacks: false, name: 'Saboteur',         desc: 'Target: zone onzichtbaar' },
+  { id: 'wodka',            row: 1, col: 1, type: 'off', cost: 3, stacks: false, name: 'Wodka',            desc: 'Target: wazig scherm + wobble' },
+  { id: 'dubbele-shot',     row: 1, col: 2, type: 'off', cost: 3, stacks: true,  name: 'Dubbele Shot',     desc: 'Plons target = +1 shot per stack' },
+  { id: 'zwaardere-borrel', row: 1, col: 3, type: 'off', cost: 3, stacks: true,  name: 'Zwaardere Borrel', desc: 'Target: sloot +10% & sweep +30%' },
+  // TOP-tier: aparte PNG (Helikopterview.png), gouden glow in picker. Sweep
+  // overgeslagen → gegarandeerde PERFECT bij eerstvolgende launch-tik.
+  { id: 'helikopterview',   iconSrc: 'Helikopterview.png', type: 'def', cost: 5, stacks: false, top: true, name: 'Helikopterview', desc: 'Marker staat stil op PERFECT — gegarandeerde clear' },
+  // SCREW-YOU-ALL nuke: iedere tegenstander krijgt direct +1 shot. CSS-icon
+  // (rode skull-gradient) — geen PNG nodig. Geen target-pick stap want het
+  // raakt iedereen automatisch. Top-tier prijskaartje.
+  { id: 'friese-vloek',     iconSrc: 'screw-you-all.png',  type: 'off', cost: 10, stacks: false, top: true, allTargets: true, name: 'Friese Vloek', desc: 'Iedere tegenstander: +1 shot direct' },
+  // SCHONE LEI: reset zone-width naar ZONE_START én sweep terug naar base
+  // (geen streak-versnelling) voor deze beurt. Safety-net wanneer de sloot
+  // smaller wordt dan speelbaar. CSS-icon (gouden refresh-pijl).
+  { id: 'schone-lei',       iconSrc: 'css-refresh',        type: 'def', cost: 3, stacks: false, name: 'Schone Lei',     desc: 'Reset: zone wijd, sweep traag (deze beurt)' },
+];
+const POWERUP_BY_ID = Object.fromEntries(POWERUPS.map(p => [p.id, p]));
+// (geen per-beurt throttle meer — speler mag zoveel PUs gebruiken als-ie
+//  tokens heeft en kan ze stapelen)
+
+/* Hearts + token award. Aangeroepen vanuit resolveJump op success.
+ * Refresht direct de ⭐-badge zodat de gebruiker LIVE z'n token-aanwas ziet.
+ *
+ * Reward-tiers:
+ *  • PERFECT (hart van de powerbar):
+ *      → +1 token DIRECT (instant bonus voor pin-point timing)
+ *      → +2 hartjes (telt nog steeds dubbel mee in de streak)
+ *  • Normale clear: +1 hartje
+ *  • Bij elke 3 hartjes: +1 streak-token (overschot blijft staan)
+ *  • Plons elders: hartjes terug naar 0 (zie resetHearts) */
+function awardHearts(p, isPerfect) {
+  if (isPerfect) {
+    // Direct token cadeau voor het raken van het hart van de powerbar
+    p.tokens = (p.tokens || 0) + 1;
+    showAchievement('⭐ PERFECT TIMING! +1 token');
+  }
+  const inc = isPerfect ? PERFECT_HEARTS : HEARTS_PER_CLEAR;
+  p.hearts = (p.hearts || 0) + inc;
+  while (p.hearts >= TOKENS_PER_STREAK) {
+    p.hearts -= TOKENS_PER_STREAK;
+    p.tokens = (p.tokens || 0) + 1;
+    showAchievement('⭐ Streak-token verdiend!');
+  }
+  refreshTokenUI();
+}
+function resetHearts(p) { p.hearts = 0; refreshTokenUI(); }
+
+/* Troost-token: na 2 plonzen op rij krijg je een token cadeau. Reset bij
+ * eerstvolgende clear. Aparte teller, los van de heart-streak. */
+function bumpFailAndMaybeAwardConsolation(p) {
+  p.failsInRow = (p.failsInRow || 0) + 1;
+  if (p.failsInRow >= 2) {
+    p.failsInRow = 0;
+    p.tokens = (p.tokens || 0) + 1;
+    showAchievement('🥃 Troost-token: 2× nat = 1 ⭐');
+    refreshTokenUI();
+  }
+}
+function resetFailStreak(p) { p.failsInRow = 0; }
+
+/* UI: token-counter + ⭐-knop staat */
+function refreshTokenUI() {
+  const cur = players[currentIdx];
+  const btn = document.getElementById('puBtn');
+  const badge = document.getElementById('puTokenCount');
+  if (!btn || !cur) return;
+  const tokens = cur.tokens || 0;
+  const inActiveTurn = (state === STATE.READY) && tokens > 0;
+  btn.disabled = !inActiveTurn;
+  btn.classList.toggle('has-tokens', inActiveTurn);
+  if (tokens > 0) {
+    badge.hidden = false;
+    badge.textContent = String(tokens);
+  } else {
+    badge.hidden = true;
+  }
+}
+
+/* Picker — twee stappen:
+ *   Stap A: kies power-up (4×2 grid uit POWERUPS).
+ *   Stap B (alleen bij offensive PU): kies tegen welke speler je 'm gebruikt.
+ * Tokens worden pas verbruikt bij Stap-B confirm of bij defensive-keuze. */
+function openPowerUpPicker() {
+  const cur = players[currentIdx];
+  if (!cur || (cur.tokens || 0) <= 0) return;
+  if (state !== STATE.READY) return;
+  renderPowerUpStep();
+  document.getElementById('puPicker').hidden = false;
+}
+function closePowerUpPicker() {
+  document.getElementById('puPicker').hidden = true;
+}
+
+function renderPowerUpStep() {
+  const cur = players[currentIdx];
+  const grid = document.getElementById('puGrid');
+  const sub  = document.getElementById('puPickerSub');
+  const titleEl = document.querySelector('#puPicker h2');
+  const cancelBtn = document.getElementById('puCancelBtn');
+
+  titleEl.textContent = 'POWER-UP KIEZEN';
+  sub.textContent = `Je hebt ${cur.tokens} token${cur.tokens === 1 ? '' : 's'} — kies één power-up`;
+  cancelBtn.textContent = 'ANNULEREN';
+  cancelBtn.onclick = closePowerUpPicker;
+
+  grid.innerHTML = POWERUPS.map(pu => {
+    const tooExpensive = (cur.tokens || 0) < pu.cost;
+    const costLabel = `${pu.cost}⭐`;
+    const classes = ['pu-slot'];
+    if (tooExpensive) classes.push('too-expensive');
+    if (pu.top) classes.push('top-tier');
+    return `
+    <div class="${classes.join(' ')}" data-pu="${pu.id}" data-interactive role="button" tabindex="0" aria-disabled="${tooExpensive}">
+      <div class="pu-icon"></div>
+      <div class="pu-name">${pu.name}</div>
+      <div class="pu-desc">${pu.desc}</div>
+      <span class="pu-type ${pu.type === 'def' ? 'def' : 'off'}">${pu.type === 'def' ? 'JEZELF · ' : 'TARGET · '}${costLabel}</span>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('.pu-slot').forEach(el => {
+    const puId = el.dataset.pu;
+    const pu = POWERUP_BY_ID[puId];
+    const tooExpensive = (cur.tokens || 0) < (pu ? pu.cost : 1);
+    const onSelect = () => { if (!tooExpensive) choosePowerUp(puId); };
+    el.addEventListener('click', onSelect);
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); }
+    });
+  });
+}
+
+function renderTargetStep(puId) {
+  const pu = POWERUP_BY_ID[puId];
+  if (!pu) return;
+  const grid = document.getElementById('puGrid');
+  const sub  = document.getElementById('puPickerSub');
+  const titleEl = document.querySelector('#puPicker h2');
+  const cancelBtn = document.getElementById('puCancelBtn');
+
+  titleEl.textContent = `${pu.name.toUpperCase()} — KIES TARGET`;
+  sub.textContent = 'Op wie verspil je deze power-up?';
+  cancelBtn.textContent = 'TERUG';
+  cancelBtn.onclick = renderPowerUpStep;
+
+  // Alle andere spelers; current zelf uitsluiten
+  const targets = players
+    .map((p, idx) => ({ p, idx }))
+    .filter(({ idx }) => idx !== currentIdx);
+
+  grid.innerHTML = targets.map(({ p, idx }) => {
+    const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
+    return `
+      <div class="pu-slot target-slot" data-target="${idx}" data-interactive role="button" tabindex="0">
+        <div class="target-avatar">${escapeHtml(initial)}</div>
+        <div class="pu-name">${escapeHtml(p.name)}</div>
+        <div class="pu-desc">${p.shots}🥃  ·  ${p.cleared} ✓</div>
+      </div>
+    `;
+  }).join('');
+  grid.querySelectorAll('.target-slot').forEach(el => {
+    const onSelect = () => finalizePowerUp(puId, parseInt(el.dataset.target, 10));
+    el.addEventListener('click', onSelect);
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); }
+    });
+  });
+}
+
+/* Stap A → Stap B (offensive) of direct apply (defensive) */
+function choosePowerUp(puId) {
+  const pu = POWERUP_BY_ID[puId];
+  if (!pu) return;
+  const cur = players[currentIdx];
+  if (!cur || (cur.tokens || 0) < pu.cost) return;
+  // allTargets PU (Friese Vloek) raakt iedereen → geen target-pick, direct apply
+  if (pu.allTargets) {
+    finalizePowerUp(puId, null);
+    return;
+  }
+  if (pu.type === 'def') {
+    finalizePowerUp(puId, null);
+  } else {
+    // 2-player edge case: maar 1 mogelijke target → direct toepassen
+    if (players.length === 2) {
+      const onlyTargetIdx = (currentIdx + 1) % 2;
+      finalizePowerUp(puId, onlyTargetIdx);
+      return;
+    }
+    renderTargetStep(puId);
+  }
+}
+
+/* Definitief toepassen: tokens × cost verbruiken + buff/debuff stacken */
+function finalizePowerUp(puId, targetIdx) {
+  const pu = POWERUP_BY_ID[puId];
+  if (!pu) return;
+  const cur = players[currentIdx];
+  if (!cur || (cur.tokens || 0) < pu.cost) return;
+  cur.tokens -= pu.cost;
+  closePowerUpPicker();
+
+  // SCREW-YOU-ALL: iedere tegenstander krijgt DIRECT +1 shot. Geen buffs, geen
+  // wachten op hun beurt — gewoon hier-en-nu drinken.
+  if (pu.allTargets) {
+    let hit = 0;
+    players.forEach((pl, idx) => {
+      if (idx === currentIdx) return;
+      pl.shots += 1;
+      totalShots += 1;
+      hit++;
+    });
+    showLaunchToast(`💀 ${pu.name.toUpperCase()} — ${hit}× SHOTJE!`, '#ff8a8a', 2700);
+    if (typeof triggerShake === 'function') triggerShake(360, 18);
+    if (typeof vibrate === 'function') vibrate([60, 40, 80, 40, 60]);
+    // Rode confetti-explosie — sadistische bevestiging dat iedereen de pineut is
+    spawnFrieseVloekBlast();
+    renderActiveBuffsStrip();
+    refreshTokenUI();
+    // Update totalShots HUD-veld zodat de drinker-counter direct klopt
+    if (typeof totalShotsEl !== 'undefined' && totalShotsEl) totalShotsEl.textContent = totalShots;
+    return;
+  }
+
+  if (pu.type === 'def') {
+    addBuffStack(cur, puId, 1);
+    configureDifficulty();
+    positionPerfectZone();
+    refreshSaboteurOverlay();
+    showLaunchToast(`${pu.name.toUpperCase()} ACTIEF`, '#87e89a');
+  } else {
+    const target = players[targetIdx];
+    if (!target) return;
+    addPendingDebuffStack(target, puId, 1);
+    showLaunchToast(`${pu.name.toUpperCase()} → ${target.name}`, '#ff8a8a');
+  }
+  renderActiveBuffsStrip();
+  refreshTokenUI();
+}
+
+/* Helpers: buff-aanwezigheid + stack-count.
+ * activeBuffs is Map<id, count> — count = aantal keer dat deze buff/debuff
+ * geactiveerd is (zelf of door meerdere tegenstanders). */
+function hasBuff(id) {
+  return buffStack(id) > 0;
+}
+function buffStack(id) {
+  const cur = players[currentIdx];
+  if (!cur || !cur.activeBuffs) return 0;
+  return cur.activeBuffs.get(id) || 0;
+}
+function addBuffStack(target, id, n = 1) {
+  if (!target) return;
+  if (!target.activeBuffs) target.activeBuffs = new Map();
+  target.activeBuffs.set(id, (target.activeBuffs.get(id) || 0) + n);
+}
+function addPendingDebuffStack(target, id, n = 1) {
+  if (!target) return;
+  if (!target.pendingDebuffs) target.pendingDebuffs = new Map();
+  target.pendingDebuffs.set(id, (target.pendingDebuffs.get(id) || 0) + n);
+}
+function decrementBuff(p, id) {
+  if (!p || !p.activeBuffs) return;
+  const cur = p.activeBuffs.get(id) || 0;
+  if (cur <= 1) p.activeBuffs.delete(id);
+  else p.activeBuffs.set(id, cur - 1);
+}
+function clearBuffs(p) {
+  if (p.activeBuffs) p.activeBuffs.clear();
+}
+
+/* Toon strip met actieve buffs (rechtsboven onder de topbar — naast/onder
+ * cornerControls aan de andere kant van scherm). */
+function renderActiveBuffsStrip() {
+  const el = document.getElementById('activeBuffs');
+  if (!el) return;
+  const cur = players[currentIdx];
+  if (!cur || !cur.activeBuffs) { el.innerHTML = ''; return; }
+  const items = [];
+  cur.activeBuffs.forEach((count, id) => {
+    const pu = POWERUP_BY_ID[id];
+    if (!pu || count <= 0) return;
+    const label = count > 1 ? `${pu.name} ×${count}` : pu.name;
+    items.push(`<span class="buff-pill${pu.type === 'off' ? ' debuff' : ''}" data-pu="${id}">${label}</span>`);
+  });
+  el.innerHTML = items.join('');
+}
+
+/* Saboteur: verberg de gouden zone én laat powerbar+label horizontaal
+ * heen-en-weer zwabberen (CSS keyframes via .saboteur-active class op #wrap). */
+function refreshSaboteurOverlay() {
+  const pz = document.getElementById('perfectZone');
+  const wrap = document.getElementById('wrap');
+  const active = hasBuff('saboteur');
+  if (pz) pz.style.opacity = active ? '0' : '';
+  if (wrap) wrap.classList.toggle('saboteur-active', !!active);
+}
+
+/* Wodka: blur het canvas gedurende de hele sweep.
+ * setWodkaBlur(true)  → add class bij beginSweep
+ * setWodkaBlur(false) → remove class bij launch (CLIMBING→JUMPING) of beurt-einde
+ * De CSS-transition op filter geeft een smooth fade-in/out. */
+function setWodkaBlur(on) {
+  const wrap = document.getElementById('wrap');
+  if (!wrap) return;
+  wrap.classList.toggle('wodka-blur', !!on);
+}
+
+/* Mulligan-toast tonen. */
+function showMulliganToast() {
+  const el = document.getElementById('mulliganToast');
+  if (!el) return;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1400);
+}
 
 /* ----------------------------- Roasts ----------------------------------- */
 const ROASTS = [
@@ -2355,16 +3339,77 @@ CharacterRegistry.onChange(() => {
 });
 
 startBtn.addEventListener('click', () => {
+  // Difficulty-profiel toepassen vóór startGame — anders pakt configureDifficulty
+  // de oude waarden tijdens beginTurn van speler 1.
+  applyDifficultyProfile();
+  // Rondes-keuze ook toepassen → MAX_ROUNDS staat goed voor endGame check
+  // en renderLevelDots toont juiste aantal dots vanaf ronde 1.
+  applyRoundsSetting();
   // Dropdowns replaced the text inputs — read selected display name per row.
   const selects = Array.from(nameInputs.querySelectorAll('select'));
   const names = selects.map((s, i) => (s.value || `Speler ${i+1}`).slice(0, 14));
   saveCachedNames(names);
-  players = names.map(n => ({ name: n, shots: 0, cleared: 0, perfect: 0 }));
+  players = names.map(n => ({
+    name: n, shots: 0, cleared: 0, perfect: 0,
+    tokens: 0, hearts: 0, failsInRow: 0,
+    // Map<powerUpId, stackCount>. Meerdere spelers kunnen dezelfde debuff
+    // op één target stapelen; effecten schalen met de stack-grootte.
+    activeBuffs: new Map(), pendingDebuffs: new Map(),
+  }));
   recentClearStreak = {};
   achievementsGiven = {};
   audio();
   startGame();
 });
+
+/* Difficulty-picker: 3 knoppen, click → localStorage opslaan + visuele state */
+(function setupDifficultyPicker() {
+  const picker = document.getElementById('diffPicker');
+  if (!picker) return;
+  const stored = getDifficulty();
+  picker.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.diff === stored);
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.diff;
+      if (!DIFFICULTY_PROFILES[id]) return;
+      lsSet(DIFF_KEY, id);
+      picker.querySelectorAll('.diff-btn').forEach(b =>
+        b.classList.toggle('selected', b.dataset.diff === id));
+    });
+  });
+})();
+
+/* Rondes-picker: -/+ knoppen, range 3-20, default 10. Persisteert in lsKey. */
+(function setupRoundsPicker() {
+  const display = document.getElementById('roundsDisplay');
+  const minus   = document.getElementById('roundsMinusBtn');
+  const plus    = document.getElementById('roundsPlusBtn');
+  if (!display || !minus || !plus) return;
+  // Laad opgeslagen waarde of fallback default
+  const stored = parseInt(lsGet(ROUNDS_KEY, String(ROUNDS_DEFAULT)), 10);
+  let rounds = isNaN(stored)
+    ? ROUNDS_DEFAULT
+    : Math.max(ROUNDS_MIN, Math.min(ROUNDS_MAX, stored));
+  function refresh() {
+    display.textContent = rounds;
+    minus.disabled = rounds <= ROUNDS_MIN;
+    plus.disabled  = rounds >= ROUNDS_MAX;
+  }
+  function update(delta) {
+    rounds = Math.max(ROUNDS_MIN, Math.min(ROUNDS_MAX, rounds + delta));
+    lsSet(ROUNDS_KEY, String(rounds));
+    refresh();
+  }
+  minus.addEventListener('click', () => update(-1));
+  plus.addEventListener('click',  () => update(+1));
+  refresh();
+})();
+function applyRoundsSetting() {
+  const stored = parseInt(lsGet(ROUNDS_KEY, String(ROUNDS_DEFAULT)), 10);
+  MAX_ROUNDS = isNaN(stored)
+    ? ROUNDS_DEFAULT
+    : Math.max(ROUNDS_MIN, Math.min(ROUNDS_MAX, stored));
+}
 
 /* ----------------------------- Game flow -------------------------------- */
 function startGame() {
@@ -2383,6 +3428,32 @@ function rollWind() {
 
 function beginTurn() {
   resetPlayer();
+  setWodkaBlur(false);   // veiligheid: blur clearen van vorige beurt
+  stopShotBanger();      // veiligheid: shot-banger clearen mocht-ie nog draaien
+  const cur = players[currentIdx];
+  if (cur) {
+    // Reset eventuele defensive-buffs van vorige beurt
+    if (cur.activeBuffs) cur.activeBuffs.clear();
+    else cur.activeBuffs = new Map();
+    // Schuif pending offensive debuffs van vorige spelers door — stack-counts
+    // worden meegenomen (meerdere spelers konden dezelfde debuff queueën).
+    if (cur.pendingDebuffs && cur.pendingDebuffs.size > 0) {
+      let offensiveStackTotal = 0;
+      cur.pendingDebuffs.forEach((count, id) => {
+        cur.activeBuffs.set(id, (cur.activeBuffs.get(id) || 0) + count);
+        const pu = POWERUP_BY_ID[id];
+        if (pu && pu.type === 'off') offensiveStackTotal += count;
+      });
+      cur.pendingDebuffs.clear();
+      // Bij 2+ stacks aan offensive debuffs (van één of meerdere spelers):
+      // grote "Je bent genaaid..." waarschuwing aan de target.
+      if (offensiveStackTotal >= 2) {
+        // 2700 ms = standaard 700 + 2 sec extra zodat de waarschuwing
+        // duidelijk bezinkt voordat de target moet timen.
+        setTimeout(() => showLaunchToast('Je bent genaaid…', '#ff8a8a', 2700), 250);
+      }
+    }
+  }
   configureDifficulty();
   rollWind();
   refreshWindHud();
@@ -2412,6 +3483,10 @@ function beginTurn() {
   totalShotsEl.textContent = totalShots;
   // Geen auto-hide timer meer nodig — tapPrompt is permanent verborgen.
   if (promptHideTimer) clearTimeout(promptHideTimer);
+  // Power-up UI bijwerken: ⭐-knop, badge, actieve-buffs strip, saboteur-overlay
+  refreshTokenUI();
+  renderActiveBuffsStrip();
+  refreshSaboteurOverlay();
 }
 let promptHideTimer = null;
 function resetPlayer() {
@@ -2428,17 +3503,36 @@ function resetPlayer() {
 function configureDifficulty() {
   ditchWidthMeters = ditchMetersForRound(round);
   ditchWidthPx = ditchWidthMeters * PX_PER_M;
+  // ZWAARDERE BORREL (offensive, stacks): sloot ×1.10 per stack
+  const zbStack = buffStack('zwaardere-borrel');
+  if (zbStack > 0) {
+    const ditchMult = Math.pow(1.10, zbStack);
+    ditchWidthPx *= ditchMult;
+    ditchWidthMeters *= ditchMult;
+  }
   ditchEl.textContent = ditchWidthMeters.toFixed(1) + ' m';
-  // Sweep period: base from the round table, then multiplied by 0.8^streak.
-  // Each successful clear since the last fail makes the next sweep 20 % faster.
-  // First fail resets the streak → sweep returns to base speed for that round.
+  // Sweep period: base from the round table, gemodificeerd door difficulty-
+  // profile (SWEEP_STREAK_MUL per clear sinds laatste fail). SCHONE LEI
+  // overschrijft de streak-versnelling: sweep terug naar base voor deze beurt.
   const idx = Math.min(round - 1, SWEEP_PERIODS.length - 1);
   const basePeriod = SWEEP_PERIODS[idx];
-  const SWEEP_FLOOR = 250;        // ms; below this it's unplayably fast (was 350)
-  // 0.70^streak = 30 % sneller per clear binnen dezelfde ronde (was 0.80 = 20 %)
-  sweepPeriod = Math.max(SWEEP_FLOOR, basePeriod * Math.pow(0.70, clearStreakSinceFail));
+  const SWEEP_FLOOR = SWEEP_FLOOR_MS;
+  const effectiveStreak = hasBuff('schone-lei') ? 0 : clearStreakSinceFail;
+  sweepPeriod = Math.max(SWEEP_FLOOR, basePeriod * Math.pow(SWEEP_STREAK_MUL, effectiveStreak));
+  // SLUWE VOS (defensive, stacks): sweep ×3.0 per stack (100% trager per stack)
+  const svStack = buffStack('sluwe-vos');
+  if (svStack > 0) sweepPeriod *= Math.pow(3.0, svStack);
+  // ZWAARDERE BORREL (offensive, stacks): sweep ×0.70 per stack (30% sneller)
+  if (zbStack > 0) sweepPeriod = Math.max(SWEEP_FLOOR, sweepPeriod * Math.pow(0.70, zbStack));
   // Zone width depends on cumulative clears (narrows progressively).
-  perfectWidth = Math.max(ZONE_FLOOR, ZONE_START - totalClears * ZONE_PER_CLEAR);
+  // SCHONE LEI: reset naar ZONE_START — bar is weer breed alsof het begin van
+  // het spel is. Brede Zone-stacks worden hier OVERHEEN nog steeds toegepast.
+  perfectWidth = hasBuff('schone-lei')
+    ? ZONE_START
+    : Math.max(ZONE_FLOOR, ZONE_START - totalClears * ZONE_PER_CLEAR);
+  // BREDE ZONE (defensive, stacks): zone ×1.40 per stack, cap op 0.95
+  const bzStack = buffStack('brede-zone');
+  if (bzStack > 0) perfectWidth = Math.min(0.95, perfectWidth * Math.pow(1.40, bzStack));
   zoneLo = 0.5 - perfectWidth / 2;
   zoneHi = 0.5 + perfectWidth / 2;
 }
@@ -2455,7 +3549,18 @@ function positionPerfectZone() {
 }
 
 function renderLevelDots() {
-  const total = SWEEP_PERIODS.length;
+  const total = MAX_ROUNDS;
+  // Adaptieve dot-grootte: schaalt af bij meer dan ~12 rondes zodat ze passen
+  // binnen 94vw. Lineaire interpolatie tussen 28px (≤10) en 18px (≥20).
+  if (levelDotsEl) {
+    const k = Math.max(0, Math.min(1, (total - 10) / 10));
+    const size = Math.round(28 - k * 10);            // 28 → 18
+    const gap  = Math.round(8  - k * 4);             // 8  → 4
+    const font = Math.round(12 - k * 3);             // 12 → 9
+    levelDotsEl.style.setProperty('--dot-size', size + 'px');
+    levelDotsEl.style.setProperty('--dot-gap',  gap  + 'px');
+    levelDotsEl.style.setProperty('--dot-font', font + 'px');
+  }
   let html = '';
   for (let i = 1; i <= total; i++) {
     let cls = 'level-dot';
@@ -2488,15 +3593,50 @@ function resolveJump(success) {
     p.cleared++;
     totalClears++;
     clearStreakSinceFail++;
-    if (lastLaunchMeta && lastLaunchMeta.perfect) p.perfect++;
+    const wasPerfect = !!(lastLaunchMeta && lastLaunchMeta.perfect);
+    if (wasPerfect) p.perfect++;
+    // Token-hartjes: clear = +1 hartje, PERFECT = +2 hartjes. 3 = 1 token.
+    awardHearts(p, wasPerfect);
+    // Fail-streak resetten zodra hij weer droog blijft
+    resetFailStreak(p);
     // Landing thud first, then the cheery success fanfare — gives the moment
     // a tactile two-beat ("THUD ... TADA!") instead of one flat chord.
     sndLand();
     setTimeout(() => sndSuccess(), 140);
     recentClearStreak[currentIdx] = (recentClearStreak[currentIdx] || 0) + 1;
+    // Bij 3+ clears op rij: bonus confetti-shower als feedback voor de streak
+    if (recentClearStreak[currentIdx] >= 3) spawnStreakBurst();
   } else {
-    p.shots++; totalShots++;
+    // MULLIGAN (defensive, stacks): elke stack = 1 gratis retry. Decrementeer
+    // de stack — bij meerdere mulligans heb je meerdere retries.
+    if (hasBuff('mulligan')) {
+      decrementBuff(p, 'mulligan');
+      showMulliganToast();
+      sndSplash();   // de plons hoor je nog (anders is het te onverwacht)
+      // Korte vertraging voor het toast-effect, dan reset:
+      setTimeout(() => {
+        resetPlayer();
+        state = STATE.READY;
+        // Powerbar / button states resetten
+        if (typeof powerMarker !== 'undefined') powerMarker.style.display = 'none';
+        if (typeof climbBtn !== 'undefined') climbBtn.classList.remove('pressed', 'done');
+        jumpBtn.classList.remove('jump-armed', 'jump-perfect');
+        jumpBtn.classList.add('disabled');
+        renderActiveBuffsStrip();
+      }, 900);
+      return;     // sla shot/streak-update over
+    }
+    // DUBBELE SHOT (offensive, stacks): basis 1 shot + 1 extra shot per stack
+    // (2 stacks van verschillende spelers = 3 shots totaal, etc).
+    const dsStack = buffStack('dubbele-shot');
+    const shotPenalty = 1 + dsStack;
+    p.shots += shotPenalty; totalShots += shotPenalty;
+    // Stash voor het pass-screen — banger pulseert pas wanneer fail-menu opent
+    lastFailShots = shotPenalty;
     clearStreakSinceFail = 0;     // first fail → reset the sweep speed-up
+    resetHearts(p);               // hartjes-streak reset bij plons
+    // Troost-token logica: 2 fails op rij → cadeau-token
+    bumpFailAndMaybeAwardConsolation(p);
     sndSplash();
     recentClearStreak[currentIdx] = 0;
   }
@@ -2522,11 +3662,13 @@ function resolveJump(success) {
  * it's a legacy single-pose image). */
 function setShotIconForPlayer(p) {
   const name = (p && p.name || '').trim().toLowerCase();
-  // Frank gets his own roast video instead of a still frame.
-  if (name === 'frank') {
+  // Easter-eggs: sommige spelers krijgen een persoonlijke roast-video op het
+  // pass-scherm i.p.v. de standaard FAIL-frame still. Map → bestandsnaam.
+  const FAIL_VIDEOS = { frank: 'frank-fail.mp4', hidde: 'hidde-fail.mp4' };
+  if (FAIL_VIDEOS[name]) {
     shotIcon.innerHTML = '';
     const v = document.createElement('video');
-    v.src = 'frank-fail.mp4';
+    v.src = FAIL_VIDEOS[name];
     v.autoplay = true;
     v.playsInline = true;
     v.loop = true;
@@ -2652,6 +3794,15 @@ function showPassScreen(success) {
   }
   nextLine.innerHTML = `Geef door aan <span style="color:#ffe091">${escapeHtml(next.name)}</span> ▶`;
   passOv.classList.remove('hidden');
+
+  // SHOT-BANGER: pas hier (in het fail-menu) starten met pulseren, niet over
+  // de game-scene. Stopt bij klik op passBtn / quitBtn (advanceToNextPlayer
+  // of endGame roepen stopShotBanger aan).
+  if (!success && lastFailShots > 0) {
+    showShotBanger(lastFailShots);
+  } else {
+    stopShotBanger();
+  }
 }
 
 passBtn.addEventListener('click', advanceToNextPlayer);
@@ -2664,60 +3815,361 @@ shareBtn.addEventListener('click', shareResults);
 
 function advanceToNextPlayer() {
   passOv.classList.add('hidden');
+  stopShotBanger();    // shot-banger uitzetten zodra we doorklikken
   currentIdx++;
   if (currentIdx >= players.length) {
     currentIdx = 0;
     round++;
-    if (round > SWEEP_PERIODS.length + 4) { endGame(); return; }
+    if (round > MAX_ROUNDS) { endGame(); return; }
   }
   beginTurn();
 }
 function endGame() {
-  state = STATE.OVER;
+  // ⛳ Celebration: 5s lang winnaar groot in beeld + huilende-losers-confetti.
+  // Daarna pas het standaard game-over scherm met scoreboard + share-knoppen.
   passOv.classList.add('hidden');
+  stopShotBanger();
   hud.classList.add('hidden');
   levelDotsEl.classList.add('hidden');
   actionBar.classList.add('hidden');
   tapPrompt.classList.add('hidden');
   wm.classList.add('hidden');
+  // Sorted nu — we hebben winnaar + losers nodig voor zowel celebration als score
   const sorted = players.slice().sort((a,b) => a.shots - b.shots || b.cleared - a.cleared);
-  let html = '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
-  sorted.forEach((p, i) => {
-    html += `<tr>
-      <td>${i === 0 ? '<span class="crown">👑</span>' : ''}${escapeHtml(p.name)}</td>
-      <td class="cleared">${p.cleared}</td>
-      <td class="shots">${p.shots}</td>
-    </tr>`;
-  });
-  finalBoard.innerHTML = html;
-  overOv.classList.remove('hidden');
+  const winner = sorted[0];
+  const losers = sorted.slice(1);
+
+  state = STATE.CELEBRATION;
+  celebration = { winner, losers, startTime: performance.now(), duration: 5000 };
+  // Eerste burst huilende losers + gouden confetti
+  spawnLoserConfetti(losers);
+  spawnWinnerShower();
+  if (typeof sndCheer === 'function') sndCheer();
+
+  // Blijf gedurende de celebration steeds nieuwe huilende-poppetjes spawnen
+  // (~elke 200ms) zodat het effect doorloopt over de hele 5s.
+  const dropInterval = setInterval(() => spawnLoserConfetti(losers), 220);
+
+  setTimeout(() => {
+    clearInterval(dropInterval);
+    celebration = null;
+    state = STATE.OVER;
+    // Bouw nu het standaard scoreboard
+    let html = '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
+    sorted.forEach((p, i) => {
+      html += `<tr>
+        <td>${i === 0 ? '<span class="crown">👑</span>' : ''}${escapeHtml(p.name)}</td>
+        <td class="cleared">${p.cleared}</td>
+        <td class="shots">${p.shots}</td>
+      </tr>`;
+    });
+    finalBoard.innerHTML = html;
+    overOv.classList.remove('hidden');
+    // Extra confetti-vlaag wanneer het scoreboard verschijnt
+    spawnWinnerShower();
+  }, 5000);
 }
-function shareResults() {
+/* ----- Scorecard delen als PNG-afbeelding -----
+ * Strategie:
+ *  1. Render een 720×1280 PNG van de eindstand op een offscreen canvas
+ *     (navy-bg, gouden randen, kroon voor winnaar, rode shots, groene clears,
+ *     SPL-tagline + URL onderaan).
+ *  2. Probeer Web Share API Level 2 (navigator.share met files: [...])
+ *     — werkt op iOS Safari 15+, Android Chrome 89+, Edge desktop. Gebruiker
+ *     krijgt het native share-sheet en kan WhatsApp kiezen.
+ *  3. Geen image-share support? → download de PNG + open WhatsApp met tekst.
+ *  4. Niet eens download support? → tekst-only deeplink naar WhatsApp.
+ */
+/* Helper: image async loader. Cached zodat repeat-share niet steeds opnieuw
+ * de logo-PNG hoeft te decoden. */
+const _scorecardImgCache = {};
+function loadImageAsync(src) {
+  if (_scorecardImgCache[src]) return Promise.resolve(_scorecardImgCache[src]);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => { _scorecardImgCache[src] = img; resolve(img); };
+    img.onerror = () => resolve(null);   // graceful skip
+    img.src = src;
+  });
+}
+
+async function createScorecardImage() {
+  const CW = 720, CH = 1280;
+  const c = document.createElement('canvas');
+  c.width = CW; c.height = CH;
+  const cx = c.getContext('2d');
+
+  /* ============ Achtergrond + kader =================================== */
+  const bg = cx.createRadialGradient(CW/2, CH*0.35, 60, CW/2, CH*0.5, CH*0.75);
+  bg.addColorStop(0, '#10295a');
+  bg.addColorStop(1, '#06122a');
+  cx.fillStyle = bg;
+  cx.fillRect(0, 0, CW, CH);
+
+  cx.strokeStyle = '#f6d77a';
+  cx.lineWidth = 8;
+  cx.strokeRect(20, 20, CW-40, CH-40);
+  cx.lineWidth = 2;
+  cx.strokeRect(40, 40, CW-80, CH-80);
+
+  /* ============ Logo (async) ========================================== */
+  const logo = await loadImageAsync('logo.png');
+  let titleY = 110;
+  if (logo && logo.naturalWidth) {
+    // Compacter logo om ruimte te maken voor de winnaar-foto
+    const maxH = 150, maxW = CW * 0.45;
+    const scale = Math.min(maxH / logo.naturalHeight, maxW / logo.naturalWidth);
+    const lw = logo.naturalWidth  * scale;
+    const lh = logo.naturalHeight * scale;
+    const lx = (CW - lw) / 2;
+    const ly = 60;
+    cx.drawImage(logo, lx, ly, lw, lh);
+    titleY = ly + lh + 55;
+  }
+
+  /* ============ Titel + sub-tekst ===================================== */
+  cx.fillStyle = '#f6d77a';
+  cx.textAlign = 'center';
+  cx.textBaseline = 'alphabetic';
+  cx.font = 'bold 62px Georgia, serif';
+  cx.fillText('EINDSTAND', CW/2, titleY);
+
+  cx.font = '600 24px Georgia, serif';
+  cx.fillStyle = '#f3eed7';
+  cx.fillText('SPL Fierljeppen', CW/2, titleY + 38);
+
+  cx.font = 'italic 19px Georgia, serif';
+  cx.fillStyle = '#d6cda3';
+  cx.fillText('— Salire Perticea Longa —', CW/2, titleY + 66);
+
+  // Gouden divider
+  const dividerY1 = titleY + 92;
+  cx.strokeStyle = '#f6d77a';
+  cx.lineWidth = 2;
+  cx.beginPath();
+  cx.moveTo(CW*0.22, dividerY1); cx.lineTo(CW*0.78, dividerY1);
+  cx.stroke();
+
+  /* ============ Spelers gesorteerd ==================================== */
+  const sorted = players.slice().sort((a,b) => a.shots - b.shots || b.cleared - a.cleared);
+  const N = sorted.length;
+  const winner = sorted[0];
+
+  /* ============ Winnaar-portret =======================================
+   * Winnaars-sprite (cheer-frame) groot naast een 'WINNAAR'-badge. Geeft
+   * de scorecard direct het 'wie wint?'-moment zonder dat de ontvanger het
+   * scoreboard hoeft te scannen. */
+  const winSectionTop = dividerY1 + 15;
+  const winSectionH   = 220;
+  if (winner) {
+    const wEntry = (typeof getNamedSprite === 'function') ? getNamedSprite(winner.name) : null;
+    if (wEntry && wEntry.img && wEntry.img.complete && wEntry.img.naturalWidth) {
+      const frames = wEntry.frames || 4;
+      const fw = wEntry.img.naturalWidth / frames;
+      const fh = wEntry.img.naturalHeight;
+      const targetH = winSectionH;
+      const targetW = targetH * (fw / fh);
+      const sx = (FRAME_SUCCESS) * fw;
+      const px = CW * 0.22 - targetW / 2;
+      const py = winSectionTop;
+      // Subtiele gouden glow achter winnaar
+      cx.save();
+      const glow = cx.createRadialGradient(
+        CW * 0.22, py + targetH/2, 20,
+        CW * 0.22, py + targetH/2, targetH * 0.7);
+      glow.addColorStop(0, 'rgba(246,215,122,0.35)');
+      glow.addColorStop(1, 'rgba(246,215,122,0)');
+      cx.fillStyle = glow;
+      cx.fillRect(px - 30, py - 20, targetW + 60, targetH + 40);
+      cx.restore();
+      cx.drawImage(wEntry.img, sx, 0, fw, fh, px, py, targetW, targetH);
+    }
+    // 'WINNAAR' badge rechts van sprite
+    cx.save();
+    cx.textAlign = 'left';
+    cx.fillStyle = '#f6d77a';
+    cx.font = 'italic bold 38px Georgia, serif';
+    cx.shadowColor = 'rgba(0,0,0,0.6)';
+    cx.shadowBlur = 10;
+    cx.fillText('WINNAAR', CW * 0.42, winSectionTop + 70);
+    cx.font = 'bold 56px Georgia, serif';
+    cx.fillStyle = '#ffe091';
+    cx.shadowBlur = 14;
+    const maxNameW2 = CW - (CW * 0.42) - 60;
+    let wn = winner.name;
+    if (cx.measureText(wn).width > maxNameW2) {
+      while (wn.length > 2 && cx.measureText(wn + '…').width > maxNameW2) {
+        wn = wn.slice(0, -1);
+      }
+      wn += '…';
+    }
+    cx.fillText(wn, CW * 0.42, winSectionTop + 130);
+    cx.font = 'italic 22px Georgia, serif';
+    cx.fillStyle = '#d6cda3';
+    cx.shadowBlur = 6;
+    cx.fillText(`${winner.cleared} gehaald · ${winner.shots} shots`, CW * 0.42, winSectionTop + 170);
+    cx.restore();
+  }
+
+  /* ============ Kolom-layout =========================================
+   * Vier gutters, allemaal vaste x-posities zodat de kolommen netjes
+   * uitlijnen ongeacht prefix-breedte (👑 vs '2.'):
+   *   • COL_RANK   — rechts-uitgelijnd t.o.v. de rank-symbol
+   *   • COL_NAME   — links-uitgelijnde naam vlak erna
+   *   • COL_CLEARED — rechts-uitgelijnd getal
+   *   • COL_SHOTS  — rechts-uitgelijnd getal */
+  const COL_RANK    = 130;             // einde van rank-gutter (right-align)
+  const COL_NAME    = 155;             // start van naam-tekst (left-align)
+  const COL_CLEARED = CW - 200;        // einde getal (right-align)
+  const COL_SHOTS   = CW - 80;         // einde getal (right-align)
+
+  // Kolom-headers — onder het winnaar-portret
+  let y = winSectionTop + winSectionH + 50;
+  cx.font = 'bold 17px Georgia, serif';
+  cx.fillStyle = '#f6d77a';
+  cx.textAlign = 'left';
+  cx.fillText('SPELER', COL_NAME, y);
+  cx.textAlign = 'right';
+  cx.fillText('GEHAALD', COL_CLEARED, y);
+  cx.fillText('SHOTS',   COL_SHOTS,   y);
+
+  // Header-divider
+  cx.beginPath();
+  cx.moveTo(75, y + 14); cx.lineTo(CW - 75, y + 14);
+  cx.lineWidth = 1.5;
+  cx.strokeStyle = 'rgba(246,215,122,0.6)';
+  cx.stroke();
+
+  /* ============ Rijen ================================================ */
+  // Beschikbare ruimte tussen header en footer; rij-hoogte schaalt met N
+  const footerBlockTop = CH - 165;
+  const rowsAreaTop    = y + 34;
+  const rowsAreaH      = footerBlockTop - rowsAreaTop - 20;
+  const rowH = Math.min(72, Math.max(50, rowsAreaH / Math.max(1, N)));
+  const nameFont = Math.round(Math.min(34, Math.max(22, rowH * 0.46)));
+
+  y = rowsAreaTop + rowH * 0.7;     // baseline van eerste rij (alphabetic)
+
+  sorted.forEach((p, i) => {
+    const isWinner = i === 0;
+    const rowTop = y - rowH * 0.7;
+
+    // Subtiele rij-banding (om-en-om)
+    if (i % 2 === 1) {
+      cx.fillStyle = 'rgba(246,215,122,0.05)';
+      cx.fillRect(70, rowTop, CW - 140, rowH);
+    }
+
+    // Rank-symbol in z'n eigen gutter (right-aligned op COL_RANK)
+    cx.font = `bold ${nameFont}px Georgia, serif`;
+    cx.fillStyle = isWinner ? '#ffe091' : '#bfb792';
+    cx.textAlign = 'right';
+    cx.fillText(isWinner ? '👑' : `${i+1}.`, COL_RANK, y);
+
+    // Naam in eigen gutter (left-aligned op COL_NAME)
+    cx.fillStyle = isWinner ? '#ffe091' : '#f3eed7';
+    cx.textAlign = 'left';
+    const maxNameW = COL_CLEARED - COL_NAME - 30;
+    let displayName = p.name;
+    if (cx.measureText(displayName).width > maxNameW) {
+      while (displayName.length > 2 && cx.measureText(displayName + '…').width > maxNameW) {
+        displayName = displayName.slice(0, -1);
+      }
+      displayName += '…';
+    }
+    cx.fillText(displayName, COL_NAME, y);
+
+    // Cleared (groen) en Shots (rood) — beide right-aligned
+    cx.textAlign = 'right';
+    cx.fillStyle = '#87e89a';
+    cx.fillText(String(p.cleared), COL_CLEARED, y);
+    cx.fillStyle = '#ff8a8a';
+    cx.fillText(String(p.shots), COL_SHOTS, y);
+
+    y += rowH;
+  });
+
+  /* ============ Footer =============================================== */
+  cx.beginPath();
+  cx.moveTo(CW*0.22, footerBlockTop); cx.lineTo(CW*0.78, footerBlockTop);
+  cx.strokeStyle = '#f6d77a';
+  cx.lineWidth = 1.5;
+  cx.stroke();
+
+  cx.font = 'italic 22px Georgia, serif';
+  cx.fillStyle = '#f6d77a';
+  cx.textAlign = 'center';
+  cx.fillText('🥃  Salire Perticea Longa  🌾', CW/2, footerBlockTop + 40);
+  cx.font = 'bold 16px Georgia, serif';
+  cx.fillStyle = '#9ab1d8';
+  cx.fillText('jspaan89.github.io/SPL', CW/2, footerBlockTop + 75);
+
+  return new Promise(resolve => {
+    if (c.toBlob) c.toBlob(b => resolve(b), 'image/jpeg', 0.92);
+    else resolve(null);
+  });
+}
+
+async function shareResults() {
   const sorted = players.slice().sort((a,b) => a.shots - b.shots || b.cleared - a.cleared);
   const winner = sorted[0];
   const drinker = players.slice().sort((a,b) => b.shots - a.shots)[0];
-  const lines = [
+  const text = [
     `🏆 SPL Fierljeppen — ronde ${round}`,
     `Winnaar: ${winner.name} (${winner.cleared} gehaald, ${winner.shots} shots)`,
     `Meeste shots: ${drinker.name} — ${drinker.shots} 🥃`,
     '',
-    'Salire Perticea Longa 🌾'
-  ];
-  const text = lines.join('\n');
-  // Try native share sheet first — includes WhatsApp on iOS / Android
-  if (navigator.share) {
-    navigator.share({ title: 'SPL Fierljeppen', text }).then(
-      () => showAchievement('Uitslag gedeeld!'),
-      (err) => {
-        // User cancelled, or share failed — fall back to WhatsApp deep link
-        if (err && err.name === 'AbortError') return;
-        openWhatsApp(text);
+    'Salire Perticea Longa 🌾',
+    'jspaan89.github.io/SPL'
+  ].join('\n');
+
+  let blob = null;
+  try { blob = await createScorecardImage(); }
+  catch (e) { console.warn('Scorecard render failed:', e); }
+
+  // Web Share Level 2: native share-sheet met afbeelding (iOS 15+/Android Chrome)
+  if (blob && navigator.canShare) {
+    try {
+      const file = new File([blob], 'spl-eindstand.jpg', { type: 'image/jpeg' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'SPL Fierljeppen',
+          text,
+          files: [file],
+        });
+        showAchievement('Uitslag gedeeld!');
+        return;
       }
-    );
-    return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      console.warn('navigator.share met file faalde — fallback:', err);
+    }
   }
-  // Direct WhatsApp deep link fallback
-  openWhatsApp(text);
+
+  // Fallback A: bewaar afbeelding lokaal + open WhatsApp met tekst
+  if (blob) {
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'spl-eindstand.jpg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 800);
+      showAchievement('Eindstand opgeslagen — voeg toe in WhatsApp');
+    } catch (e) { /* ignore */ }
+  }
+
+  // Fallback B: tekst-only deeplink/share
+  if (navigator.share) {
+    navigator.share({ title: 'SPL Fierljeppen', text }).catch(err => {
+      if (err && err.name === 'AbortError') return;
+      openWhatsApp(text);
+    });
+  } else {
+    openWhatsApp(text);
+  }
 }
 function openWhatsApp(text) {
   const url = 'https://wa.me/?text=' + encodeURIComponent(text);
@@ -2772,6 +4224,10 @@ function beginSweep() {
   setJumpBtnState();
   // In-game uitleg-popup verwijderd — de powerbar zelf is de instructie.
   if (tapPrompt) tapPrompt.classList.add('hidden');
+  // ⭐-knop niet meer bruikbaar tijdens sweep
+  refreshTokenUI();
+  // WODKA (offensive): scherm blijft wazig gedurende de hele sweep
+  if (hasBuff('wodka')) setWodkaBlur(true);
 }
 
 function launch() {
@@ -2781,11 +4237,23 @@ function launch() {
   tapPrompt.classList.add('hidden');
   setJumpBtnState();
   jumpBtn.classList.add('disabled');
+  // Wodka-blur opheffen — sprong is gelanceerd, target ziet alles weer scherp
+  setWodkaBlur(false);
+  // Saboteur-wobble ook stoppen na launch (de animatie hoort bij het mikken,
+  // niet bij de luchtshow). Class wordt weer toegevoegd bij volgende beurt
+  // als die speler óók saboteur tegen zich heeft.
+  const wrapEl = document.getElementById('wrap');
+  if (wrapEl) wrapEl.classList.remove('saboteur-active');
 
   const p = player.power;
   const center = 0.5;
   const halfWidth = (zoneHi - zoneLo) / 2;
   const offset = Math.abs(p - center) / halfWidth;   // 0 at zone centre, 1 at zone edge
+
+  // WINDSCHOT (defensive): wind heeft geen effect op de launch deze beurt.
+  // We laten de vlag wel rustig wapperen (atmospheer) maar nullen wind voor
+  // de effective-score berekening hieronder.
+  const effectiveWind = hasBuff('windschot') ? 0 : wind;
 
   /* Band detection — match de visuele 5-segmenten layout (ok-good-perfect):
    *   offset 0..0.12  → PERFECT  (centrale 12 % van gold zone)
@@ -2807,7 +4275,7 @@ function launch() {
    * effective > 0 = landt op gras; effective <= 0 = splash. */
   const ditchEndPx = DITCH_START + ditchWidthPx;
   const gapToClearPx = ditchEndPx - player.x;
-  const effective = Math.max(0, (1 - offset) + wind * 6);
+  const effective = Math.max(0, (1 - offset) + effectiveWind * 6);
   const clears = effective > 0;
 
   let rangePx;
@@ -2818,16 +4286,18 @@ function launch() {
     rangePx = gapToClearPx + marginPastBank;
   } else {
     // Splash. Hoe verder buiten effective-zone, hoe verder vooral kort.
-    const outBy = Math.min(1.5, Math.max(0, offset - 1) + Math.max(0, -wind * 6));
+    const outBy = Math.min(1.5, Math.max(0, offset - 1) + Math.max(0, -effectiveWind * 6));
     const shortfall = ditchWidthPx * (0.15 + outBy * 0.55);
     rangePx = Math.max(W * 0.04, gapToClearPx - shortfall);
   }
 
   /* === EASTER EGG: Hidde haalt het NOOIT. ===
-   * Speler met de naam "Hidde" (case-insensitive, whitespace genegeerd) krijgt
-   * altijd een plons, hoe perfect de timing ook is. */
+   * Speler met de naam "Hidde" krijgt altijd een plons, hoe perfect de timing
+   * ook is — TENZIJ de geheime switch (5× tik op SPL-logo) z'n unlock heeft
+   * gezet in localStorage. Dan speelt-ie als normale speler. */
   const isHidde = /^\s*hidde\s*$/i.test(players[currentIdx].name || '');
-  if (isHidde) {
+  const hiddeUnlocked = lsGet('spl_hidde_unlocked', '0') === '1';
+  if (isHidde && !hiddeUnlocked) {
     rangePx = Math.min(rangePx, gapToClearPx - ditchWidthPx * 0.25);
   }
 
@@ -2855,6 +4325,10 @@ function launch() {
     sndPerfect();
     vibrate([20, 20, 30]);
     burstGlitter(player.x, player.y - CHAR_SCALE * 30);
+    // Gouden confetti-burst boven de speler bij perfecte timing
+    spawnPerfectBurst(player.x, player.y - CHAR_SCALE * 36);
+    // Helikopterview gegarandeerde perfect → mega-burst van confetti
+    if (hasBuff('helikopterview')) spawnHelikopterBurst();
   } else if (inGood && clears) {
     showLaunchToast('GOED!', '#ffe091');
   } else if (clears) {
@@ -2876,6 +4350,33 @@ function unifiedTap() {
   else if (state === STATE.CLIMBING) launch();
 }
 
+/* ============================================================================
+ *  GEHEIME CHEATS
+ *  --------------------------------------------------------------------------
+ *  Cheat 1: tijdens Jarno's beurt → tik op de scheidsrechter = +1 ⭐ token.
+ *           Cooldown 600 ms tegen spam-tapping. Werkt alleen in READY-state
+ *           (niet tijdens de actieve sweep — geen wegnemen van het mikken).
+ * ============================================================================ */
+let lastRefCheatTime = 0;
+const REF_CHEAT_COOLDOWN = 600;
+function tryRefereeCheat(canvasX, canvasY) {
+  if (state !== STATE.READY) return false;
+  const cur = players[currentIdx];
+  if (!cur || !/^\s*jarno\s*$/i.test(cur.name)) return false;
+  if (!lastRefereeBox) return false;
+  const b = lastRefereeBox;
+  if (canvasX < b.x || canvasX > b.x + b.w) return false;
+  if (canvasY < b.y || canvasY > b.y + b.h) return false;
+  const now = performance.now();
+  if (now - lastRefCheatTime < REF_CHEAT_COOLDOWN) return true;  // swallow tap, no token
+  lastRefCheatTime = now;
+  cur.tokens = (cur.tokens || 0) + 1;
+  refreshTokenUI();
+  showAchievement('🤝 Scheidsrechter knipoogt… +1 ⭐');
+  if (typeof vibrate === 'function') vibrate(30);
+  return true;
+}
+
 // Tap anywhere — but only while a turn is actually live.
 function globalTap(e) {
   if (state !== STATE.READY && state !== STATE.CLIMBING) return;
@@ -2883,6 +4384,18 @@ function globalTap(e) {
   const t = e.target;
   if (t && t.closest && t.closest('button, input, select, textarea, a, [data-interactive]')) {
     return;
+  }
+  // GEHEIME CHEAT: vertaal de tap naar canvas-coords en check referee bbox.
+  // Alleen Jarno krijgt tokens; bij andere spelers slaat de check er gewoon
+  // overheen (gameplay-tap valt dan door naar unifiedTap).
+  if (canvas && state === STATE.READY) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = (e.clientX - rect.left) * (canvas.width  / rect.width);
+    const cy = (e.clientY - rect.top)  * (canvas.height / rect.height);
+    if (tryRefereeCheat(cx, cy)) {
+      preventDefaultIfTouch(e);
+      return;   // tap door referee opgegeten — geen sweep starten
+    }
   }
   preventDefaultIfTouch(e);
   unifiedTap();
@@ -2973,31 +4486,106 @@ function burstGlitter(x, y) {
     });
   }
 }
-function spawnConfetti() {
-  const colors = ['#f6d77a', '#ffe091', '#fff', '#87e89a', '#9fd0ff'];
-  for (let i = 0; i < 120; i++) {
+/* spawnConfetti(opts?) — flexibele confetti-spawner.
+ * opts:
+ *   count   = aantal confettideeltjes (default 120)
+ *   colors  = kleurenpalet (default goud/wit/groen/blauw mix)
+ *   origin  = 'top' | 'center' | 'bottom' | {x,y} — startpositie default 'top'
+ *   spread  = 'wide' | 'burst' — wide = over volle breedte, burst = vanaf 1 punt
+ *   power   = velocity-multiplier voor burst-modus (default 1)
+ *   life    = ms-levensduur per deeltje (default 240) */
+function spawnConfetti(opts) {
+  opts = opts || {};
+  const count = opts.count || 120;
+  const colors = opts.colors || ['#f6d77a', '#ffe091', '#fff', '#87e89a', '#9fd0ff'];
+  const spread = opts.spread || 'wide';
+  const life = opts.life || 240;
+  const power = opts.power || 1;
+  // Origin resolven
+  let ox, oy;
+  if (typeof opts.origin === 'object' && opts.origin) {
+    ox = opts.origin.x; oy = opts.origin.y;
+  } else if (opts.origin === 'center') {
+    ox = W * 0.5; oy = H * 0.4;
+  } else if (opts.origin === 'bottom') {
+    ox = W * 0.5; oy = H * 0.85;
+  } else {
+    ox = null; oy = null;   // 'top' = volledige breedte boven beeld
+  }
+  for (let i = 0; i < count; i++) {
+    let x, y, vx, vy;
+    if (spread === 'burst' && ox !== null) {
+      // Radiale explosie vanaf één punt
+      const ang = Math.random() * Math.PI * 2;
+      const speed = (2 + Math.random() * 4) * power;
+      x = ox; y = oy;
+      vx = Math.cos(ang) * speed;
+      vy = Math.sin(ang) * speed - 1.5 * power;   // lichte bias omhoog
+    } else if (ox !== null) {
+      // Wide spread vanaf horizontaal punt
+      x = ox + (Math.random() - 0.5) * W * 0.6;
+      y = oy + (Math.random() - 0.5) * 20;
+      vx = (Math.random() - 0.5) * 2.5 * power;
+      vy = (1.5 + Math.random() * 2) * power;
+    } else {
+      // 'top' — strooi over volle breedte vanaf boven beeld
+      x = W * Math.random();
+      y = -10 - Math.random() * 60;
+      vx = (Math.random() - 0.5) * 2.5 * power;
+      vy = (1.5 + Math.random() * 2) * power;
+    }
     confetti.push({
-      x: W * Math.random(),
-      y: -10 - Math.random()*60,
-      vx: (Math.random()-0.5)*2.5,
-      vy: 1.5 + Math.random()*2,
-      rot: Math.random()*Math.PI*2,
-      vr: (Math.random()-0.5)*0.3,
-      size: 6 + Math.random()*6,
+      x, y, vx, vy,
+      rot: Math.random() * Math.PI * 2,
+      vr:  (Math.random() - 0.5) * 0.3,
+      size: 6 + Math.random() * 6,
       color: colors[i % colors.length],
-      life: 240
+      life,
     });
   }
+}
+
+/* Vooraf-gedefinieerde palette + helper-presets */
+const CONFETTI_PALETTES = {
+  gold:    ['#f6d77a', '#ffe091', '#fff8c5', '#d4a73a'],
+  red:     ['#ff8a8a', '#b71d1d', '#ff4848', '#fff'],
+  green:   ['#87e89a', '#3a8e3a', '#c5f5cf'],
+  rainbow: ['#f6d77a', '#ffe091', '#fff', '#87e89a', '#9fd0ff', '#ff8a8a'],
+};
+function spawnPerfectBurst(x, y) {
+  spawnConfetti({ count: 30, colors: CONFETTI_PALETTES.gold, origin: {x, y}, spread: 'burst', power: 0.85, life: 180 });
+}
+function spawnStreakBurst() {
+  spawnConfetti({ count: 60, colors: CONFETTI_PALETTES.gold, origin: 'top', power: 1.1, life: 220 });
+}
+function spawnFrieseVloekBlast() {
+  spawnConfetti({ count: 140, colors: CONFETTI_PALETTES.red, origin: 'center', spread: 'burst', power: 1.6, life: 280 });
+}
+function spawnHelikopterBurst() {
+  spawnConfetti({ count: 180, colors: CONFETTI_PALETTES.gold, origin: 'center', spread: 'burst', power: 1.4, life: 300 });
+}
+function spawnWinnerShower() {
+  // Twee golven: meteen + na 700ms, voor lekkere langere shower
+  spawnConfetti({ count: 200, colors: CONFETTI_PALETTES.rainbow, origin: 'top', power: 1.0, life: 320 });
+  setTimeout(() => spawnConfetti({ count: 160, colors: CONFETTI_PALETTES.gold, origin: 'top', power: 1.2, life: 320 }), 700);
+  setTimeout(() => spawnConfetti({ count: 140, colors: CONFETTI_PALETTES.rainbow, origin: 'top', power: 0.9, life: 320 }), 1400);
 }
 
 /* ----------------------------- Update ----------------------------------- */
 function update(dt) {
   // Auto power-sweep during the CLIMBING state. Power oscillates 0→1→0.
+  // HELIKOPTERVIEW (top-tier defensive): sweep wordt overgeslagen — power
+  // staat vast op 0.5 (hart van gouden zone). Eén tik launch = gegarandeerde
+  // PERFECT. Echte god-mode power-up.
   if (state === STATE.CLIMBING && sweepStart) {
-    const elapsed = performance.now() - sweepStart;
-    const cycle = elapsed % (sweepPeriod * 2);
-    if (cycle < sweepPeriod) player.power = cycle / sweepPeriod;
-    else                     player.power = 1 - (cycle - sweepPeriod) / sweepPeriod;
+    if (hasBuff('helikopterview')) {
+      player.power = 0.5;
+    } else {
+      const elapsed = performance.now() - sweepStart;
+      const cycle = elapsed % (sweepPeriod * 2);
+      if (cycle < sweepPeriod) player.power = cycle / sweepPeriod;
+      else                     player.power = 1 - (cycle - sweepPeriod) / sweepPeriod;
+    }
     player.climbProgress = player.power;
     player.poleBend = player.power * 0.6;
     setJumpBtnState();
@@ -3228,16 +4816,17 @@ function drawWavingFlag(bankX0, bankOffsetY, scale) {
  * wisselt zonder dat de stoel/paraplu verspringt. */
 const REF_ASSET_W = 1024, REF_ASSET_H = 1536;
 const REF_BASE_ROW = 1373;   // bottom van zichtbare content (grass-tufts onder stoel) — anchor op GROUND_Y zodat de referee even ver "in de grond" staat als de vlaggenmast
+/* Laatste gerenderde scheidsrechter-bbox in canvas-pixels — wordt gebruikt door
+ * de geheime Jarno-cheat (tap referee = +1 token). drawReferee() schrijft 'm
+ * elke frame zodat hit-testing altijd actueel is, ook na resize/rotatie. */
+let lastRefereeBox = null;
 function drawReferee() {
   const handUp = (state === STATE.SETUP || state === STATE.READY || state === STATE.CLIMBING);
   const img = handUp ? IMG.refereeUp : IMG.refereeDown;
   if (!img.complete || !img.naturalWidth) return;
 
   // Render-hoogte: gekoppeld aan SCENE_SCALE zodat de scheidsrechter altijd
-  // dezelfde verhouding met de speler-sprite houdt (was eerder H * 0.28 wat
-  // bij rotatie/resize een andere ratio gaf dan CHAR_SCALE). Multiplier 4.04
-  // (was 5.05) = 0.8× kleinere referee op user-feedback: scheidsrechter
-  // domineerde de scène in portrait.
+  // dezelfde verhouding met de speler-sprite houdt.
   const targetH = SCENE_SCALE * 4.04;
   const s = targetH / REF_ASSET_H;
 
@@ -3250,6 +4839,7 @@ function drawReferee() {
   const drawY = GROUND_Y - REF_BASE_ROW * s;     // grass-base lijnt uit met GROUND_Y
 
   ctx.drawImage(img, drawX, drawY, drawW, drawH);
+  lastRefereeBox = { x: drawX, y: drawY, w: drawW, h: drawH };
 }
 
 function drawGround() {
@@ -3275,10 +4865,15 @@ function drawGround() {
   }
 
   /* ---------- Step 2: WATER laag (bg-water.png) onder GROUND_Y ----------
-   * Full-width gerenderd van GROUND_Y tot canvas-onderkant met een subtiele
-   * golfbeweging — het beeld wordt in 24 verticale strips verdeeld die elk
-   * met een kleine sinus-offset bewegen, zodat het wateroppervlak licht
-   * deint zonder dat de waterlijn naar boven uit GROUND_Y kruipt. */
+   * Full-width gerenderd van GROUND_Y tot canvas-onderkant. Het water deint
+   * met TWEE sinussen die samen een natuurlijk golfpatroon geven:
+   *   1) Lange traag-rollende basis-golf (~2 cycli over de breedte) — geeft
+   *      de "sloot golft" beweging.
+   *   2) Kortere chop-rimpels (~7 cycli, sneller, lagere amplitude) — geeft
+   *      het wateroppervlak textuur en levendigheid.
+   * Strip-count opgevoerd naar 40 voor een gladdere golf-curve. Amplitude
+   * schaalt met de canvas-hoogte (max ~7 px) zodat-ie op zowel mobiel als
+   * desktop goed leesbaar is zonder dat-ie boven GROUND_Y uitkruipt. */
   ctx.fillStyle = '#2e6f7a';
   ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
   if (IMG.bgWater.complete && IMG.bgWater.naturalWidth) {
@@ -3286,13 +4881,20 @@ function drawGround() {
     ctx.beginPath();
     ctx.rect(0, GROUND_Y, W, H - GROUND_Y);
     ctx.clip();
-    const wImg = IMG.bgWater;
-    const strips = 24;
+    const wImg     = IMG.bgWater;
+    const strips   = 40;
     const srcStripW = wImg.naturalWidth / strips;
     const dstStripW = W / strips;
-    const tw = performance.now() * 0.0009;
+    const t         = performance.now();
+    const tRoll     = t * 0.00045;   // langzame basis-golf
+    const tChop     = t * 0.0014;    // snellere chop
+    const ampRoll   = Math.max(3.5, Math.min(7, H * 0.006));
+    const ampChop   = Math.max(1.2, Math.min(2.5, H * 0.0022));
     for (let i = 0; i < strips; i++) {
-      const dy = Math.sin(tw + i * 0.45) * 1.8;   // ~1.8 px deining
+      const u  = i / strips;                                  // 0..1 over breedte
+      const dyRoll = Math.sin(tRoll + u * Math.PI * 2.2) * ampRoll;
+      const dyChop = Math.sin(tChop + u * Math.PI * 7.0) * ampChop;
+      const dy   = dyRoll + dyChop;
       ctx.drawImage(wImg,
         i * srcStripW, 0, srcStripW + 1, wImg.naturalHeight,
         i * dstStripW, GROUND_Y + dy, dstStripW + 1, H - GROUND_Y);
@@ -3636,14 +5238,163 @@ function drawConfetti() {
     ctx.save();
     ctx.translate(c.x, c.y);
     ctx.rotate(c.rot);
-    ctx.fillStyle = c.color;
-    ctx.fillRect(-c.size/2, -c.size/4, c.size, c.size/2);
+    ctx.globalAlpha = Math.max(0, Math.min(1, c.life / 80));
+    if (c.imgFrame) {
+      // Image-confetti (huilende loser-sprites tijdens celebration)
+      const f = c.imgFrame;
+      ctx.drawImage(f.img, f.sx, f.sy, f.sw, f.sh, -f.dw/2, -f.dh/2, f.dw, f.dh);
+    } else {
+      ctx.fillStyle = c.color;
+      ctx.fillRect(-c.size/2, -c.size/4, c.size, c.size/2);
+    }
     ctx.restore();
   }
+  ctx.globalAlpha = 1;
+}
+
+/* Huilende-poppetjes confetti — gebruikt de FAIL-frame (frame 2) van elke
+ * losers-sprite-sheet. Spawnt iedere ~80ms vanuit endGame-celebration. */
+function spawnLoserConfetti(losers) {
+  if (!losers || losers.length === 0) return;
+  for (let k = 0; k < 4; k++) {
+    const loser = losers[Math.floor(Math.random() * losers.length)];
+    const entry = (typeof getNamedSprite === 'function') ? getNamedSprite(loser.name) : null;
+    if (!entry || !entry.img || !entry.img.complete || !entry.img.naturalWidth) continue;
+    const frames = entry.frames || 4;
+    const frameW = entry.img.naturalWidth / frames;
+    const frameH = entry.img.naturalHeight;
+    const dw = 90 + Math.random() * 40;
+    confetti.push({
+      x: W * Math.random(),
+      y: -150 - Math.random() * 200,
+      vx: (Math.random() - 0.5) * 2,
+      vy: 2.0 + Math.random() * 1.6,
+      rot: (Math.random() - 0.5) * 0.6,
+      vr:  (Math.random() - 0.5) * 0.04,
+      life: 360,
+      imgFrame: {
+        img: entry.img,
+        sx: FRAME_FAIL * frameW,
+        sy: 0,
+        sw: frameW,
+        sh: frameH,
+        dw: dw,
+        dh: dw * (frameH / frameW),
+      },
+    });
+  }
+}
+
+/* Volledige celebration-scene: winnaar 'huge & juigend' in midden, 'WINNAAR!'
+ * banner, huilende-loser-confetti die continu blijft spawnen. Wordt 5s lang
+ * door render() aangeroepen ipv de gewone scene wanneer state=CELEBRATION. */
+function drawCelebration() {
+  if (!celebration) return;
+  const t = performance.now() - celebration.startTime;
+
+  // Achtergrond: donkere navy met radiaal goud-glow (pulserend)
+  const pulse = 0.5 + Math.sin(t * 0.004) * 0.18;
+  const bg = ctx.createRadialGradient(W/2, H*0.45, 50, W/2, H*0.5, Math.max(W,H)*0.7);
+  bg.addColorStop(0, `rgba(70, 60, 30, ${pulse})`);
+  bg.addColorStop(0.5, 'rgba(11,30,63,1)');
+  bg.addColorStop(1, '#050b1a');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stralende achtergrond-stralen vanuit center (god-rays)
+  ctx.save();
+  ctx.translate(W/2, H*0.48);
+  ctx.globalAlpha = 0.22 + Math.sin(t*0.003) * 0.08;
+  const rayCount = 12;
+  for (let i = 0; i < rayCount; i++) {
+    ctx.save();
+    ctx.rotate((i / rayCount) * Math.PI * 2 + t * 0.0006);
+    const grad = ctx.createLinearGradient(0, 0, Math.max(W,H), 0);
+    grad.addColorStop(0, 'rgba(246,215,122,0.45)');
+    grad.addColorStop(1, 'rgba(246,215,122,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.max(W,H), -40);
+    ctx.lineTo(Math.max(W,H),  40);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+
+  // Winnaar-sprite: huge, gecentreerd, lichte breath + tilt-animatie
+  const w = celebration.winner;
+  const entry = (typeof getNamedSprite === 'function') ? getNamedSprite(w && w.name) : null;
+  if (entry && entry.img && entry.img.complete && entry.img.naturalWidth) {
+    const frames = entry.frames || 4;
+    const frameW = entry.img.naturalWidth / frames;
+    const frameH = entry.img.naturalHeight;
+    // Schaal zo dat winnaar ~60% van canvas-hoogte vult
+    const targetH = Math.min(H * 0.62, W * 0.85);
+    const targetW = targetH * (frameW / frameH);
+    const breath = 1 + Math.sin(t * 0.005) * 0.04;     // borstkast op-en-neer
+    const tilt   = Math.sin(t * 0.0028) * 0.06;        // subtiele wiebel
+    const cx0 = W/2;
+    const cy0 = H * 0.55;
+    ctx.save();
+    ctx.translate(cx0, cy0);
+    ctx.rotate(tilt);
+    ctx.scale(breath, breath);
+    // Gouden drop-shadow voor glow
+    ctx.shadowColor = 'rgba(246,215,122,0.85)';
+    ctx.shadowBlur = 50;
+    ctx.drawImage(entry.img,
+      FRAME_SUCCESS * frameW, 0, frameW, frameH,
+      -targetW/2, -targetH/2, targetW, targetH);
+    ctx.restore();
+  } else {
+    // Fallback: spriteCheer als de winnaar geen named sprite heeft
+    if (IMG.spriteCheer && IMG.spriteCheer.complete && IMG.spriteCheer.naturalWidth) {
+      const fw = IMG.spriteCheer.naturalWidth;
+      const fh = IMG.spriteCheer.naturalHeight;
+      const targetH = Math.min(H * 0.62, W * 0.85);
+      const targetW = targetH * (fw / fh);
+      ctx.save();
+      ctx.translate(W/2, H * 0.55);
+      ctx.shadowColor = 'rgba(246,215,122,0.85)';
+      ctx.shadowBlur = 50;
+      ctx.drawImage(IMG.spriteCheer, -targetW/2, -targetH/2, targetW, targetH);
+      ctx.restore();
+    }
+  }
+
+  // 'WINNAAR' banner bovenin
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f6d77a';
+  ctx.font = `italic bold ${Math.round(W * 0.11)}px Georgia, serif`;
+  ctx.shadowColor = 'rgba(0,0,0,0.7)';
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 6;
+  ctx.fillText('WINNAAR', W/2, H * 0.16);
+  // Winnaar-naam
+  ctx.font = `bold ${Math.round(W * 0.075)}px Georgia, serif`;
+  ctx.fillStyle = '#ffe091';
+  ctx.shadowBlur = 14;
+  ctx.fillText((w && w.name) || '—', W/2, H * 0.86);
+  // Sub-tekst onder de naam
+  ctx.font = `italic ${Math.round(W * 0.028)}px Georgia, serif`;
+  ctx.fillStyle = '#d6cda3';
+  ctx.shadowBlur = 8;
+  const stats = w ? `${w.cleared} gehaald · ${w.shots} shots` : '';
+  ctx.fillText(stats, W/2, H * 0.91);
+  ctx.restore();
 }
 
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (state === STATE.CELEBRATION) {
+    drawCelebration();
+    drawConfetti();    // huilende-loser-confetti + goud
+    return;
+  }
   ctx.fillStyle = '#9ed7f5';
   ctx.fillRect(0, 0, W, H);
   drawBackground();
@@ -3695,19 +5446,40 @@ function checkAchievements(success) {
   }
 }
 
-/* ------------------------ Launch toast (PERFECT/GOED) ------------------- */
+/* ------------------------ Launch toast (PERFECT/GOED) -------------------
+ * Optionele duration-parameter — default 700ms. Speciale boodschappen
+ * (zoals "Je bent genaaid…") krijgen 2700ms zodat de target hem niet mist. */
 let toastTimeout;
-function showLaunchToast(text, color) {
+function showLaunchToast(text, color, duration) {
   launchToast.textContent = text;
   launchToast.style.color = color;
   launchToast.classList.add('show');
   if (toastTimeout) clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => launchToast.classList.remove('show'), 700);
+  const ms = (typeof duration === 'number') ? duration : 700;
+  toastTimeout = setTimeout(() => launchToast.classList.remove('show'), ms);
 }
 
 /* ------------------------ Chant: SALIRE / PERTICEA / LONGA -------------- */
 const wordBanner = document.getElementById('wordBanner');
 let bannerTimer = null;
+/* Shot-banger — bij plons: aantal shots herhaaldelijk in beeld in SALIRE-stijl.
+ * Blijft loopen tot stopShotBanger() (advanceToNextPlayer of beurt-einde). */
+const shotBanger = document.getElementById('shotBanger');
+function showShotBanger(shotCount) {
+  if (!shotBanger || !shotCount) return;
+  const word = shotCount === 1 ? '1 SHOT' : `${shotCount} SHOTS`;
+  shotBanger.textContent = word;
+  // Forceer reflow → restart de animation
+  shotBanger.classList.remove('banging');
+  void shotBanger.offsetWidth;
+  shotBanger.classList.add('banging');
+}
+function stopShotBanger() {
+  if (!shotBanger) return;
+  shotBanger.classList.remove('banging');
+  shotBanger.style.opacity = 0;
+}
+
 function showWordBanner(text, color) {
   wordBanner.textContent = text;
   if (color) wordBanner.style.color = color;

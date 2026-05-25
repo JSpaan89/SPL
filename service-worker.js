@@ -17,7 +17,7 @@
  *  en oude asset-caches worden opgeruimd.
  * ============================================================================= */
 
-const CACHE_VERSION = 'v24-landscape-foot-offset';
+const CACHE_VERSION = 'v46-celebration-big-pu-btn';
 const CACHE_NAME    = `spl-fierljeppen-${CACHE_VERSION}`;
 
 // Core shell — voor offline boot. Alleen pre-cachen wat ALTIJD nodig is.
@@ -44,6 +44,9 @@ const RUNTIME_PATTERNS = [
   /flag-/,
   /pole|poolstok/,
   /referee/,
+  /Power-ups/i,                  // power-up sprite-sheet (4×2 grid)
+  /Helikopterview/i,             // top-tier PU eigen asset
+  /screw-you-all/i,              // Friese Vloek PU asset
   /\/logo(-small)?\.png$/,
   /\/app-icon\.png$/,
   /\.mp3$/,
