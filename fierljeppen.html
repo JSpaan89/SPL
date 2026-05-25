@@ -110,7 +110,27 @@
     touch-action: manipulation;
     overscroll-behavior: none;
   }
-  #wrap { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  /* Wrap = de game-container. In mobile-mode vult ie het hele scherm; in
+   * desktop-mode is ie een vaste portrait-aspect box gecentreerd zodat de
+   * UI uitlijning niet uitrekt op breed scherm. Ook bij mobile-landscape
+   * gebruikt-ie de desktop-box zodat alles past zonder squashing. */
+  #wrap {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #9ed7f5;
+  }
+  body.layout-desktop {
+    background: #050b1a;
+  }
+  body.layout-desktop #wrap {
+    /* 9:16 portrait, gevuld tot het kleinste van schermbreedte of -hoogte */
+    width: min(100vw, calc(100vh * 9 / 16));
+    height: min(100vh, calc(100vw * 16 / 9));
+    box-shadow: 0 0 32px rgba(0,0,0,0.6);
+  }
   #shake { position: absolute; inset: 0; will-change: transform; }
   canvas {
     display: block;
@@ -735,22 +755,9 @@
   .btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
   .btn:disabled:active { transform: none; }
 
-  /* Install button is bold gold so it stands out on the setup screen */
-  #installBtn {
-    background: #f6d77a;
-    color: #0b1e3f;
-    font-size: 20px;
-    font-weight: bold;
-    box-shadow: 0 0 12px rgba(246,215,122,0.55);
-    animation: installBob 2.2s ease-in-out infinite;
-  }
-  @keyframes installBob {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-2px); }
-  }
-  /* Compacte automatische install-popup — toont één keer bij eerste bezoek */
-  #installPopup[hidden] { display: none !important; }
-  #installPopup {
+  /* Compacte automatische install/cast popup — toont één keer bij eerste bezoek */
+  #installPopup[hidden], #castPopup[hidden] { display: none !important; }
+  #installPopup, #castPopup {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.55);
     z-index: 9998;
@@ -760,7 +767,7 @@
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
   }
-  #installPopup .install-card {
+  #installPopup .install-card, #castPopup .install-card {
     background: #0b1e3f;
     border: 2px solid #f6d77a;
     border-radius: 18px;
@@ -771,7 +778,7 @@
     color: #f3eed7;
     box-shadow: 0 16px 50px rgba(0,0,0,0.55);
   }
-  #installPopup .install-logo {
+  #installPopup .install-logo, #castPopup .install-logo {
     width: 88px; height: 88px;
     border-radius: 18px;
     object-fit: cover;
@@ -779,28 +786,30 @@
     display: block;
     box-shadow: 0 4px 16px rgba(246,215,122,0.25);
   }
-  #installPopup h2 {
+  #installPopup h2, #castPopup h2 {
     color: #f6d77a;
     font-size: 19px;
     letter-spacing: 2px;
     margin: 8px 0 6px;
   }
-  #installPopup .install-body {
+  #installPopup .install-body, #castPopup .install-body {
     font-size: 14px;
     line-height: 1.5;
     margin: 6px 0 16px;
     color: #d6cda3;
   }
-  #installPopup .install-btn-row { display: flex; flex-direction: column; gap: 8px; }
-  #installPopup .install-btn-row .btn { width: 100%; }
+  #installPopup .install-btn-row, #castPopup .install-btn-row { display: flex; flex-direction: column; gap: 8px; }
+  #installPopup .install-btn-row .btn, #castPopup .install-btn-row .btn { width: 100%; }
 
-  /* Top-right corner controls — fixed position so they're available on
-   * EVERY screen (setup, gameplay, pass-the-phone, gameover). */
+  /* Corner controls — links onder de HUD-topbar, absolute t.o.v. #wrap zodat
+   * ze ook in desktop-layout binnen de portrait-box blijven (niet in de donkere
+   * marges naast de game). Verticale kolom zodat de knoppen niet over de HUD
+   * vallen op smalle schermen. */
   #cornerControls {
-    position: fixed;
-    top: max(10px, env(safe-area-inset-top));
-    right: 10px;
-    display: flex; gap: 8px;
+    position: absolute;
+    top: calc(max(10px, env(safe-area-inset-top)) + 56px);
+    left: 10px;
+    display: flex; flex-direction: column; gap: 8px;
     z-index: 9999;
     pointer-events: none;
   }
@@ -1025,8 +1034,21 @@
 
   <!-- Global corner controls — visible in every menu AND during play -->
   <div id="cornerControls">
-    <button class="icon-btn" id="installBtn" aria-label="Voeg toe aan startscherm" title="Voeg toe aan startscherm">⬇</button>
+    <button class="icon-btn" id="layoutToggle" aria-label="Layout wisselen" title="Layout: mobiel ↔ desktop">📱</button>
+    <button class="icon-btn" id="castBtn" aria-label="Cast naar TV" title="Cast naar TV">📺</button>
     <button class="icon-btn" id="soundToggle" aria-label="Geluid aan/uit" title="Geluid">🔊</button>
+  </div>
+
+  <!-- Cast-uitleg popup (fallback voor browsers zonder Presentation API) -->
+  <div id="castPopup" hidden>
+    <div class="install-card">
+      <div style="font-size:48px; line-height:1;">📺</div>
+      <h2>CAST NAAR TV</h2>
+      <p class="install-body" id="castBody">Speel SPL Fierljeppen op je TV.</p>
+      <div class="install-btn-row">
+        <button class="btn big" id="castAcceptBtn">OK</button>
+      </div>
+    </div>
   </div>
 
   <!-- Automatic install popup -->
@@ -1160,11 +1182,22 @@ let START_X, DITCH_START;
 let PX_PER_M;
 let POLE_LEN;
 let CHAR_SCALE;
+let SCENE_SCALE;   // één proportionele eenheid voor ALLE scene-objecten
+                   // (player, referee, vlag, pole) zodat de verhoudingen niet
+                   // verspringen bij rotatie of resize. Zie resize() voor formule.
+let PLAYER_VISUAL_Y_OFFSET = 0;   // alleen-visuele Y-shift van de player-sprite
+                                  // in landscape (sprite-padding zakt 'm dan op
+                                  // het gras zonder de gameplay-y te wijzigen).
 
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-  const cssW = window.innerWidth;
-  const cssH = window.innerHeight;
+  // Lees de actuele rendered grootte van #wrap (kan kleiner zijn dan het
+  // viewport in desktop-mode dankzij de aspect-lock). Op mobile-portrait
+  // is dit identiek aan window.innerWidth/Height.
+  const wrap = document.getElementById('wrap');
+  const rect = wrap ? wrap.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight };
+  const cssW = Math.max(280, rect.width);
+  const cssH = Math.max(420, rect.height);
   canvas.width  = Math.floor(cssW * dpr);
   canvas.height = Math.floor(cssH * dpr);
   canvas.style.width  = cssW + 'px';
@@ -1186,7 +1219,39 @@ function resize() {
 
   PX_PER_M = W * 0.045;
   POLE_LEN = (GROUND_Y) * 0.55;
-  CHAR_SCALE = Math.max(5.5, Math.min(H, W*0.5) * 0.019);
+
+  /* ---- SCENE_SCALE — één proportionele eenheid ----
+   * Eerder gebruikte CHAR_SCALE een andere formule (min(H, W*0.5)*0.019) dan
+   * de referee (H * 0.28). Daardoor verspringen bij rotatie (telefoon kantelen
+   * of Chrome-window resizen) de poppetjes plotseling: CHAR_SCALE schaalde
+   * met W terwijl referee met H schaalde. Resultaat: in landscape werd het
+   * speler-sprite tot 2× zo groot en de referee tot half zo groot.
+   *
+   * Fix: anchor alles aan dezelfde "scene-unit". Voor een 9:16 portrait-scene
+   * is de limiterende dimensie het kleinste van W/9 of H/16. In portrait is
+   * dat doorgaans W/9, in landscape H/16. Door alle scene-objecten (player,
+   * referee, vlag, pole, ...) hun grootte aan deze unit te koppelen, blijven
+   * de onderlinge verhoudingen op elke viewport / oriëntatie identiek. */
+  SCENE_SCALE = Math.min(W / 9, H / 16);
+  // Aspect-aware boost: in landscape (W/H > portrait 9:16 ≈ 0.5625) wordt de
+  // scene visueel wijder en voelen de avatars klein t.o.v. al die ruimte.
+  // We boosten CHAR_SCALE een beetje voor bredere aspects, gecapped op 1.45×
+  // zodat de speler in extreme ultrawide niet exploderend groot wordt.
+  // Referee blijft op SCENE_SCALE * 4.04 (zonder boost) — die heeft user OK'd
+  // in landscape.
+  const aspect = W / H;
+  const aspectBoost = 1 + Math.min(0.45, Math.max(0, (aspect - 0.5625) * 0.32));
+  CHAR_SCALE  = SCENE_SCALE * 0.0935 * aspectBoost;
+
+  /* Visuele Y-offset voor de player-sprite — alleen in landscape.
+   * Reden: de runtime sprite-analyzer detecteert bij sommige sprites (zoals
+   * de nieuwe Jarno met gradient-bg) de achtergrond niet correct, dus
+   * footFrac valt te hoog uit en de sprite "zweeft" boven het gras. In
+   * portrait is dit verstopt onder de hoge gras-tufts van bg-left; in
+   * landscape rendert de bank ~3× groter en wordt de gap zichtbaar. We
+   * verschuiven de sprite-render ~1cm omlaag (36 CSS-px × dpr) zodat de
+   * voeten op het gras landen. Gameplay-y blijft GROUND_Y. */
+  PLAYER_VISUAL_Y_OFFSET = aspect > 1.0 ? 36 * dpr : 0;
 
   // Position the action bar exactly where the dirt strip ends, in CSS px.
   // We compute it from GROUND_Y + dirtH (both in canvas px) → divide by dpr.
@@ -1196,6 +1261,56 @@ function resize() {
   if (actionBarEl) actionBarEl.style.top = (dirtBotCss - 4) + 'px';
 }
 window.addEventListener('resize', resize);
+
+/* ----- Layout-mode (mobiel ↔ desktop) -----
+ * Op breed/landscape scherm (desktop OF mobiel gedraaid) zou de game uitrekken
+ * en buiten beeld vallen. We bieden een toggle aan en auto-detecteren:
+ *   • Eerst gebruik: landscape → desktop-modus (portrait-locked box)
+ *   • Eerst gebruik: portrait → mobile-modus (full viewport)
+ *   • Daarna respecteren we de keuze van de gebruiker (localStorage)
+ * Bij rotatie van de telefoon wordt opnieuw gedetecteerd ALS de gebruiker
+ * nog geen expliciete keuze heeft gemaakt. */
+const LAYOUT_KEY = 'spl_layout_mode_v1';
+function detectLayoutMode() {
+  const stored = localStorage.getItem(LAYOUT_KEY);
+  if (stored === 'desktop' || stored === 'mobile') return stored;
+  return window.innerWidth > window.innerHeight ? 'desktop' : 'mobile';
+}
+let layoutMode = detectLayoutMode();
+function applyLayoutMode() {
+  document.body.classList.toggle('layout-desktop', layoutMode === 'desktop');
+  document.body.classList.toggle('layout-mobile',  layoutMode === 'mobile');
+  const btn = document.getElementById('layoutToggle');
+  if (btn) {
+    btn.textContent = layoutMode === 'desktop' ? '🖥️' : '📱';
+    btn.title = layoutMode === 'desktop'
+      ? 'Desktop-layout — klik voor mobiel (full screen)'
+      : 'Mobiel-layout — klik voor desktop (portrait-box)';
+  }
+  resize();
+  requestAnimationFrame(resize);   // tweede pass nadat CSS settled
+}
+applyLayoutMode();
+// Toggle button:
+const layoutToggleEl = document.getElementById('layoutToggle');
+if (layoutToggleEl) layoutToggleEl.addEventListener('click', () => {
+  layoutMode = layoutMode === 'desktop' ? 'mobile' : 'desktop';
+  localStorage.setItem(LAYOUT_KEY, layoutMode);
+  applyLayoutMode();
+});
+// Orientation change → re-detect ALS gebruiker nog niets gekozen heeft.
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    if (!localStorage.getItem(LAYOUT_KEY)) {
+      layoutMode = detectLayoutMode();
+      applyLayoutMode();
+    } else {
+      resize();
+      requestAnimationFrame(resize);
+    }
+  }, 120);
+});
+
 resize();
 
 /* ----------------------------- Image assets ----------------------------- */
@@ -1705,14 +1820,11 @@ function buildAndAttachManifest() {
 }
 buildAndAttachManifest();
 
-/* Always show the install button (except when the page is already running
- * as an installed PWA). On Chrome file:// the `beforeinstallprompt` event
- * never fires, so previously the button stayed hidden on desktop — making
- * the install option invisible. Now we always show it; clicking opens the
- * platform-specific instruction sheet (and ALSO calls .prompt() if the
- * native install API is available). */
+/* Install-knop is verwijderd uit de UI — de auto-popup bij eerste bezoek is
+ * voldoende. We laten de helper bestaan zodat oudere code-paden die 'm nog
+ * aanroepen geen crashes geven. */
 function refreshInstallButton() {
-  installBtn.hidden = !!isStandalone;
+  if (installBtn) installBtn.hidden = !!isStandalone;
 }
 refreshInstallButton();
 
@@ -1763,7 +1875,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 window.addEventListener('appinstalled', () => {
   deferredInstallEvent = null;
-  installBtn.hidden = true;
+  if (installBtn) installBtn.hidden = true;
   hideInstallPopup();
   showAchievement('Geïnstalleerd! Open vanaf je beginscherm');
 });
@@ -1781,8 +1893,30 @@ installSkipBtn.addEventListener('click', () => {
   hideInstallPopup();
   localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
 });
-// Corner-knop opent de popup opnieuw (ook na dismissal)
-installBtn.addEventListener('click', () => showInstallPopup(true));
+// Corner-knop opent de popup opnieuw (ook na dismissal) — verwijderd uit UI,
+// maar event-listener defensief geguard mocht de knop ooit terugkeren.
+if (installBtn) installBtn.addEventListener('click', () => showInstallPopup(true));
+
+/* ----- Cast-knop: TV-streaming uitleg -----
+ * Browser-cast (Chromecast / AirPlay) is een browser-feature die niet vanuit
+ * de pagina te triggeren is zonder Chromecast SDK + receiver-app. We tonen
+ * een korte platform-specifieke uitleg en de gebruiker doet het via z'n
+ * browser-menu of system-controls. */
+const castBtnEl = document.getElementById('castBtn');
+const castPopupEl = document.getElementById('castPopup');
+const castAcceptBtn = document.getElementById('castAcceptBtn');
+const castBodyEl = document.getElementById('castBody');
+if (castBtnEl) castBtnEl.addEventListener('click', () => {
+  if (isIOS) {
+    castBodyEl.innerHTML = 'Op iPhone/iPad: veeg het Bedieningspaneel open ⬇ → tik op <strong>Schermsynchronisatie</strong> (AirPlay) → kies je Apple TV.';
+  } else if (/Android/i.test(navigator.userAgent)) {
+    castBodyEl.innerHTML = 'Open het Chrome-menu (⋮) → kies <strong>Cast…</strong> → selecteer je Chromecast of Smart TV. Tik dan terug op SPL.';
+  } else {
+    castBodyEl.innerHTML = 'Klik in Chrome op het menu (⋮) → kies <strong>Cast…</strong> → selecteer je TV. Tip: kies bij Bronnen "Tabblad casten".';
+  }
+  castPopupEl.hidden = false;
+});
+if (castAcceptBtn) castAcceptBtn.addEventListener('click', () => { castPopupEl.hidden = true; });
 
 // Toon automatisch bij eerste bezoek — kleine delay zodat assets eerst tekenen
 window.addEventListener('load', () => setTimeout(() => showInstallPopup(false), 400));
@@ -2257,9 +2391,10 @@ function beginTurn() {
   hud.classList.remove('hidden');
   levelDotsEl.classList.remove('hidden');
   actionBar.classList.remove('hidden');
-  tapPrompt.classList.remove('hidden');
-  tapPrompt.classList.add('pulse');
-  tapPrompt.innerHTML = `<strong>${escapeHtml(players[currentIdx].name)}</strong><br>TIK 1× om de meter te STARTEN.<br>TIK 2× om hem in de <span style="color:#ffe091">gouden zone</span> te STOPPEN.<span class="small">Pure timing — in het midden = verste sprong.</span>`;
+  // In-game uitleg-popup (tapPrompt) verwijderd — spel spreekt voor zich,
+  // start-scherm legt de mechaniek uit. We zorgen dat 'm verborgen blijft.
+  tapPrompt.classList.add('hidden');
+  tapPrompt.classList.remove('pulse');
   positionPerfectZone();
   // Reset the single button label & state for the new turn.
   climbBtn.classList.remove('pressed', 'done', 'disabled');
@@ -2275,9 +2410,8 @@ function beginTurn() {
   curPlayerEl.textContent = players[currentIdx].name;
   lvlEl.textContent = round;
   totalShotsEl.textContent = totalShots;
-  // Auto-hide the explainer after a few seconds so the scene is visible.
+  // Geen auto-hide timer meer nodig — tapPrompt is permanent verborgen.
   if (promptHideTimer) clearTimeout(promptHideTimer);
-  promptHideTimer = setTimeout(() => tapPrompt.classList.add('hidden'), 3800);
 }
 let promptHideTimer = null;
 function resetPlayer() {
@@ -2636,14 +2770,8 @@ function beginSweep() {
   climbBtn.classList.add('done');
   powerMarker.style.display = 'block';
   setJumpBtnState();
-  // Swap the prompt so the player sees the second-tap instruction. Keep it
-  // visible (instead of hiding it like the old flow did) — that's now the
-  // only on-screen instruction.
-  if (tapPrompt) {
-    tapPrompt.classList.remove('hidden');
-    tapPrompt.classList.remove('pulse');
-    tapPrompt.innerHTML = `TIK NU om te STOPPEN in de <span style="color:#ffe091">gouden zone</span><span class="small">Hoe dichter bij het midden, hoe verder de sprong.</span>`;
-  }
+  // In-game uitleg-popup verwijderd — de powerbar zelf is de instructie.
+  if (tapPrompt) tapPrompt.classList.add('hidden');
 }
 
 function launch() {
@@ -3105,8 +3233,12 @@ function drawReferee() {
   const img = handUp ? IMG.refereeUp : IMG.refereeDown;
   if (!img.complete || !img.naturalWidth) return;
 
-  // Render-hoogte: ongeveer 28% van canvas-hoogte. Schaal in PNG-eenheden.
-  const targetH = H * 0.28;
+  // Render-hoogte: gekoppeld aan SCENE_SCALE zodat de scheidsrechter altijd
+  // dezelfde verhouding met de speler-sprite houdt (was eerder H * 0.28 wat
+  // bij rotatie/resize een andere ratio gaf dan CHAR_SCALE). Multiplier 4.04
+  // (was 5.05) = 0.8× kleinere referee op user-feedback: scheidsrechter
+  // domineerde de scène in portrait.
+  const targetH = SCENE_SCALE * 4.04;
   const s = targetH / REF_ASSET_H;
 
   // Positioneer rechts in het gras, dieper de bank in dan de vlag.
@@ -3314,9 +3446,24 @@ function drawCharacterAt(cx, cy, rot, wet, reflectionMode=false) {
     ctx.shadowBlur = 24;
   }
 
-  const FOOT_FRAC_DEFAULT = 0.987;
-  const footFrac = (entry && entry.footFracs && entry.footFracs[frameIdx])
-    ? entry.footFracs[frameIdx] : FOOT_FRAC_DEFAULT;
+  /* footFrac plaatst de "feet" van de sprite op player.y. Hogere waarde =
+   * sprite wordt hoger boven player.y getekend (feet dichter bij sprite-bottom).
+   * Eerder default 0.987 — dat veronderstelt minimale padding onder de feet.
+   * Voor 4-frame builtin sprites met enkele % padding gaf dat een zwevend
+   * poppetje (vooral zichtbaar op rechter oever in landscape, waar de bank
+   * 3× groter rendert dan in portrait dus het floating-effect ook 3× zichtbaar
+   * is). Lagere default = sprite zakt iets dieper in de bank. 0.93 dekt de
+   * meeste sprites; analyzer-uitkomst override deze fallback waar beschikbaar.
+   *
+   * Extra guard: als de analyzer footFrac ≥ 0.99 oplevert, betekent dat in
+   * praktijk dat-ie geen transparante / uniforme achtergrond kon detecteren
+   * (bv. sprites met gradient bg zoals nieuwe jarno) en alle pixels als content
+   * markeerde. In dat geval is z'n waarde onbetrouwbaar — we vallen terug op
+   * de default. */
+  const FOOT_FRAC_DEFAULT = 0.93;
+  const computedFrac = entry && entry.footFracs ? entry.footFracs[frameIdx] : null;
+  const footFrac = (computedFrac && computedFrac > 0 && computedFrac < 0.99)
+    ? computedFrac : FOOT_FRAC_DEFAULT;
   ctx.drawImage(
     sprite,
     frameIdx * frameW, 0, frameW, frameH,
@@ -3409,8 +3556,13 @@ function drawPole() {
 function drawPlayer() {
   if (!player) return;
   const s = CHAR_SCALE;
+  // Visuele Y-offset (alleen-render, geen gameplay) om sprites met te ruime
+  // footFrac op het gras te zetten in landscape. Splashed-state heeft eigen
+  // sink-animatie en moet niet extra opgeschoven worden.
+  const isSplashed = state === STATE.LANDED && player.splashed;
+  const visualYOffset = isSplashed ? 0 : PLAYER_VISUAL_Y_OFFSET;
   ctx.save();
-  ctx.translate(player.x, player.y);
+  ctx.translate(player.x, player.y + visualYOffset);
 
   if (state === STATE.LANDED && player.splashed) {
     // Character actively SINKS into the ditch over ~1.2 s, with the wet sprite
