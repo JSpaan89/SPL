@@ -17,7 +17,7 @@
  *  en oude asset-caches worden opgeruimd.
  * ============================================================================= */
 
-const CACHE_VERSION = 'v49-vloek-bigger';
+const CACHE_VERSION = 'v50-reset-icon-sticky-start';
 const CACHE_NAME    = `spl-fierljeppen-${CACHE_VERSION}`;
 
 // Core shell — voor offline boot. Alleen pre-cachen wat ALTIJD nodig is.
@@ -48,6 +48,7 @@ const RUNTIME_PATTERNS = [
   /Helikopterview/i,             // top-tier PU eigen asset
   /screw-you-all/i,              // Friese Vloek PU asset (zowel .png als .mp4)
   /niels-fail/i,                 // Niels fail-video easter-egg
+  /\/reset\.png$/,               // Schone Lei PU icon
   /\/logo(-small)?\.png$/,
   /\/app-icon\.png$/,
   /\.mp3$/,

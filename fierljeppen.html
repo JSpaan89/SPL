@@ -546,6 +546,13 @@
   .hidden { display: none !important; }
 
   /* ===== Setup ===== */
+  /* Setup overlay layout — header bovenin, form daaronder scrollable, START-knop
+   * altijd onderaan zichtbaar via sticky positie. Anders raakt-ie buiten beeld
+   * bij veel spelers / lange dropdowns op telefoonschermen. */
+  #setup {
+    justify-content: flex-start;
+    padding-bottom: 14px;
+  }
   #setupForm {
     display: flex;
     flex-direction: column;
@@ -553,6 +560,27 @@
     width: 100%;
     max-width: 420px;
     margin-top: 4px;
+    padding-bottom: 14px;
+  }
+  /* START-knop sticky onderin het setup-scherm zodat-ie ALTIJD bereikbaar is */
+  #startBtn {
+    position: sticky;
+    bottom: 6px;
+    z-index: 5;
+    box-shadow: 0 -8px 22px rgba(11,30,63,0.85), 0 6px 14px rgba(0,0,0,0.45);
+    margin-top: 10px;
+  }
+  /* Op kleinere viewports verkleinen we de tussenruimte zodat alles past
+   * zonder dat de gebruiker hoeft te scrollen om de START te zien. */
+  @media (max-height: 720px) {
+    #setup p { margin: 4px 0 6px; font-size: 13px; }
+    #setup h1 { margin: 4px 0 2px; font-size: clamp(28px, 6vw, 38px); }
+    #setup .latin { font-size: 13px; margin-bottom: 4px; }
+    #setupForm { gap: 0; }
+    #nameInputs { max-height: 24vh; }
+    .count-row { margin: 4px 0 8px; }
+    .count-btn { width: 42px; height: 42px; font-size: 20px; }
+    .count-display { font-size: 28px; }
   }
   .count-row {
     display: flex;
@@ -1228,19 +1256,16 @@
     background-size: cover;
     background-position: center;
   }
-  /* Schone Lei — CSS-only refresh-pijl op gouden gradient (geen PNG nodig) */
+  /* Schone Lei — eigen PNG (reset.png, powerbar + gouden refresh-pijlen) */
   #puPicker .pu-slot[data-pu="schone-lei"] .pu-icon {
-    background: radial-gradient(circle at 30% 30%, #ffeb9e 0%, #d4a73a 55%, #7a5a14 100%);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 38px;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 14px rgba(246,215,122,0.6);
-    box-shadow: inset 0 0 16px rgba(0,0,0,0.25);
-  }
-  #puPicker .pu-slot[data-pu="schone-lei"] .pu-icon::before {
-    content: '🔄';
+    background-image: url('reset.png');
+    background-size: cover;
+    background-position: center;
   }
   #activeBuffs .buff-pill[data-pu="schone-lei"]::before {
-    background: radial-gradient(circle, #ffeb9e 0%, #d4a73a 100%);
+    background-image: url('reset.png');
+    background-size: cover;
+    background-position: center;
   }
   /* Top-tier slot: gouden gloed-rand + lichte schaal-pulse zodat 'ie eruit
    * springt tussen de standaard 8 PUs. */
@@ -2822,8 +2847,8 @@ const POWERUPS = [
   { id: 'friese-vloek',     iconSrc: 'screw-you-all.png',  type: 'off', cost: 10, stacks: false, top: true, allTargets: true, name: 'Friese Vloek', desc: 'Iedere tegenstander: +1 shot direct' },
   // SCHONE LEI: reset zone-width naar ZONE_START én sweep terug naar base
   // (geen streak-versnelling) voor deze beurt. Safety-net wanneer de sloot
-  // smaller wordt dan speelbaar. CSS-icon (gouden refresh-pijl).
-  { id: 'schone-lei',       iconSrc: 'css-refresh',        type: 'def', cost: 3, stacks: false, name: 'Schone Lei',     desc: 'Reset: zone wijd, sweep traag (deze beurt)' },
+  // smaller wordt dan speelbaar. Eigen PNG (reset.png, powerbar + arrows).
+  { id: 'schone-lei',       iconSrc: 'reset.png',          type: 'def', cost: 3, stacks: false, name: 'Schone Lei',     desc: 'Reset: zone wijd, sweep traag (deze beurt)' },
 ];
 const POWERUP_BY_ID = Object.fromEntries(POWERUPS.map(p => [p.id, p]));
 // (geen per-beurt throttle meer — speler mag zoveel PUs gebruiken als-ie
