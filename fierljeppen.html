@@ -551,7 +551,7 @@
    * bij veel spelers / lange dropdowns op telefoonschermen. */
   #setup {
     justify-content: flex-start;
-    padding-bottom: 14px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 30px);
   }
   #setupForm {
     display: flex;
@@ -562,10 +562,12 @@
     margin-top: 4px;
     padding-bottom: 14px;
   }
-  /* START-knop sticky onderin het setup-scherm zodat-ie ALTIJD bereikbaar is */
+  /* START-knop sticky onderin het setup-scherm zodat-ie ALTIJD bereikbaar is.
+   * Bottom-offset hoger dan voorheen (was 6px → nu 26px + safe-area) zodat-ie
+   * niet meer onder een mobile-browserbalk of home-indicator valt. */
   #startBtn {
     position: sticky;
-    bottom: 6px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
     z-index: 5;
     box-shadow: 0 -8px 22px rgba(11,30,63,0.85), 0 6px 14px rgba(0,0,0,0.45);
     margin-top: 10px;
@@ -1006,18 +1008,28 @@
     transform: translateY(-50%);
     width: 20px; height: 20px;
     background-image: url('Power-ups.png');
-    background-size: 400% 200%;
+    background-size: 400% 286%;
     background-repeat: no-repeat;
     border-radius: 4px;
   }
-  #activeBuffs .buff-pill[data-pu="mulligan"]::before        { background-position: 0%      0%; }
-  #activeBuffs .buff-pill[data-pu="windschot"]::before       { background-position: 33.33%  0%; }
-  #activeBuffs .buff-pill[data-pu="brede-zone"]::before      { background-position: 66.67%  0%; }
-  #activeBuffs .buff-pill[data-pu="sluwe-vos"]::before       { background-position: 100%    0%; }
+  #activeBuffs .buff-pill[data-pu="mulligan"]::before        { background-position: 0%      23%; }
+  #activeBuffs .buff-pill[data-pu="windschot"]::before       { background-position: 33.33%  23%; }
+  #activeBuffs .buff-pill[data-pu="brede-zone"]::before      { background-position: 66.67%  23%; }
+  #activeBuffs .buff-pill[data-pu="sluwe-vos"]::before       { background-position: 100%    23%; }
   #activeBuffs .buff-pill[data-pu="saboteur"]::before        { background-position: 0%      100%; }
   #activeBuffs .buff-pill[data-pu="wodka"]::before           { background-position: 33.33%  100%; }
   #activeBuffs .buff-pill[data-pu="dubbele-shot"]::before    { background-position: 66.67%  100%; }
   #activeBuffs .buff-pill[data-pu="zwaardere-borrel"]::before{ background-position: 100%    100%; }
+
+  /* Pre-cropte versies voor de pills — zelfde aanpak als bij de picker */
+  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="mulligan"]::before         { background-image: var(--pu-icon-mulligan,         url('Power-ups.png')); background-size: contain; background-position: center; }
+  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="windschot"]::before        { background-image: var(--pu-icon-windschot,        url('Power-ups.png')); background-size: contain; background-position: center; }
+  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="brede-zone"]::before       { background-image: var(--pu-icon-brede-zone,       url('Power-ups.png')); background-size: contain; background-position: center; }
+  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="sluwe-vos"]::before        { background-image: var(--pu-icon-sluwe-vos,        url('Power-ups.png')); background-size: contain; background-position: center; }
+  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="saboteur"]::before         { background-image: var(--pu-icon-saboteur,         url('Power-ups.png')); background-size: contain; background-position: center; }
+  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="wodka"]::before            { background-image: var(--pu-icon-wodka,            url('Power-ups.png')); background-size: contain; background-position: center; }
+  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="dubbele-shot"]::before     { background-image: var(--pu-icon-dubbele-shot,     url('Power-ups.png')); background-size: contain; background-position: center; }
+  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="zwaardere-borrel"]::before { background-image: var(--pu-icon-zwaardere-borrel, url('Power-ups.png')); background-size: contain; background-position: center; }
   #activeBuffs .buff-pill[data-pu="helikopterview"]::before {
     background-image: url('Helikopterview.png');
     background-size: cover;
@@ -1211,39 +1223,115 @@
   @media (max-width: 360px) {
     #puPicker .pu-grid { grid-template-columns: repeat(2, 1fr); }
   }
+  /* PU-slots: 3D-pop-out look — multi-layer shadow + top-highlight + tilt op
+   * hover zodat de tegels echt 'uit het beeld' lijken te komen. Op active
+   * zinkt-ie weer in voor tactiele feedback. */
   #puPicker .pu-slot {
-    background: rgba(255,255,255,0.04);
-    border: 1.5px solid rgba(246,215,122,0.4);
-    border-radius: 12px;
-    padding: 8px 6px 8px;
+    position: relative;
+    background: linear-gradient(180deg,
+      rgba(34, 60, 120, 0.55) 0%,
+      rgba(11, 30, 63, 0.85) 60%,
+      rgba(6, 18, 42, 1) 100%);
+    border: 2px solid rgba(246,215,122,0.55);
+    border-radius: 14px;
+    padding: 10px 6px 10px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease;
+    box-shadow:
+      0 6px 0 rgba(0,0,0,0.45),
+      0 10px 16px rgba(0,0,0,0.45),
+      inset 0 2px 0 rgba(255,255,255,0.18),
+      inset 0 -3px 0 rgba(0,0,0,0.30);
+    transform: translateY(0) rotate(0deg);
+    transition:
+      transform 0.18s cubic-bezier(.2,1.5,.4,1),
+      box-shadow 0.18s ease,
+      border-color 0.15s ease,
+      background 0.2s ease;
   }
+  /* Subtiele glanslijn over de bovenkant van de tegel */
+  #puPicker .pu-slot::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 8px; right: 8px;
+    height: 22%;
+    border-radius: 12px 12px 24px 24px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 100%);
+    pointer-events: none;
+  }
+  #puPicker .pu-slot:nth-child(2n)   { transform: rotate(0.6deg); }
+  #puPicker .pu-slot:nth-child(3n+1) { transform: rotate(-0.7deg); }
   #puPicker .pu-slot:hover, #puPicker .pu-slot:focus-visible {
     border-color: #f6d77a;
-    background: rgba(246,215,122,0.10);
-    transform: translateY(-2px);
+    background: linear-gradient(180deg,
+      rgba(70, 110, 200, 0.60) 0%,
+      rgba(20, 50, 110, 0.85) 60%,
+      rgba(6, 18, 42, 1) 100%);
+    transform: translateY(-6px) rotate(-1.6deg) scale(1.03);
+    box-shadow:
+      0 12px 0 rgba(0,0,0,0.4),
+      0 18px 26px rgba(0,0,0,0.5),
+      inset 0 2px 0 rgba(255,255,255,0.25),
+      inset 0 -3px 0 rgba(0,0,0,0.25);
   }
+  #puPicker .pu-slot:active {
+    transform: translateY(3px) rotate(0) scale(0.98);
+    box-shadow:
+      0 2px 0 rgba(0,0,0,0.5),
+      0 4px 8px rgba(0,0,0,0.4),
+      inset 0 2px 0 rgba(255,255,255,0.10),
+      inset 0 -2px 0 rgba(0,0,0,0.25);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  /* Power-ups.png is een 4×2 sprite-sheet waarbij elke cel BOVENIN een tekst-
+   * label heeft + het icoon eronder. De labels staan al onder de tegel zelf,
+   * dus we zoomen in op de cel (zonder de top ~30%) zodat alleen het icoon
+   * groot en gecentreerd in de tegel zit. background-size 286% (ipv 200%)
+   * maakt elke cel 1.43× hoger; position-y schuift de view naar het icoon-
+   * gedeelte. Helikopterview / Friese Vloek / Schone Lei hebben eigen PNGs
+   * zonder text en gebruiken hun eigen overrides hieronder. */
   #puPicker .pu-slot .pu-icon {
     width: 100%;
     aspect-ratio: 1 / 1;
     background-image: url('Power-ups.png');
-    background-size: 400% 200%;
+    background-size: 400% 286%;
     background-repeat: no-repeat;
-    border-radius: 8px;
+    border-radius: 10px;
+    box-shadow:
+      0 4px 8px rgba(0,0,0,0.4),
+      inset 0 0 16px rgba(246,215,122,0.10);
+    transition: transform 0.25s ease, filter 0.25s ease;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
   }
-  #puPicker .pu-slot[data-pu="mulligan"]         .pu-icon { background-position: 0%      0%; }
-  #puPicker .pu-slot[data-pu="windschot"]        .pu-icon { background-position: 33.33%  0%; }
-  #puPicker .pu-slot[data-pu="brede-zone"]       .pu-icon { background-position: 66.67%  0%; }
-  #puPicker .pu-slot[data-pu="sluwe-vos"]        .pu-icon { background-position: 100%    0%; }
+  #puPicker .pu-slot:hover .pu-icon {
+    transform: scale(1.08) rotate(-3deg);
+    filter: drop-shadow(0 6px 10px rgba(246,215,122,0.55));
+  }
+  /* FALLBACK (oude bg-position positions) — gebruikt wanneer de JS-preprocessor
+   * faalt (file://, CORS, etc.). Per cel geprobeerd om text-label te skippen. */
+  #puPicker .pu-slot[data-pu="mulligan"]         .pu-icon { background-position: 0%      23%; }
+  #puPicker .pu-slot[data-pu="windschot"]        .pu-icon { background-position: 33.33%  23%; }
+  #puPicker .pu-slot[data-pu="brede-zone"]       .pu-icon { background-position: 66.67%  23%; }
+  #puPicker .pu-slot[data-pu="sluwe-vos"]        .pu-icon { background-position: 100%    23%; }
   #puPicker .pu-slot[data-pu="saboteur"]         .pu-icon { background-position: 0%      100%; }
   #puPicker .pu-slot[data-pu="wodka"]            .pu-icon { background-position: 33.33%  100%; }
   #puPicker .pu-slot[data-pu="dubbele-shot"]     .pu-icon { background-position: 66.67%  100%; }
   #puPicker .pu-slot[data-pu="zwaardere-borrel"] .pu-icon { background-position: 100%    100%; }
+
+  /* AUTO-CROP versie — gebruikt wanneer JS pre-cropper succesvol cellen heeft
+   * geparsed (sets .pu-icons-ready op <html>). Elke cel krijgt z'n eigen
+   * data-URL via CSS-variabele en wordt perfect gecentreerd + contain-fit. */
+  html.pu-icons-ready #puPicker .pu-slot[data-pu="mulligan"]         .pu-icon { background-image: var(--pu-icon-mulligan,         url('Power-ups.png')); background-size: contain;        background-position: center; }
+  html.pu-icons-ready #puPicker .pu-slot[data-pu="windschot"]        .pu-icon { background-image: var(--pu-icon-windschot,        url('Power-ups.png')); background-size: contain;        background-position: center; }
+  html.pu-icons-ready #puPicker .pu-slot[data-pu="brede-zone"]       .pu-icon { background-image: var(--pu-icon-brede-zone,       url('Power-ups.png')); background-size: contain;        background-position: center; }
+  html.pu-icons-ready #puPicker .pu-slot[data-pu="sluwe-vos"]        .pu-icon { background-image: var(--pu-icon-sluwe-vos,        url('Power-ups.png')); background-size: contain;        background-position: center; }
+  html.pu-icons-ready #puPicker .pu-slot[data-pu="saboteur"]         .pu-icon { background-image: var(--pu-icon-saboteur,         url('Power-ups.png')); background-size: contain;        background-position: center; }
+  html.pu-icons-ready #puPicker .pu-slot[data-pu="wodka"]            .pu-icon { background-image: var(--pu-icon-wodka,            url('Power-ups.png')); background-size: contain;        background-position: center; }
+  html.pu-icons-ready #puPicker .pu-slot[data-pu="dubbele-shot"]     .pu-icon { background-image: var(--pu-icon-dubbele-shot,     url('Power-ups.png')); background-size: contain;        background-position: center; }
+  html.pu-icons-ready #puPicker .pu-slot[data-pu="zwaardere-borrel"] .pu-icon { background-image: var(--pu-icon-zwaardere-borrel, url('Power-ups.png')); background-size: contain;        background-position: center; }
   /* Helikopterview heeft een EIGEN PNG, niet uit de 4×2 sprite-sheet */
   #puPicker .pu-slot[data-pu="helikopterview"] .pu-icon {
     background-image: url('Helikopterview.png');
@@ -1285,10 +1373,11 @@
   }
   #puPicker .pu-slot .pu-name {
     color: #f6d77a;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: bold;
     letter-spacing: 0.5px;
-    margin-top: 5px;
+    margin-top: 7px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
   }
   #puPicker .pu-slot .pu-desc {
     color: #d6cda3;
@@ -1457,6 +1546,15 @@
   #passActions {
     display: flex; gap: 10px; align-items: center;
     margin-top: 10px; flex-wrap: wrap; justify-content: center;
+    /* Extra bottom-margin zodat de knoppen (vooral STOP SPEL) niet door een
+     * mobile-browser-bar of home-indicator afgesneden worden. ~1 cm extra
+     * ten opzichte van de oude 0-margin. */
+    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+  }
+  /* Pass-overlay zelf krijgt extra onder-padding zodat #passActions vrij in
+   * beeld staat zonder onderuit te vallen op telefoon. */
+  #pass {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 30px);
   }
 
   /* ===== Bottom-of-screen achievement badge ===== */
@@ -2851,6 +2949,112 @@ const POWERUPS = [
   { id: 'schone-lei',       iconSrc: 'reset.png',          type: 'def', cost: 3, stacks: false, name: 'Schone Lei',     desc: 'Reset: zone wijd, sweep traag (deze beurt)' },
 ];
 const POWERUP_BY_ID = Object.fromEntries(POWERUPS.map(p => [p.id, p]));
+
+/* ============================================================================
+ *  PU-sprite pre-cropper — bij page-load splitten we Power-ups.png in 8 cellen,
+ *  vinden per cel de tightbox van het ICOON (skipping de text-label boven), en
+ *  zetten elke crop als data-URL in een CSS-variabele. CSS gebruikt deze
+ *  variabele zodat elk icoon perfect gecentreerd + contain-fit rendert ongeacht
+ *  z'n originele positie binnen de cel.
+ *
+ *  Reden: de iconen staan niet allemaal op dezelfde y-positie in hun cel
+ *  (mulligan op 51%, saboteur op 42%, sluwe-vos op 53%, etc). Een fixed
+ *  bg-position-y voor het hele sheet centreert niemand perfect.
+ * ============================================================================ */
+function preparePowerUpIcons() {
+  const src = new Image();
+  src.crossOrigin = 'anonymous';   // probeer; faalt silent bij file:// of geen CORS
+  src.onload = () => {
+    try {
+      const W = src.naturalWidth, H = src.naturalHeight;
+      const fw = W / 4, fh = H / 2;
+      const cells = [
+        { id: 'mulligan',         col: 0, row: 0 },
+        { id: 'windschot',        col: 1, row: 0 },
+        { id: 'brede-zone',       col: 2, row: 0 },
+        { id: 'sluwe-vos',        col: 3, row: 0 },
+        { id: 'saboteur',         col: 0, row: 1 },
+        { id: 'wodka',            col: 1, row: 1 },
+        { id: 'dubbele-shot',     col: 2, row: 1 },
+        { id: 'zwaardere-borrel', col: 3, row: 1 },
+      ];
+      const TEXT_SKIP_FRAC = 0.30;    // top 30% van elke cel = tekstlabel — skip
+      const PAD_PX = 14;              // ademruimte rondom icoon-bbox
+
+      cells.forEach(cell => {
+        const sx = cell.col * fw;
+        const sy = cell.row * fh + fh * TEXT_SKIP_FRAC;
+        const sw = fw;
+        const sh = fh * (1 - TEXT_SKIP_FRAC);
+
+        // Crop icon-area van het sheet naar een werk-canvas
+        const work = document.createElement('canvas');
+        work.width = sw; work.height = sh;
+        const wctx = work.getContext('2d');
+        wctx.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+
+        // Bbox van content vinden — pixel is content als alpha > 32 en NIET
+        // bijna-wit (de cell-bg is wit/transparant).
+        const data = wctx.getImageData(0, 0, sw, sh).data;
+        let minX = sw, minY = sh, maxX = -1, maxY = -1;
+        for (let y = 0; y < sh; y++) {
+          const rowOff = y * sw * 4;
+          for (let x = 0; x < sw; x++) {
+            const i = rowOff + x * 4;
+            const a = data[i + 3];
+            if (a < 32) continue;
+            const r = data[i], g = data[i + 1], b = data[i + 2];
+            if (r > 235 && g > 235 && b > 235) continue;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+        }
+        if (maxX < 0) return;   // niets gevonden
+        // Pad rondom + clamp
+        minX = Math.max(0, minX - PAD_PX);
+        minY = Math.max(0, minY - PAD_PX);
+        maxX = Math.min(sw - 1, maxX + PAD_PX);
+        maxY = Math.min(sh - 1, maxY + PAD_PX);
+        const cropW = maxX - minX + 1;
+        const cropH = maxY - minY + 1;
+
+        // Maak een VIERKANT output-canvas (max dimensie) en plak het icoon
+        // gecentreerd erin. Hierdoor renderd background-size:contain in een
+        // square tile als perfect gecentreerd icoon ongeacht oorspronkelijke
+        // verhouding.
+        const side = Math.max(cropW, cropH);
+        const out = document.createElement('canvas');
+        out.width = side; out.height = side;
+        const octx = out.getContext('2d');
+        const offX = Math.floor((side - cropW) / 2);
+        const offY = Math.floor((side - cropH) / 2);
+        octx.drawImage(work, minX, minY, cropW, cropH, offX, offY, cropW, cropH);
+
+        const url = out.toDataURL('image/png');
+        document.documentElement.style.setProperty(`--pu-icon-${cell.id}`, `url('${url}')`);
+      });
+      // Flag zodat CSS de var-versie kan gebruiken
+      document.documentElement.classList.add('pu-icons-ready');
+    } catch (err) {
+      // CORS / file:// fallback — laat CSS-sheet bg-position fallback gebruiken
+      console.warn('PU-sprite preprocess faalde:', err);
+    }
+  };
+  src.src = 'Power-ups.png';
+}
+// Start direct
+preparePowerUpIcons();
+
+/* Welke power-ups zijn beschikbaar in de picker, gegeven de moeilijkheid?
+ * Schone Lei is een safety-net en past niet bij de Pittig-uitdaging; daar
+ * wordt-ie verborgen. Bestaande buffs blijven actief — we filteren alleen
+ * de picker-presentatie, niet de lookup in POWERUP_BY_ID. */
+function getAvailablePowerUps() {
+  const diff = (typeof getDifficulty === 'function') ? getDifficulty() : 'pittig';
+  return POWERUPS.filter(pu => !(pu.id === 'schone-lei' && diff === 'pittig'));
+}
 // (geen per-beurt throttle meer — speler mag zoveel PUs gebruiken als-ie
 //  tokens heeft en kan ze stapelen)
 
@@ -2939,7 +3143,7 @@ function renderPowerUpStep() {
   cancelBtn.textContent = 'SPAREN — LATER';
   cancelBtn.onclick = closePowerUpPicker;
 
-  grid.innerHTML = POWERUPS.map(pu => {
+  grid.innerHTML = getAvailablePowerUps().map(pu => {
     const tooExpensive = (cur.tokens || 0) < pu.cost;
     const costLabel = `${pu.cost}⭐`;
     const classes = ['pu-slot'];

@@ -17,7 +17,7 @@
  *  en oude asset-caches worden opgeruimd.
  * ============================================================================= */
 
-const CACHE_VERSION = 'v50-reset-icon-sticky-start';
+const CACHE_VERSION = 'v53-pu-icons-auto-centered';
 const CACHE_NAME    = `spl-fierljeppen-${CACHE_VERSION}`;
 
 // Core shell — voor offline boot. Alleen pre-cachen wat ALTIJD nodig is.
