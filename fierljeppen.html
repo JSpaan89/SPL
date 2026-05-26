@@ -1214,6 +1214,18 @@
     50%      { transform: scale(1.18); }
   }
 
+  /* Setup-logo: long-press = easter egg, NIET de iOS/Android 'kopieer
+   * afbeelding'-popup. user-select + touch-callout + user-drag uitschakelen
+   * zodat het systeem 'm niet als image herkent. */
+  .setup-logo {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
   /* Password-gate shake bij foute invoer */
   @keyframes pwShake {
     0%, 100% { transform: translateX(0); }
@@ -2360,6 +2372,9 @@ resize();
   logo.addEventListener('pointerup',   cancel);
   logo.addEventListener('pointercancel', cancel);
   logo.addEventListener('pointerleave', cancel);
+  // Voorkom dat mobiele OS bij long-press een 'afbeelding kopieren' menu opent
+  logo.addEventListener('contextmenu', (e) => { e.preventDefault(); return false; });
+  logo.addEventListener('dragstart',   (e) => { e.preventDefault(); return false; });
   // Voorkom dat de long-press ook als 'click' meetelt voor de 5×tap-cheat
   logo.addEventListener('click', (e) => { if (longPressed) { e.stopImmediatePropagation(); longPressed = false; } }, true);
 
