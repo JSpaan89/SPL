@@ -1005,6 +1005,116 @@
     color: #ff8a8a;
   }
 
+  /* Password-gate shake bij foute invoer */
+  @keyframes pwShake {
+    0%, 100% { transform: translateX(0); }
+    20%  { transform: translateX(-8px); }
+    40%  { transform: translateX(7px); }
+    60%  { transform: translateX(-5px); }
+    80%  { transform: translateX(4px); }
+  }
+
+  /* Friese Vloek celebration — full-screen video pop-up */
+  #vloekCelebration[hidden] { display: none !important; }
+  #vloekCelebration {
+    position: fixed; inset: 0;
+    background: rgba(74, 8, 8, 0.92);
+    z-index: 10000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: vloekShake 0.6s ease-out;
+  }
+  @keyframes vloekShake {
+    0%   { transform: translate(0,0); }
+    10%  { transform: translate(-8px, 4px); }
+    20%  { transform: translate(8px, -3px); }
+    35%  { transform: translate(-5px, 5px); }
+    50%  { transform: translate(6px, -6px); }
+    70%  { transform: translate(-3px, 2px); }
+    100% { transform: translate(0,0); }
+  }
+  #vloekCelebration .vloek-card {
+    background: linear-gradient(180deg, #1a0606 0%, #0b1e3f 100%);
+    border: 3px solid #ff4848;
+    border-radius: 22px;
+    padding: 24px 22px 20px;
+    max-width: 680px;
+    width: min(96vw, 680px);
+    max-height: 96vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    color: #fff;
+    box-shadow: 0 0 50px rgba(255,72,72,0.6), 0 18px 40px rgba(0,0,0,0.7);
+  }
+  #vloekCelebration .vloek-title {
+    color: #ff8a8a;
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-weight: bold;
+    font-size: clamp(34px, 8vw, 58px);
+    letter-spacing: 5px;
+    margin: 0 0 12px;
+    text-shadow: 0 0 16px rgba(255,72,72,0.7), 4px 6px 0 #0b1e3f;
+    -webkit-text-stroke: 1px #4a0808;
+    animation: vloekPulse 1s ease-in-out infinite;
+  }
+  @keyframes vloekPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.05); }
+  }
+  #vloekCelebration .vloek-tagline {
+    color: #ffe091;
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-weight: bold;
+    font-size: clamp(18px, 4.6vw, 26px);
+    letter-spacing: 1.5px;
+    margin: 0 0 12px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.7), 0 0 14px rgba(246,215,122,0.45);
+  }
+  #vloekCelebration video {
+    width: 100%;
+    max-height: 60vh;
+    aspect-ratio: 16/9;
+    object-fit: contain;
+    border-radius: 14px;
+    background: #000;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+    margin-bottom: 14px;
+  }
+  #vloekCelebration .vloek-list {
+    color: #ffe091;
+    font-weight: bold;
+    font-size: clamp(15px, 4vw, 19px);
+    letter-spacing: 1px;
+    margin: 6px 8px 14px;
+    line-height: 1.5;
+  }
+  #vloekCelebration .vloek-list .name {
+    color: #fff;
+    background: rgba(255,72,72,0.20);
+    border: 1.5px solid #ff8a8a;
+    border-radius: 12px;
+    padding: 3px 10px;
+    margin: 3px 4px;
+    display: inline-block;
+  }
+  #vloekCelebration .vloek-dismiss {
+    width: 100%;
+    background: linear-gradient(180deg, #ff8a8a 0%, #b71d1d 100%);
+    color: #fff;
+    font-size: 16px;
+    letter-spacing: 2px;
+    box-shadow: 0 6px 16px rgba(255,72,72,0.45);
+    border: 2px solid #4a0808;
+  }
+  #vloekCelebration .vloek-dismiss:hover { transform: translateY(-1px); }
+
   /* Picker-overlay */
   #puPicker[hidden] { display: none !important; }
   #puPicker {
@@ -1024,8 +1134,27 @@
     padding: 18px 16px 14px;
     max-width: 460px;
     width: 100%;
+    max-height: 92vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     color: #f3eed7;
     box-shadow: 0 18px 50px rgba(0,0,0,0.6);
+  }
+  #puPicker .pu-grid {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-right: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Cancel-knop blijft altijd onderin zichtbaar — sticky bottom-bar */
+  #puPicker .pu-card-footer {
+    flex-shrink: 0;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(246,215,122,0.25);
   }
   #puPicker h2 {
     color: #f6d77a;
@@ -1531,13 +1660,26 @@
   <!-- Mulligan-toast (gratis retry na plons) -->
   <div id="mulliganToast">MULLIGAN!</div>
 
+  <!-- Friese Vloek celebration overlay — video + drinkers + dismiss-knop -->
+  <div id="vloekCelebration" hidden data-interactive>
+    <div class="vloek-card" data-interactive>
+      <h2 class="vloek-title">FRIESE VLOEK!</h2>
+      <div class="vloek-tagline">Salire shots voor iedereen!!</div>
+      <video id="vloekVideo" playsinline loop preload="auto" muted></video>
+      <div class="vloek-list" id="vloekTargets">—</div>
+      <button class="btn vloek-dismiss" id="vloekDismissBtn" type="button">IEDEREEN HEEFT GEDRONKEN ✓</button>
+    </div>
+  </div>
+
   <!-- Power-up picker overlay -->
   <div id="puPicker" hidden data-interactive>
     <div class="pu-card" data-interactive>
       <h2>POWER-UP KIEZEN</h2>
       <div class="pu-sub" id="puPickerSub">Eén keer per beurt</div>
       <div class="pu-grid" id="puGrid"></div>
-      <button class="btn secondary pu-cancel" id="puCancelBtn">ANNULEREN</button>
+      <div class="pu-card-footer">
+        <button class="btn secondary pu-cancel" id="puCancelBtn">SPAREN — LATER</button>
+      </div>
     </div>
   </div>
 
@@ -1567,7 +1709,21 @@
   </div>
 
   <!-- Setup -->
-  <div id="setup" class="overlay">
+  <!-- Password-gate: blokkeert toegang tot setup tot 'Rinske' is ingevoerd.
+       Eenmaal geünlocked wordt het in localStorage onthouden zodat de prompt
+       niet bij elke sessie terugkomt. -->
+  <div id="passwordGate" class="overlay">
+    <img class="logo" src="logo.png" alt="" style="width:clamp(120px, 24vw, 180px); margin-bottom:6px;" onerror="this.style.display='none'" />
+    <h1 style="font-size:clamp(32px, 7vw, 48px); margin-top:0;">SPL FIERLJEPPEN</h1>
+    <div class="latin">— wachtwoord vereist —</div>
+    <p style="max-width:380px; margin: 14px auto 18px;">Alleen voor leden. Vul het wachtwoord in om te kunnen spelen.</p>
+    <input type="password" id="pwInput" placeholder="Wachtwoord" autocomplete="off"
+           style="font-size:18px; padding:12px 16px; width:min(86vw, 280px); border-radius:12px; border:2px solid #f6d77a; background:rgba(11,30,63,0.7); color:#f6d77a; text-align:center; letter-spacing:3px; font-family:inherit;" />
+    <button class="btn big" id="pwSubmitBtn" type="button" style="margin-top:14px;">ONTGRENDEL</button>
+    <div id="pwError" style="color:#ff8a8a; font-size:14px; margin-top:10px; min-height:18px; letter-spacing:1px;"></div>
+  </div>
+
+  <div id="setup" class="overlay hidden">
 <img class="logo setup-logo" src="logo.png" alt="SPL — Salire Perticea Longa" onerror="this.style.display='none'" />
     <h1>FIERLJEPPEN</h1>
     <div class="latin">— Salire Perticea Longa —</div>
@@ -2357,6 +2513,12 @@ const puPickerEl = document.getElementById('puPicker');
 if (puPickerEl) puPickerEl.addEventListener('click', (e) => {
   if (e.target === puPickerEl) closePowerUpPicker();
 });
+// ESC-key sluit eveneens — universele "weg!"-gesture
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && puPickerEl && !puPickerEl.hidden) {
+    closePowerUpPicker();
+  }
+});
 
 /* ----------------------------- Background music -----------------------
  * Loops continuously on every screen. Volume scales with the user's sound
@@ -2748,8 +2910,8 @@ function renderPowerUpStep() {
   const cancelBtn = document.getElementById('puCancelBtn');
 
   titleEl.textContent = 'POWER-UP KIEZEN';
-  sub.textContent = `Je hebt ${cur.tokens} token${cur.tokens === 1 ? '' : 's'} — kies één power-up`;
-  cancelBtn.textContent = 'ANNULEREN';
+  sub.textContent = `Je hebt ${cur.tokens} token${cur.tokens === 1 ? '' : 's'} — kies één of ga sparen`;
+  cancelBtn.textContent = 'SPAREN — LATER';
   cancelBtn.onclick = closePowerUpPicker;
 
   grid.innerHTML = POWERUPS.map(pu => {
@@ -2848,25 +3010,23 @@ function finalizePowerUp(puId, targetIdx) {
   cur.tokens -= pu.cost;
   closePowerUpPicker();
 
-  // SCREW-YOU-ALL: iedere tegenstander krijgt DIRECT +1 shot. Geen buffs, geen
-  // wachten op hun beurt — gewoon hier-en-nu drinken.
+  // SCREW-YOU-ALL: full-screen celebration met video. Shots worden pas
+  // toegepast wanneer de gebruiker bevestigt dat iedereen gedronken heeft
+  // (dismiss-knop). Dit geeft de groep tijd om de drank klaar te maken en
+  // het effect te savoreren. De video loopt continu tot dismiss.
   if (pu.allTargets) {
-    let hit = 0;
-    players.forEach((pl, idx) => {
-      if (idx === currentIdx) return;
-      pl.shots += 1;
-      totalShots += 1;
-      hit++;
-    });
-    showLaunchToast(`💀 ${pu.name.toUpperCase()} — ${hit}× SHOTJE!`, '#ff8a8a', 2700);
+    const targets = players.filter((_, idx) => idx !== currentIdx);
     if (typeof triggerShake === 'function') triggerShake(360, 18);
     if (typeof vibrate === 'function') vibrate([60, 40, 80, 40, 60]);
-    // Rode confetti-explosie — sadistische bevestiging dat iedereen de pineut is
     spawnFrieseVloekBlast();
+    showVloekCelebration(targets, () => {
+      // Op dismiss: NU pas de shots toepassen
+      targets.forEach(pl => { pl.shots += 1; totalShots += 1; });
+      if (typeof totalShotsEl !== 'undefined' && totalShotsEl) totalShotsEl.textContent = totalShots;
+      showLaunchToast(`💀 ${pu.name.toUpperCase()} — ${targets.length}× SHOTJE!`, '#ff8a8a', 2700);
+    });
     renderActiveBuffsStrip();
     refreshTokenUI();
-    // Update totalShots HUD-veld zodat de drinker-counter direct klopt
-    if (typeof totalShotsEl !== 'undefined' && totalShotsEl) totalShotsEl.textContent = totalShots;
     return;
   }
 
@@ -2952,6 +3112,43 @@ function setWodkaBlur(on) {
   const wrap = document.getElementById('wrap');
   if (!wrap) return;
   wrap.classList.toggle('wodka-blur', !!on);
+}
+
+/* Friese Vloek celebration — full-screen video + targets-lijst + dismiss-knop.
+ * onDismiss() wordt aangeroepen wanneer iedereen heeft gedronken zodat we
+ * de shots pas dan toepassen (en de groep tijd geeft om te drinken). */
+function showVloekCelebration(targets, onDismiss) {
+  const overlay = document.getElementById('vloekCelebration');
+  const list    = document.getElementById('vloekTargets');
+  const video   = document.getElementById('vloekVideo');
+  const dismissBtn = document.getElementById('vloekDismissBtn');
+  if (!overlay || !list || !video || !dismissBtn) return;
+  // Doellijst opbouwen
+  list.innerHTML = targets.map(p =>
+    `<span class="name">${escapeHtml(p.name)}</span>`
+  ).join(' ');
+  // Video laden + autoplay — ALTIJD muted zodat de achtergrond-audio van het
+  // filmpje het feest niet verstoort (gebruiker-feedback). De celebration
+  // werkt puur op visueel + dismiss-knop.
+  video.src = 'Screw-you-all.mp4';
+  video.muted = true;
+  video.volume = 0;
+  video.currentTime = 0;
+  overlay.hidden = false;
+  const tryPlay = video.play();
+  if (tryPlay && typeof tryPlay.catch === 'function') {
+    tryPlay.catch(() => { /* autoplay blocked — gebruiker tikt sowieso de dismiss */ });
+  }
+  // Dismiss-handler (één keer)
+  const handler = () => {
+    dismissBtn.removeEventListener('click', handler);
+    overlay.hidden = true;
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    if (typeof onDismiss === 'function') onDismiss();
+  };
+  dismissBtn.addEventListener('click', handler);
 }
 
 /* Mulligan-toast tonen. */
@@ -3362,6 +3559,50 @@ startBtn.addEventListener('click', () => {
   startGame();
 });
 
+/* ============================================================================
+ *  Password gate — alleen leden met het wachtwoord komen door.
+ *  Eenmaal correct ingevuld bewaren we de unlock in localStorage zodat de
+ *  prompt bij vervolg-sessies niet meer terugkomt.
+ * ============================================================================ */
+const PW_KEY = 'spl_unlocked_v1';
+const PW_VALUE = 'rinske';   // case-insensitive vergelijk
+(function setupPasswordGate() {
+  const gate    = document.getElementById('passwordGate');
+  const input   = document.getElementById('pwInput');
+  const submit  = document.getElementById('pwSubmitBtn');
+  const errorEl = document.getElementById('pwError');
+  if (!gate || !input || !submit) return;
+  // Eerder al ontgrendeld? → gate weg, setup direct zichtbaar.
+  if (lsGet(PW_KEY, '0') === '1') {
+    gate.classList.add('hidden');
+    if (setupOv) setupOv.classList.remove('hidden');
+    return;
+  }
+  function tryUnlock() {
+    const v = (input.value || '').trim().toLowerCase();
+    if (v === PW_VALUE) {
+      lsSet(PW_KEY, '1');
+      errorEl.textContent = '';
+      gate.classList.add('hidden');
+      if (setupOv) setupOv.classList.remove('hidden');
+    } else {
+      errorEl.textContent = 'Foute toegangscode — probeer opnieuw';
+      input.value = '';
+      // Korte shake-feedback
+      input.style.animation = 'none';
+      void input.offsetWidth;
+      input.style.animation = 'pwShake 0.4s ease-out';
+      input.focus();
+    }
+  }
+  submit.addEventListener('click', tryUnlock);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); }
+  });
+  // Focus zodra mogelijk zodat virtual-keyboard direct opent
+  setTimeout(() => input.focus(), 200);
+})();
+
 /* Difficulty-picker: 3 knoppen, click → localStorage opslaan + visuele state */
 (function setupDifficultyPicker() {
   const picker = document.getElementById('diffPicker');
@@ -3664,7 +3905,7 @@ function setShotIconForPlayer(p) {
   const name = (p && p.name || '').trim().toLowerCase();
   // Easter-eggs: sommige spelers krijgen een persoonlijke roast-video op het
   // pass-scherm i.p.v. de standaard FAIL-frame still. Map → bestandsnaam.
-  const FAIL_VIDEOS = { frank: 'frank-fail.mp4', hidde: 'hidde-fail.mp4' };
+  const FAIL_VIDEOS = { frank: 'frank-fail.mp4', hidde: 'hidde-fail.mp4', niels: 'niels-fail.mp4' };
   if (FAIL_VIDEOS[name]) {
     shotIcon.innerHTML = '';
     const v = document.createElement('video');
