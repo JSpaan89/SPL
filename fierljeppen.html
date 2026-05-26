@@ -1007,29 +1007,19 @@
     left: 4px; top: 50%;
     transform: translateY(-50%);
     width: 20px; height: 20px;
-    background-image: url('Power-ups.png');
-    background-size: 400% 286%;
+    background-size: contain;
     background-repeat: no-repeat;
+    background-position: center;
     border-radius: 4px;
   }
-  #activeBuffs .buff-pill[data-pu="mulligan"]::before        { background-position: 0%      23%; }
-  #activeBuffs .buff-pill[data-pu="windschot"]::before       { background-position: 33.33%  23%; }
-  #activeBuffs .buff-pill[data-pu="brede-zone"]::before      { background-position: 66.67%  23%; }
-  #activeBuffs .buff-pill[data-pu="sluwe-vos"]::before       { background-position: 100%    23%; }
-  #activeBuffs .buff-pill[data-pu="saboteur"]::before        { background-position: 0%      100%; }
-  #activeBuffs .buff-pill[data-pu="wodka"]::before           { background-position: 33.33%  100%; }
-  #activeBuffs .buff-pill[data-pu="dubbele-shot"]::before    { background-position: 66.67%  100%; }
-  #activeBuffs .buff-pill[data-pu="zwaardere-borrel"]::before{ background-position: 100%    100%; }
-
-  /* Pre-cropte versies voor de pills — zelfde aanpak als bij de picker */
-  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="mulligan"]::before         { background-image: var(--pu-icon-mulligan,         url('Power-ups.png')); background-size: contain; background-position: center; }
-  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="windschot"]::before        { background-image: var(--pu-icon-windschot,        url('Power-ups.png')); background-size: contain; background-position: center; }
-  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="brede-zone"]::before       { background-image: var(--pu-icon-brede-zone,       url('Power-ups.png')); background-size: contain; background-position: center; }
-  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="sluwe-vos"]::before        { background-image: var(--pu-icon-sluwe-vos,        url('Power-ups.png')); background-size: contain; background-position: center; }
-  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="saboteur"]::before         { background-image: var(--pu-icon-saboteur,         url('Power-ups.png')); background-size: contain; background-position: center; }
-  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="wodka"]::before            { background-image: var(--pu-icon-wodka,            url('Power-ups.png')); background-size: contain; background-position: center; }
-  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="dubbele-shot"]::before     { background-image: var(--pu-icon-dubbele-shot,     url('Power-ups.png')); background-size: contain; background-position: center; }
-  html.pu-icons-ready #activeBuffs .buff-pill[data-pu="zwaardere-borrel"]::before { background-image: var(--pu-icon-zwaardere-borrel, url('Power-ups.png')); background-size: contain; background-position: center; }
+  #activeBuffs .buff-pill[data-pu="mulligan"]::before        { background-image: url('Mulligan.png'); }
+  #activeBuffs .buff-pill[data-pu="windschot"]::before       { background-image: url('Windschot.png'); }
+  #activeBuffs .buff-pill[data-pu="brede-zone"]::before      { background-image: url('Bredezone.png'); }
+  #activeBuffs .buff-pill[data-pu="sluwe-vos"]::before       { background-image: url('Sluwevos.png'); }
+  #activeBuffs .buff-pill[data-pu="saboteur"]::before        { background-image: url('Saboteur.png'); }
+  #activeBuffs .buff-pill[data-pu="wodka"]::before           { background-image: url('Wodka.png'); }
+  #activeBuffs .buff-pill[data-pu="dubbele-shot"]::before    { background-image: url('Dubbeleshot.png'); }
+  #activeBuffs .buff-pill[data-pu="zwaardere-borrel"]::before{ background-image: url('Zwaardereborrel.png'); }
   #activeBuffs .buff-pill[data-pu="helikopterview"]::before {
     background-image: url('Helikopterview.png');
     background-size: cover;
@@ -1286,19 +1276,14 @@
       inset 0 -2px 0 rgba(0,0,0,0.25);
     transition: transform 0.08s ease, box-shadow 0.08s ease;
   }
-  /* Power-ups.png is een 4×2 sprite-sheet waarbij elke cel BOVENIN een tekst-
-   * label heeft + het icoon eronder. De labels staan al onder de tegel zelf,
-   * dus we zoomen in op de cel (zonder de top ~30%) zodat alleen het icoon
-   * groot en gecentreerd in de tegel zit. background-size 286% (ipv 200%)
-   * maakt elke cel 1.43× hoger; position-y schuift de view naar het icoon-
-   * gedeelte. Helikopterview / Friese Vloek / Schone Lei hebben eigen PNGs
-   * zonder text en gebruiken hun eigen overrides hieronder. */
+  /* Elke PU heeft z'n eigen schone losse PNG met transparante bg. Gewoon
+   * background-image per cell + contain-fit + center = pixel-perfect. */
   #puPicker .pu-slot .pu-icon {
     width: 100%;
     aspect-ratio: 1 / 1;
-    background-image: url('Power-ups.png');
-    background-size: 400% 286%;
+    background-size: contain;
     background-repeat: no-repeat;
+    background-position: center;
     border-radius: 10px;
     box-shadow:
       0 4px 8px rgba(0,0,0,0.4),
@@ -1310,28 +1295,15 @@
     transform: scale(1.08) rotate(-3deg);
     filter: drop-shadow(0 6px 10px rgba(246,215,122,0.55));
   }
-  /* FALLBACK (oude bg-position positions) — gebruikt wanneer de JS-preprocessor
-   * faalt (file://, CORS, etc.). Per cel geprobeerd om text-label te skippen. */
-  #puPicker .pu-slot[data-pu="mulligan"]         .pu-icon { background-position: 0%      23%; }
-  #puPicker .pu-slot[data-pu="windschot"]        .pu-icon { background-position: 33.33%  23%; }
-  #puPicker .pu-slot[data-pu="brede-zone"]       .pu-icon { background-position: 66.67%  23%; }
-  #puPicker .pu-slot[data-pu="sluwe-vos"]        .pu-icon { background-position: 100%    23%; }
-  #puPicker .pu-slot[data-pu="saboteur"]         .pu-icon { background-position: 0%      100%; }
-  #puPicker .pu-slot[data-pu="wodka"]            .pu-icon { background-position: 33.33%  100%; }
-  #puPicker .pu-slot[data-pu="dubbele-shot"]     .pu-icon { background-position: 66.67%  100%; }
-  #puPicker .pu-slot[data-pu="zwaardere-borrel"] .pu-icon { background-position: 100%    100%; }
-
-  /* AUTO-CROP versie — gebruikt wanneer JS pre-cropper succesvol cellen heeft
-   * geparsed (sets .pu-icons-ready op <html>). Elke cel krijgt z'n eigen
-   * data-URL via CSS-variabele en wordt perfect gecentreerd + contain-fit. */
-  html.pu-icons-ready #puPicker .pu-slot[data-pu="mulligan"]         .pu-icon { background-image: var(--pu-icon-mulligan,         url('Power-ups.png')); background-size: contain;        background-position: center; }
-  html.pu-icons-ready #puPicker .pu-slot[data-pu="windschot"]        .pu-icon { background-image: var(--pu-icon-windschot,        url('Power-ups.png')); background-size: contain;        background-position: center; }
-  html.pu-icons-ready #puPicker .pu-slot[data-pu="brede-zone"]       .pu-icon { background-image: var(--pu-icon-brede-zone,       url('Power-ups.png')); background-size: contain;        background-position: center; }
-  html.pu-icons-ready #puPicker .pu-slot[data-pu="sluwe-vos"]        .pu-icon { background-image: var(--pu-icon-sluwe-vos,        url('Power-ups.png')); background-size: contain;        background-position: center; }
-  html.pu-icons-ready #puPicker .pu-slot[data-pu="saboteur"]         .pu-icon { background-image: var(--pu-icon-saboteur,         url('Power-ups.png')); background-size: contain;        background-position: center; }
-  html.pu-icons-ready #puPicker .pu-slot[data-pu="wodka"]            .pu-icon { background-image: var(--pu-icon-wodka,            url('Power-ups.png')); background-size: contain;        background-position: center; }
-  html.pu-icons-ready #puPicker .pu-slot[data-pu="dubbele-shot"]     .pu-icon { background-image: var(--pu-icon-dubbele-shot,     url('Power-ups.png')); background-size: contain;        background-position: center; }
-  html.pu-icons-ready #puPicker .pu-slot[data-pu="zwaardere-borrel"] .pu-icon { background-image: var(--pu-icon-zwaardere-borrel, url('Power-ups.png')); background-size: contain;        background-position: center; }
+  /* Per-PU background-image — losse PNGs, transparante bg, gecentreerd */
+  #puPicker .pu-slot[data-pu="mulligan"]         .pu-icon { background-image: url('Mulligan.png'); }
+  #puPicker .pu-slot[data-pu="windschot"]        .pu-icon { background-image: url('Windschot.png'); }
+  #puPicker .pu-slot[data-pu="brede-zone"]       .pu-icon { background-image: url('Bredezone.png'); }
+  #puPicker .pu-slot[data-pu="sluwe-vos"]        .pu-icon { background-image: url('Sluwevos.png'); }
+  #puPicker .pu-slot[data-pu="saboteur"]         .pu-icon { background-image: url('Saboteur.png'); }
+  #puPicker .pu-slot[data-pu="wodka"]            .pu-icon { background-image: url('Wodka.png'); }
+  #puPicker .pu-slot[data-pu="dubbele-shot"]     .pu-icon { background-image: url('Dubbeleshot.png'); }
+  #puPicker .pu-slot[data-pu="zwaardere-borrel"] .pu-icon { background-image: url('Zwaardereborrel.png'); }
   /* Helikopterview heeft een EIGEN PNG, niet uit de 4×2 sprite-sheet */
   #puPicker .pu-slot[data-pu="helikopterview"] .pu-icon {
     background-image: url('Helikopterview.png');
@@ -2931,14 +2903,14 @@ const PERFECT_HEARTS    = 4;            // perfect = extra hartjes-boost
  *   3 ⭐ — zware impact (Sluwe Vos 50% trager, Wodka chaos,
  *          Zwaardere Borrel combo, Dubbele Shot extreme penalty) */
 const POWERUPS = [
-  { id: 'mulligan',         row: 0, col: 0, type: 'def', cost: 1, stacks: true,  name: 'Mulligan',         desc: 'Plons → één gratis retry' },
-  { id: 'windschot',        row: 0, col: 1, type: 'def', cost: 1, stacks: false, name: 'Windschot',        desc: 'Wind = 0 dit beurt' },
-  { id: 'brede-zone',       row: 0, col: 2, type: 'def', cost: 2, stacks: true,  name: 'Brede Zone',       desc: 'Gouden zone +40%' },
-  { id: 'sluwe-vos',        row: 0, col: 3, type: 'def', cost: 3, stacks: true,  name: 'Sluwe Vos',        desc: 'Sweep 100% trager' },
-  { id: 'saboteur',         row: 1, col: 0, type: 'off', cost: 2, stacks: false, name: 'Saboteur',         desc: 'Target: zone onzichtbaar' },
-  { id: 'wodka',            row: 1, col: 1, type: 'off', cost: 3, stacks: false, name: 'Wodka',            desc: 'Target: wazig scherm + wobble' },
-  { id: 'dubbele-shot',     row: 1, col: 2, type: 'off', cost: 3, stacks: true,  name: 'Dubbele Shot',     desc: 'Plons target = +1 shot per stack' },
-  { id: 'zwaardere-borrel', row: 1, col: 3, type: 'off', cost: 3, stacks: true,  name: 'Zwaardere Borrel', desc: 'Target: sloot +10% & sweep +30%' },
+  { id: 'mulligan',         iconSrc: 'Mulligan.png',         type: 'def', cost: 1, stacks: true,  name: 'Mulligan',         desc: 'Plons → één gratis retry' },
+  { id: 'windschot',        iconSrc: 'Windschot.png',        type: 'def', cost: 1, stacks: false, name: 'Windschot',        desc: 'Wind = 0 dit beurt' },
+  { id: 'brede-zone',       iconSrc: 'Bredezone.png',        type: 'def', cost: 2, stacks: true,  name: 'Brede Zone',       desc: 'Gouden zone +40%' },
+  { id: 'sluwe-vos',        iconSrc: 'Sluwevos.png',         type: 'def', cost: 3, stacks: true,  name: 'Sluwe Vos',        desc: 'Sweep 100% trager' },
+  { id: 'saboteur',         iconSrc: 'Saboteur.png',         type: 'off', cost: 2, stacks: false, name: 'Saboteur',         desc: 'Target: zone onzichtbaar' },
+  { id: 'wodka',            iconSrc: 'Wodka.png',            type: 'off', cost: 3, stacks: false, name: 'Wodka',            desc: 'Target: wazig scherm + wobble' },
+  { id: 'dubbele-shot',     iconSrc: 'Dubbeleshot.png',      type: 'off', cost: 3, stacks: true,  name: 'Dubbele Shot',     desc: 'Plons target = +1 shot per stack' },
+  { id: 'zwaardere-borrel', iconSrc: 'Zwaardereborrel.png',  type: 'off', cost: 3, stacks: true,  name: 'Zwaardere Borrel', desc: 'Target: sloot +10% & sweep +30%' },
   // TOP-tier: aparte PNG (Helikopterview.png), gouden glow in picker. Sweep
   // overgeslagen → gegarandeerde PERFECT bij eerstvolgende launch-tik.
   { id: 'helikopterview',   iconSrc: 'Helikopterview.png', type: 'def', cost: 5, stacks: false, top: true, name: 'Helikopterview', desc: 'Marker staat stil op PERFECT — gegarandeerde clear' },
@@ -2954,15 +2926,11 @@ const POWERUPS = [
 const POWERUP_BY_ID = Object.fromEntries(POWERUPS.map(p => [p.id, p]));
 
 /* ============================================================================
- *  PU-sprite pre-cropper — bij page-load splitten we Power-ups.png in 8 cellen,
- *  vinden per cel de tightbox van het ICOON (skipping de text-label boven), en
- *  zetten elke crop als data-URL in een CSS-variabele. CSS gebruikt deze
- *  variabele zodat elk icoon perfect gecentreerd + contain-fit rendert ongeacht
- *  z'n originele positie binnen de cel.
- *
- *  Reden: de iconen staan niet allemaal op dezelfde y-positie in hun cel
- *  (mulligan op 51%, saboteur op 42%, sluwe-vos op 53%, etc). Een fixed
- *  bg-position-y voor het hele sheet centreert niemand perfect.
+ *  PU-sprite pre-cropper — VERLATEN sinds v57. Iedere PU heeft nu z'n eigen
+ *  losse PNG (Mulligan.png, Windschot.png, etc.) en CSS verwijst er direct
+ *  naar via iconSrc. Auto-crop blijft staan als fallback maar wordt door de
+ *  nieuwe CSS niet meer aangesproken — kan verwijderd worden bij volgende
+ *  opruim.
  * ============================================================================ */
 function preparePowerUpIcons() {
   const src = new Image();
@@ -2981,24 +2949,48 @@ function preparePowerUpIcons() {
         { id: 'dubbele-shot',     col: 2, row: 1 },
         { id: 'zwaardere-borrel', col: 3, row: 1 },
       ];
-      const TEXT_SKIP_FRAC = 0.30;    // top 30% van elke cel = tekstlabel — skip
-      const PAD_PX = 14;              // ademruimte rondom icoon-bbox
+      const PAD_PX = 18;              // ademruimte rondom icoon-bbox
+      /* Inset om "bleed" tussen cellen te negeren — sommige AI-gegenereerde
+       * sprite-sheets hebben iconen die net over de cell-grens steken (bv.
+       * de vos die in Brede Zone's cel bleed). De binnenste 88% van elke
+       * cel scannen voorkomt dat we die randpixels meenemen in onze bbox. */
+      const INSET_FRAC = 0.06;
 
       cells.forEach(cell => {
-        const sx = cell.col * fw;
-        const sy = cell.row * fh + fh * TEXT_SKIP_FRAC;
-        const sw = fw;
-        const sh = fh * (1 - TEXT_SKIP_FRAC);
+        const sx = cell.col * fw + fw * INSET_FRAC;
+        const sy = cell.row * fh + fh * INSET_FRAC;
+        const sw = fw * (1 - 2 * INSET_FRAC);
+        const sh = fh * (1 - 2 * INSET_FRAC);
 
-        // Crop icon-area van het sheet naar een werk-canvas
+        // Crop hele cel naar een werk-canvas
         const work = document.createElement('canvas');
         work.width = sw; work.height = sh;
         const wctx = work.getContext('2d');
         wctx.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
 
-        // Bbox van content vinden — pixel is content als alpha > 32 en NIET
-        // bijna-wit (de cell-bg is wit/transparant).
+        // Bg-detectie via 6 corner/edge samples — als ze opaque + onderling
+        // gelijk zijn = vaste achtergrond-kleur (grijs/cream van de nieuwe
+        // sheet). Anders fallback op transparant.
         const data = wctx.getImageData(0, 0, sw, sh).data;
+        const sampPts = [
+          [0,0], [sw-1,0], [0,sh-1], [sw-1,sh-1],
+          [Math.floor(sw/2), 0], [Math.floor(sw/2), sh-1]
+        ];
+        let bg = null;
+        const cols = sampPts.map(([x,y]) => {
+          const i = (y*sw + x) * 4;
+          return [data[i], data[i+1], data[i+2], data[i+3]];
+        });
+        if (cols.every(c => c[3] > 200)) {
+          const [r0,g0,b0] = cols[0];
+          if (cols.every(c => Math.abs(c[0]-r0)+Math.abs(c[1]-g0)+Math.abs(c[2]-b0) < 36)) {
+            bg = [r0, g0, b0];
+          }
+        }
+        const BG_TOL = 42;   // L1-afstand om als bg te beschouwen
+
+        // Bbox van content vinden — pixel is content als alpha > 32 EN niet
+        // bijna-wit EN niet de gedetecteerde bg-kleur.
         let minX = sw, minY = sh, maxX = -1, maxY = -1;
         for (let y = 0; y < sh; y++) {
           const rowOff = y * sw * 4;
@@ -3008,6 +3000,7 @@ function preparePowerUpIcons() {
             if (a < 32) continue;
             const r = data[i], g = data[i + 1], b = data[i + 2];
             if (r > 235 && g > 235 && b > 235) continue;
+            if (bg && (Math.abs(r-bg[0]) + Math.abs(g-bg[1]) + Math.abs(b-bg[2]) < BG_TOL)) continue;
             if (x < minX) minX = x;
             if (y < minY) minY = y;
             if (x > maxX) maxX = x;
@@ -3034,6 +3027,20 @@ function preparePowerUpIcons() {
         const offX = Math.floor((side - cropW) / 2);
         const offY = Math.floor((side - cropH) / 2);
         octx.drawImage(work, minX, minY, cropW, cropH, offX, offY, cropW, cropH);
+
+        // Bg-pixels uit het output-icoon wissen zodat de tegel-bg doorschijnt
+        // en we geen grijze "rand" rond het icoon krijgen op de nieuwe sheet.
+        if (bg) {
+          const od = octx.getImageData(0, 0, side, side);
+          const dat = od.data;
+          for (let i = 0; i < dat.length; i += 4) {
+            const r = dat[i], g = dat[i+1], b = dat[i+2];
+            if (Math.abs(r-bg[0]) + Math.abs(g-bg[1]) + Math.abs(b-bg[2]) < BG_TOL) {
+              dat[i+3] = 0;     // transparant
+            }
+          }
+          octx.putImageData(od, 0, 0);
+        }
 
         const url = out.toDataURL('image/png');
         document.documentElement.style.setProperty(`--pu-icon-${cell.id}`, `url('${url}')`);

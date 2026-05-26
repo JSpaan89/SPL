@@ -17,7 +17,7 @@
  *  en oude asset-caches worden opgeruimd.
  * ============================================================================= */
 
-const CACHE_VERSION = 'v54-shot-banger-banner-top';
+const CACHE_VERSION = 'v57-individual-pu-pngs';
 const CACHE_NAME    = `spl-fierljeppen-${CACHE_VERSION}`;
 
 // Core shell — voor offline boot. Alleen pre-cachen wat ALTIJD nodig is.
@@ -44,11 +44,20 @@ const RUNTIME_PATTERNS = [
   /flag-/,
   /pole|poolstok/,
   /referee/,
-  /Power-ups/i,                  // power-up sprite-sheet (4×2 grid)
+  /Power-ups/i,                  // legacy sprite-sheet (niet meer gebruikt, blijft cachable)
   /Helikopterview/i,             // top-tier PU eigen asset
   /screw-you-all/i,              // Friese Vloek PU asset (zowel .png als .mp4)
   /niels-fail/i,                 // Niels fail-video easter-egg
   /\/reset\.png$/,               // Schone Lei PU icon
+  // Losse PU icons (sinds v57)
+  /\/Mulligan\.png$/,
+  /\/Windschot\.png$/,
+  /\/Bredezone\.png$/,
+  /\/Sluwevos\.png$/,
+  /\/Saboteur\.png$/,
+  /\/Wodka\.png$/,
+  /\/Dubbeleshot\.png$/,
+  /\/Zwaardereborrel\.png$/,
   /\/logo(-small)?\.png$/,
   /\/app-icon\.png$/,
   /\.mp3$/,
