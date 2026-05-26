@@ -172,6 +172,17 @@
   }
   .hud-block .wind { font-size: 13px; }
   .hud-block .wind .arrow { display: inline-block; transform-origin: center; }
+  /* Wind-block is interactief (geheime long-press cyclet door weer-types).
+   * #hud heeft pointer-events:none — we overriden hier voor alleen dit blok
+   * zodat pointerdown wel doorkomt. user-select:none voorkomt tekst-selectie
+   * tijdens vasthouden. */
+  #windHudBlock {
+    pointer-events: auto;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
 
   /* ===== Logo watermark while playing ===== */
   #wm {
@@ -1035,6 +1046,174 @@
     color: #ff8a8a;
   }
 
+  /* Scorecard-intro — 2s teaser vóór het echte scoreboard verschijnt.
+   * Gouden ornament-lijst rond de groepsfoto + dankbericht. Fade-in/out
+   * voor sfeer. */
+  #scorecardIntro[hidden] { display: none !important; }
+  #scorecardIntro {
+    position: fixed; inset: 0;
+    background: radial-gradient(circle at 50% 40%, rgba(40,20,5,0.92) 0%, rgba(11,30,63,0.95) 60%, rgba(0,0,0,0.97) 100%);
+    z-index: 10001;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: scorecardFade 0.6s ease-out;
+  }
+  @keyframes scorecardFade {
+    0%   { opacity: 0; transform: scale(0.92); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  #scorecardIntro .scorecard-intro-card {
+    text-align: center;
+    max-width: 540px;
+    width: min(94vw, 540px);
+  }
+  #scorecardIntro .scorecard-intro-title {
+    color: #f6d77a;
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-weight: bold;
+    font-size: clamp(28px, 6.5vw, 44px);
+    letter-spacing: 4px;
+    margin: 0 0 14px;
+    text-shadow: 0 0 18px rgba(246,215,122,0.7), 0 4px 8px rgba(0,0,0,0.6);
+  }
+  /* Gouden ornament-frame met dubbele rand, donkere matte achtergrond, en
+   * een binnenrand-glow. Past automatisch op de foto-aspect via aspect-ratio. */
+  #scorecardIntro .scorecard-frame {
+    background: linear-gradient(135deg, #f6d77a 0%, #d4a73a 50%, #f6d77a 100%);
+    padding: 14px;
+    border-radius: 14px;
+    box-shadow:
+      0 0 50px rgba(246,215,122,0.55),
+      0 18px 40px rgba(0,0,0,0.7),
+      inset 0 0 0 2px rgba(0,0,0,0.55),
+      inset 0 0 0 6px rgba(246,215,122,0.95),
+      inset 0 0 0 8px rgba(0,0,0,0.6);
+    display: inline-block;
+  }
+  #scorecardIntro .scorecard-frame img {
+    display: block;
+    width: 100%;
+    max-width: 360px;
+    max-height: 60vh;
+    object-fit: contain;
+    border-radius: 4px;
+    background: #0b1e3f;
+  }
+  #scorecardIntro .scorecard-intro-msg {
+    color: #ffe091;
+    font-family: Georgia, serif;
+    font-size: clamp(16px, 4vw, 22px);
+    letter-spacing: 1.5px;
+    line-height: 1.55;
+    margin-top: 18px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+  }
+  #scorecardIntro .scorecard-intro-msg em {
+    font-size: clamp(13px, 3vw, 17px);
+    color: #d6cda3;
+    letter-spacing: 1px;
+  }
+
+  /* Gamecreator easter-egg overlay — long-press op SPL-logo opent dit */
+  #creatorOverlay[hidden] { display: none !important; }
+  #creatorOverlay {
+    position: fixed; inset: 0;
+    background: radial-gradient(circle at 50% 40%, rgba(70,10,10,0.92) 0%, rgba(11,30,63,0.95) 60%, rgba(0,0,0,0.97) 100%);
+    z-index: 10000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: fadeIn 0.35s ease-out;
+  }
+  #creatorOverlay .creator-card {
+    background: linear-gradient(180deg, #1a1004 0%, #0b1e3f 100%);
+    border: 3px solid #f6d77a;
+    border-radius: 22px;
+    padding: 20px 22px 18px;
+    max-width: 460px;
+    width: min(96vw, 460px);
+    max-height: 94vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    color: #fff;
+    box-shadow: 0 0 60px rgba(246,215,122,0.45), 0 18px 50px rgba(0,0,0,0.8);
+  }
+  #creatorOverlay .creator-title {
+    color: #f6d77a;
+    font-family: Georgia, serif;
+    font-weight: bold;
+    letter-spacing: 4px;
+    font-size: clamp(20px, 5.5vw, 32px);
+    margin: 0 0 12px;
+    text-shadow: 0 0 18px rgba(246,215,122,0.7);
+  }
+  #creatorOverlay #creatorImg {
+    width: 100%;
+    max-width: 320px;
+    height: auto;
+    aspect-ratio: 9/16;
+    object-fit: cover;
+    object-position: center top;
+    border-radius: 14px;
+    border: 2px solid #f6d77a;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.6), 0 0 30px rgba(246,215,122,0.3);
+  }
+  #creatorOverlay .creator-name {
+    color: #ffe091;
+    font-family: Georgia, serif;
+    font-weight: bold;
+    font-size: clamp(22px, 5.5vw, 34px);
+    letter-spacing: 2px;
+    margin: 14px 0 4px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  }
+  #creatorOverlay .creator-sub {
+    color: #d6cda3;
+    font-style: italic;
+    font-size: clamp(13px, 3.5vw, 16px);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+  /* Verstopte boss-toggle — klein cirkeltje rechtsboven in de creator-card.
+   * Geen tekst, geen tooltip. Standaard halftransparante donker-gouden dot
+   * die wegvalt tegen de border. Wanneer AAN: pulserende gouden glow als
+   * stille visuele bevestiging — alleen wie de knop kent weet wat-ie doet. */
+  #creatorOverlay .boss-secret-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid rgba(246,215,122,0.35);
+    background: rgba(11,30,63,0.4);
+    cursor: pointer;
+    padding: 0;
+    opacity: 0.35;
+    transition: opacity 0.2s, box-shadow 0.25s, background 0.25s;
+    z-index: 2;
+  }
+  #creatorOverlay .creator-card { position: relative; }   /* anker voor absolute btn */
+  #creatorOverlay .boss-secret-btn:hover { opacity: 0.85; }
+  #creatorOverlay .boss-secret-btn.boss-on {
+    background: radial-gradient(circle, #ffe091 0%, #d4a73a 100%);
+    border-color: #f6d77a;
+    opacity: 1;
+    box-shadow: 0 0 12px rgba(246,215,122,0.85), 0 0 24px rgba(246,215,122,0.5);
+    animation: bossPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes bossPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.18); }
+  }
+
   /* Password-gate shake bij foute invoer */
   @keyframes pwShake {
     0%, 100% { transform: translateX(0); }
@@ -1696,7 +1875,7 @@
     <div class="hud-block player"><small>AAN ZET</small><strong id="curPlayer">—</strong></div>
     <div class="hud-block"><small>RONDE</small><strong id="lvl">1</strong></div>
     <div class="hud-block"><small>SLOOT</small><strong id="ditch">4.0 m</strong></div>
-    <div class="hud-block"><small>WIND</small><span class="wind"><span class="arrow" id="windArrow">→</span> <span id="windStrength">0</span></span></div>
+    <div class="hud-block" id="windHudBlock" data-interactive><small>WIND</small><span class="wind"><span class="arrow" id="windArrow">→</span> <span id="windStrength">0</span></span></div>
     <div class="hud-block"><small>SHOTS</small><strong id="totalShots">0</strong></div>
   </div>
 
@@ -1749,7 +1928,8 @@
   <div id="cornerControls">
     <button class="icon-btn" id="layoutToggle" aria-label="Layout wisselen" title="Layout: mobiel ↔ desktop">📱</button>
     <button class="icon-btn" id="castBtn" aria-label="Cast naar TV" title="Cast naar TV">📺</button>
-    <button class="icon-btn" id="soundToggle" aria-label="Geluid aan/uit" title="Geluid">🔊</button>
+    <button class="icon-btn" id="soundToggle" aria-label="Geluid aan/uit" title="Geluid effecten">🔊</button>
+    <button class="icon-btn" id="musicToggle" aria-label="Muziek aan/uit" title="Achtergrondmuziek">🎵</button>
   </div>
 
   <!-- Active buffs / debuffs strip (verschijnt tijdens beurt) -->
@@ -1757,6 +1937,33 @@
 
   <!-- Mulligan-toast (gratis retry na plons) -->
   <div id="mulliganToast">MULLIGAN!</div>
+
+  <!-- Scorecard intro — verschijnt 2s tussen celebration en scoreboard-reveal.
+       Foto van het entertainment-team in gouden lijst + dankbericht. -->
+  <div id="scorecardIntro" hidden data-interactive>
+    <div class="scorecard-intro-card" data-interactive>
+      <h2 class="scorecard-intro-title">DANK JE WEL</h2>
+      <div class="scorecard-frame">
+        <img src="Scorecard.png" alt="Entertainment team" />
+      </div>
+      <div class="scorecard-intro-msg">
+        Bedankt voor het spelen<br/>
+        <em>— namens het entertainment team —</em>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gamecreator easter egg — long-press SPL-logo opent overlay met portret -->
+  <div id="creatorOverlay" hidden data-interactive>
+    <div class="creator-card" data-interactive>
+      <h2 class="creator-title">⚜ GAMECREATOR ⚜</h2>
+      <img id="creatorImg" src="Gamecreator.png" alt="Eindbaas Jarno" />
+      <div class="creator-name">Jarno Spaan</div>
+      <div class="creator-sub">— Bedacht & gebouwd —<br/>Drink een shotje op 'm 🥃</div>
+      <button class="btn vloek-dismiss" id="creatorDismissBtn" type="button">BEDANKT EINDBAAS</button>
+      <button class="boss-secret-btn" id="bossToggleBtn" type="button" aria-label="Geheime modus" data-interactive></button>
+    </div>
+  </div>
 
   <!-- Friese Vloek celebration overlay — video + drinkers + dismiss-knop -->
   <div id="vloekCelebration" hidden data-interactive>
@@ -2089,6 +2296,104 @@ resize();
  *    → toggle localStorage 'spl_hidde_unlocked' (0/1)
  *  Bij elke toggle een toast zodat duidelijk is wat er gebeurd is.
  * ============================================================================ */
+/* ============================================================================
+ *  GAMECREATOR EASTER EGG — long-press (1.5s) op het SPL-logo opent een
+ *  overlay met de troon-foto van Jarno. Werkt naast de bestaande 5×tap-
+ *  Hidde-unlock cheat: long-press ≠ multi-tap dus geen conflict.
+ * ============================================================================ */
+/* ============================================================================
+ *  GEHEIME WEER-CYCLER — long-press (1.2s) op het WIND-HUD-block tijdens een
+ *  beurt cyclet door de 4 weer-types. Handig voor debug/showcase: krijg je
+ *  niet random een tornado? Druk en houd op de wind-balk.
+ * ============================================================================ */
+(function setupSecretWeatherCycle() {
+  const block = document.getElementById('windHudBlock');
+  if (!block) return;
+  let pressTimer = null;
+  const HOLD_MS = 1200;
+  function fire() {
+    if (typeof WEATHER_IDS === 'undefined') return;
+    const cur = currentWeather;
+    const idx = WEATHER_IDS.indexOf(cur);
+    currentWeather = WEATHER_IDS[(idx + 1) % WEATHER_IDS.length];
+    currentTimeOfDay = rollTimeOfDay();
+    if (currentTimeOfDay === 'night') regenStars();
+    weatherParticles = [];
+    rollWind();
+    if (typeof refreshWindHud === 'function') refreshWindHud();
+    const p = WEATHER_PROFILES[currentWeather];
+    const todIcon = (TOD_ICONS[currentTimeOfDay] || '');
+    showLaunchToast(`${p.icon}${todIcon}  ${p.label.toUpperCase()}`, p.color, 1500);
+  }
+  block.addEventListener('pointerdown', () => {
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = setTimeout(fire, HOLD_MS);
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(ev => {
+    block.addEventListener(ev, () => {
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    });
+  });
+})();
+
+(function setupGamecreatorEasterEgg() {
+  const logo = document.querySelector('.setup-logo');
+  const overlay = document.getElementById('creatorOverlay');
+  const dismissBtn = document.getElementById('creatorDismissBtn');
+  if (!logo || !overlay || !dismissBtn) return;
+  let pressTimer = null;
+  let longPressed = false;
+  const LONG_PRESS_MS = 1500;
+  function openOverlay() {
+    overlay.hidden = false;
+    longPressed = true;
+  }
+  function start(e) {
+    longPressed = false;
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = setTimeout(openOverlay, LONG_PRESS_MS);
+  }
+  function cancel() {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+  }
+  logo.addEventListener('pointerdown', start);
+  logo.addEventListener('pointerup',   cancel);
+  logo.addEventListener('pointercancel', cancel);
+  logo.addEventListener('pointerleave', cancel);
+  // Voorkom dat de long-press ook als 'click' meetelt voor de 5×tap-cheat
+  logo.addEventListener('click', (e) => { if (longPressed) { e.stopImmediatePropagation(); longPressed = false; } }, true);
+
+  dismissBtn.addEventListener('click', () => { overlay.hidden = true; });
+  // Klik buiten card sluit ook
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.hidden = true;
+  });
+
+  /* Verstopt boss-knopje (rechtsboven in card) — verwisselt Jarno's sprite-
+   * sheet voor de geheime EINDBAAS-versie. Geen tekst, alleen visuele state
+   * (gouden glow + pulse wanneer AAN). State in localStorage. */
+  const bossBtn = document.getElementById('bossToggleBtn');
+  function refreshBossBtn() {
+    if (!bossBtn) return;
+    const on = lsGet('spl_jarno_boss', '0') === '1';
+    bossBtn.classList.toggle('boss-on', on);
+  }
+  if (bossBtn) {
+    refreshBossBtn();
+    bossBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const on = lsGet('spl_jarno_boss', '0') === '1';
+      lsSet('spl_jarno_boss', on ? '0' : '1');
+      refreshBossBtn();
+      // Reload Jarno's sprite-sheet live zodat de toggle direct effect heeft
+      const entry = (typeof CharacterRegistry !== 'undefined') ? CharacterRegistry.get('jarno') : null;
+      if (entry && entry.img) {
+        entry.img.src = (!on) ? 'sprite-name-jarno-boss.png' : 'sprite-name-jarno.png';
+      }
+    });
+  }
+})();
+
 (function setupHiddeUnlockCheat() {
   const LOGO_KEY = 'spl_hidde_unlocked';
   const setupLogo = document.querySelector('.setup-logo');
@@ -2369,7 +2674,13 @@ const CharacterRegistry = (() => {
 
 const BUILTIN_CHARACTERS = ['niels','sven','jarno','daan','sanderl','sanderk','jochem','jesper','hidde','stefan','frank','koen'];
 for (const n of BUILTIN_CHARACTERS) {
-  CharacterRegistry.addBuiltin(n, `sprite-name-${n}.png`);
+  // Jarno heeft een geheime EINDBAAS-versie: rode jas + scepter, te activeren
+  // via knop in de Gamecreator easter-egg. localStorage 'spl_jarno_boss'.
+  let src = `sprite-name-${n}.png`;
+  if (n === 'jarno' && (typeof lsGet === 'function') && lsGet('spl_jarno_boss', '0') === '1') {
+    src = 'sprite-name-jarno-boss.png';
+  }
+  CharacterRegistry.addBuiltin(n, src);
 }
 // User uploads from a previous session override the builtins.
 (function(){
@@ -2397,6 +2708,10 @@ IMG.spriteWet.onload = markReady;   IMG.spriteWet.src   = 'sprite-wet.png';
 IMG.flag.onload = markReady;        IMG.flag.src        = 'flag-mast.png';  // NEW: mast + vlag combined asset
 IMG.pole.onload = markReady;        IMG.pole.src        = 'poolstok.png';  // NEW: water-side is pivot, handle volgt speler
 IMG.bgHills.onload = markReady;     IMG.bgHills.src     = 'bg-hills.png';
+// Tornado-frames — 3 stuks, alternerend gerenderd voor "verspringend" effect
+IMG.tornado1 = new Image(); IMG.tornado1.onload = markReady; IMG.tornado1.src = 'Tornado1.png';
+IMG.tornado2 = new Image(); IMG.tornado2.onload = markReady; IMG.tornado2.src = 'Tornado2.png';
+IMG.tornado3 = new Image(); IMG.tornado3.onload = markReady; IMG.tornado3.src = 'Tornado3.png';
 
 /* New AI-generated bg lagen (zie background-prompt.md) — alle banks zijn nu
  * 1024×1536 portretten met geïntegreerde gras-top + cliff + water-overgang.
@@ -2583,17 +2898,37 @@ function lsSet(k, v) {
   try { localStorage.setItem(k, String(v)); } catch(e) {}
 }
 
+/* Twee aparte toggles:
+ *   soundOn  → sound-effects (jumps, perfects, splashes, weer-events, etc.)
+ *   musicOn  → background music (bg-music.mp3)
+ * Beide states leven in localStorage zodat keuze tussen sessies blijft staan. */
 let soundOn = lsGet(LS_SOUND, '1') !== '0';
+let musicOn = lsGet('spl_music_v1', '1') !== '0';
+const musicToggle = document.getElementById('musicToggle');
+
 function refreshSoundIcon() {
+  if (!soundToggle) return;
   soundToggle.textContent = soundOn ? '🔊' : '🔇';
   soundToggle.classList.toggle('off', !soundOn);
 }
+function refreshMusicIcon() {
+  if (!musicToggle) return;
+  musicToggle.textContent = musicOn ? '🎵' : '🔇';
+  musicToggle.classList.toggle('off', !musicOn);
+}
 refreshSoundIcon();
+refreshMusicIcon();
+
 soundToggle.addEventListener('click', () => {
   soundOn = !soundOn;
   lsSet(LS_SOUND, soundOn ? '1' : '0');
   refreshSoundIcon();
   if (soundOn) sndTap();
+});
+if (musicToggle) musicToggle.addEventListener('click', () => {
+  musicOn = !musicOn;
+  lsSet('spl_music_v1', musicOn ? '1' : '0');
+  refreshMusicIcon();
   refreshMusic();
 });
 
@@ -2630,7 +2965,9 @@ if (bgMusic) {
 }
 function refreshMusic() {
   if (!bgMusic) return;
-  if (soundOn) {
+  // Muziek is nu een EIGEN toggle (musicOn), los van SFX (soundOn).
+  // Zo kun je SFX laten doorlopen terwijl je de muziek pauseert.
+  if (musicOn) {
     const p = bgMusic.play();
     if (p && p.catch) p.catch(() => { /* will retry on next user gesture */ });
   } else {
@@ -3255,10 +3592,11 @@ function finalizePowerUp(puId, targetIdx) {
   // het effect te savoreren. De video loopt continu tot dismiss.
   if (pu.allTargets) {
     const targets = players.filter((_, idx) => idx !== currentIdx);
+    const casterName = (cur && cur.name) || '—';
     if (typeof triggerShake === 'function') triggerShake(360, 18);
     if (typeof vibrate === 'function') vibrate([60, 40, 80, 40, 60]);
     spawnFrieseVloekBlast();
-    showVloekCelebration(targets, () => {
+    showVloekCelebration(targets, casterName, () => {
       // Op dismiss: NU pas de shots toepassen
       targets.forEach(pl => { pl.shots += 1; totalShots += 1; });
       if (typeof totalShotsEl !== 'undefined' && totalShotsEl) totalShotsEl.textContent = totalShots;
@@ -3356,16 +3694,14 @@ function setWodkaBlur(on) {
 /* Friese Vloek celebration — full-screen video + targets-lijst + dismiss-knop.
  * onDismiss() wordt aangeroepen wanneer iedereen heeft gedronken zodat we
  * de shots pas dan toepassen (en de groep tijd geeft om te drinken). */
-function showVloekCelebration(targets, onDismiss) {
+function showVloekCelebration(targets, casterName, onDismiss) {
   const overlay = document.getElementById('vloekCelebration');
   const list    = document.getElementById('vloekTargets');
   const video   = document.getElementById('vloekVideo');
   const dismissBtn = document.getElementById('vloekDismissBtn');
   if (!overlay || !list || !video || !dismissBtn) return;
-  // Doellijst opbouwen
-  list.innerHTML = targets.map(p =>
-    `<span class="name">${escapeHtml(p.name)}</span>`
-  ).join(' ');
+  // Eén zin ipv lijst — "iedereen shots behalve {caster}"
+  list.innerHTML = `Iedereen shots behalve <span class="name">${escapeHtml(casterName)}</span>`;
   // Video laden + autoplay — ALTIJD muted zodat de achtergrond-audio van het
   // filmpje het feest niet verstoort (gebruiker-feedback). De celebration
   // werkt puur op visueel + dismiss-knop.
@@ -3894,6 +4230,13 @@ function applyRoundsSetting() {
 /* ----------------------------- Game flow -------------------------------- */
 function startGame() {
   currentIdx = 0; round = 1; totalShots = 0; totalClears = 0; clearStreakSinceFail = 0;
+  // Weer + dag/nacht reset naar zonnig+dag, counter op 0 zodat eerste beurt
+  // direct een random nieuwe weer/tijd-combinatie krijgt
+  currentWeather = 'zonnig';
+  currentTimeOfDay = 'day';
+  turnsUntilWeatherChange = 0;
+  weatherParticles = [];
+  nightStars = [];
   setupOv.classList.add('hidden');
   passOv.classList.add('hidden');
   overOv.classList.add('hidden');
@@ -3902,8 +4245,100 @@ function startGame() {
 
 function rollWind() {
   // Bias slight tailwind / headwind, never zero so the player notices.
-  wind = (Math.random() * 2 - 1) * WIND_MAX;
+  // Per weer-type krijgt de wind een sterkere range — see WEATHER_WIND_MULT.
+  const mult = (WEATHER_PROFILES[currentWeather] && WEATHER_PROFILES[currentWeather].windMult) || 1.0;
+  wind = (Math.random() * 2 - 1) * WIND_MAX * mult;
   if (Math.abs(wind) < 0.025) wind += (wind < 0 ? -0.025 : 0.025);
+}
+
+/* ============================================================================
+ *  WEER-SYSTEEM — wisselt elke 2-8 beurten van type. Per type een eigen
+ *  visueel effect + wind-multiplier (gameplay-impact). Tornado is het ergst,
+ *  zonnig de chillste.
+ * ============================================================================ */
+const WEATHER_PROFILES = {
+  zonnig:  { label: 'Zonnig',  icon: '☀️', windMult: 1.0, color: '#ffe091' },
+  regen:   { label: 'Regen',   icon: '🌧️', windMult: 1.3, color: '#9fd0ff' },
+  bliksem: { label: 'Bliksem', icon: '⚡',  windMult: 1.6, color: '#fff066' },
+  tornado: { label: 'Tornado', icon: '🌪️', windMult: 2.2, color: '#ff8a8a' },
+};
+const WEATHER_IDS = Object.keys(WEATHER_PROFILES);
+const TOD_IDS = ['day', 'dusk', 'night'];
+const TOD_ICONS = { day: '', dusk: '🌇', night: '🌙' };
+
+/* Lucht-thema's voor elke combinatie van weer × tijd-van-de-dag. Bevat:
+ *   topCol/botCol  — verticale gradient van de lucht
+ *   lightCol       — kleur van de zon/maan (leeg = niet zichtbaar)
+ *   lightShape     — 'sun', 'moon', of '' (verborgen)
+ *   cloudCol       — kleur van de wolken (donker bij stormen) */
+const SKY_THEMES = {
+  zonnig_day:    { topCol: '#cfeaf7', botCol: '#fff8f0', lightCol: 'rgba(255,225,150,0.92)', lightShape: 'sun',  cloudCol: 'rgba(255,255,255,0.92)' },
+  zonnig_dusk:   { topCol: '#ff9a6e', botCol: '#ffd87b', lightCol: 'rgba(255,180,90,0.95)',  lightShape: 'sun',  cloudCol: 'rgba(255,210,180,0.88)' },
+  zonnig_night:  { topCol: '#0a1430', botCol: '#162552', lightCol: 'rgba(240,240,255,0.95)', lightShape: 'moon', cloudCol: 'rgba(80,90,120,0.75)' },
+  regen_day:     { topCol: '#7a8a99', botCol: '#a8b3bd', lightCol: '',                       lightShape: '',     cloudCol: 'rgba(120,130,150,0.85)' },
+  regen_dusk:    { topCol: '#7a4a55', botCol: '#a47775', lightCol: '',                       lightShape: '',     cloudCol: 'rgba(140,110,120,0.85)' },
+  regen_night:   { topCol: '#1a2238', botCol: '#2a3550', lightCol: '',                       lightShape: '',     cloudCol: 'rgba(60,75,105,0.85)' },
+  bliksem_day:   { topCol: '#3a4255', botCol: '#5a606e', lightCol: '',                       lightShape: '',     cloudCol: 'rgba(40,50,70,0.92)' },
+  bliksem_dusk:  { topCol: '#4a3245', botCol: '#6a4858', lightCol: '',                       lightShape: '',     cloudCol: 'rgba(50,40,60,0.92)' },
+  bliksem_night: { topCol: '#080d1a', botCol: '#161e30', lightCol: '',                       lightShape: '',     cloudCol: 'rgba(20,25,40,0.92)' },
+  tornado_day:   { topCol: '#6e4030', botCol: '#9a5d4e', lightCol: '',                       lightShape: '',     cloudCol: 'rgba(95,65,55,0.90)' },
+  tornado_dusk:  { topCol: '#5a2b30', botCol: '#7c3e4a', lightCol: '',                       lightShape: '',     cloudCol: 'rgba(80,45,55,0.90)' },
+  tornado_night: { topCol: '#0a0a18', botCol: '#1c1828', lightCol: '',                       lightShape: '',     cloudCol: 'rgba(40,30,40,0.92)' },
+};
+function getSkyTheme() {
+  return SKY_THEMES[currentWeather + '_' + currentTimeOfDay] || SKY_THEMES.zonnig_day;
+}
+
+let currentWeather = 'zonnig';
+let currentTimeOfDay = 'day';      // 'day' | 'dusk' | 'night'
+let turnsUntilWeatherChange = 0;   // 0 = wisselen aan begin volgende beurt
+let weatherParticles = [];         // regendruppels + tornado-stof
+let lightningUntil = 0;            // ms-timestamp tot wanneer de flits zichtbaar is
+let lastLightningTick = 0;         // throttle voor bliksem-flitsen
+let nightStars = [];               // sterren — gegenereerd bij overgang naar nacht
+
+/* Time-of-day weights: dag overheerst, nacht regelmatig, dusk zeldzamer */
+function rollTimeOfDay() {
+  const r = Math.random();
+  if (r < 0.55) return 'day';
+  if (r < 0.80) return 'night';
+  return 'dusk';
+}
+/* Sterren gegenereerd bij elke transitie naar 'night' — voorkomt dat
+ * dezelfde star-positions per game terugkomen. */
+function regenStars() {
+  nightStars = [];
+  const count = 70 + Math.floor(Math.random() * 30);
+  for (let i = 0; i < count; i++) {
+    nightStars.push({
+      x: Math.random(),                  // 0..1, vermenigvuldigd met W bij draw
+      y: Math.random() * 0.55,           // bovenste 55 % van canvas
+      r: 0.6 + Math.random() * 1.4,
+      tw: Math.random() * Math.PI * 2,   // twinkle-fase
+    });
+  }
+}
+function rollWeather() {
+  // Kies een NIEUW weer-type (niet hetzelfde als nu) zodat het altijd opvalt
+  const others = WEATHER_IDS.filter(w => w !== currentWeather);
+  currentWeather = others[Math.floor(Math.random() * others.length)];
+  // Time-of-day rolt mee — kan toevallig hetzelfde blijven (~50%)
+  const prevTod = currentTimeOfDay;
+  currentTimeOfDay = rollTimeOfDay();
+  if (currentTimeOfDay === 'night' && prevTod !== 'night') regenStars();
+  turnsUntilWeatherChange = 2 + Math.floor(Math.random() * 7);  // 2..8 inclusive
+  weatherParticles = [];   // reset particles voor het nieuwe weer
+}
+function maybeChangeWeather() {
+  if (turnsUntilWeatherChange <= 0) {
+    rollWeather();
+    const p = WEATHER_PROFILES[currentWeather];
+    const todIcon = TOD_ICONS[currentTimeOfDay] || '';
+    const todWord = currentTimeOfDay === 'night' ? ' (nacht)' :
+                    currentTimeOfDay === 'dusk' ? ' (schemering)' : '';
+    showLaunchToast(`${p.icon}${todIcon}  ${p.label.toUpperCase()}${todWord}`, p.color, 1800);
+  }
+  turnsUntilWeatherChange--;
 }
 
 function beginTurn() {
@@ -3934,8 +4369,9 @@ function beginTurn() {
       }
     }
   }
+  maybeChangeWeather();   // weer wisselt om de 2-8 beurten
   configureDifficulty();
-  rollWind();
+  rollWind();             // gebruikt currentWeather.windMult
   refreshWindHud();
   renderLevelDots();
   state = STATE.READY;
@@ -4018,7 +4454,9 @@ function configureDifficulty() {
 }
 function refreshWindHud() {
   const pct = Math.round(wind * 100);
-  windStrengthEl.textContent = (pct >= 0 ? '+' : '') + pct + '%';
+  // Prefix wind-percentage met weer-icoon zodat speler ziet welk type actief is
+  const weatherIcon = (WEATHER_PROFILES[currentWeather] && WEATHER_PROFILES[currentWeather].icon) || '';
+  windStrengthEl.textContent = weatherIcon + ' ' + (pct >= 0 ? '+' : '') + pct + '%';
   // Arrow points in jump direction when wind helps; backward when headwind.
   windArrowEl.style.transform = `rotate(${wind >= 0 ? 0 : 180}deg)`;
   windArrowEl.textContent = '→';
@@ -4144,7 +4582,7 @@ function setShotIconForPlayer(p) {
   const name = (p && p.name || '').trim().toLowerCase();
   // Easter-eggs: sommige spelers krijgen een persoonlijke roast-video op het
   // pass-scherm i.p.v. de standaard FAIL-frame still. Map → bestandsnaam.
-  const FAIL_VIDEOS = { frank: 'frank-fail.mp4', hidde: 'hidde-fail.mp4', niels: 'niels-fail.mp4' };
+  const FAIL_VIDEOS = { frank: 'frank-fail.mp4', hidde: 'hidde-fail.mp4', niels: 'niels-fail.mp4', daan: 'daan-fail.mp4' };
   if (FAIL_VIDEOS[name]) {
     shotIcon.innerHTML = '';
     const v = document.createElement('video');
@@ -4333,20 +4771,26 @@ function endGame() {
   setTimeout(() => {
     clearInterval(dropInterval);
     celebration = null;
-    state = STATE.OVER;
-    // Bouw nu het standaard scoreboard
-    let html = '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
-    sorted.forEach((p, i) => {
-      html += `<tr>
-        <td>${i === 0 ? '<span class="crown">👑</span>' : ''}${escapeHtml(p.name)}</td>
-        <td class="cleared">${p.cleared}</td>
-        <td class="shots">${p.shots}</td>
-      </tr>`;
-    });
-    finalBoard.innerHTML = html;
-    overOv.classList.remove('hidden');
-    // Extra confetti-vlaag wanneer het scoreboard verschijnt
-    spawnWinnerShower();
+    // === 5s scorecard-intro: bedank-foto in gouden lijst ===
+    const intro = document.getElementById('scorecardIntro');
+    if (intro) intro.hidden = false;
+    setTimeout(() => {
+      if (intro) intro.hidden = true;
+      state = STATE.OVER;
+      // Bouw nu het standaard scoreboard
+      let html = '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
+      sorted.forEach((p, i) => {
+        html += `<tr>
+          <td>${i === 0 ? '<span class="crown">👑</span>' : ''}${escapeHtml(p.name)}</td>
+          <td class="cleared">${p.cleared}</td>
+          <td class="shots">${p.shots}</td>
+        </tr>`;
+      });
+      finalBoard.innerHTML = html;
+      overOv.classList.remove('hidden');
+      // Extra confetti-vlaag wanneer het scoreboard verschijnt
+      spawnWinnerShower();
+    }, 5000);
   }, 5000);
 }
 /* ----- Scorecard delen als PNG-afbeelding -----
@@ -4374,7 +4818,15 @@ function loadImageAsync(src) {
 }
 
 async function createScorecardImage() {
-  const CW = 720, CH = 1280;
+  // Dynamische canvas-hoogte op basis van #spelers. Header + winnaar-portret
+  // + footer = ~830px. Daaroverheen ROW_H per speler. Min 1280, geen max.
+  const CW = 720;
+  const N_PLAYERS = (players || []).length;
+  const ROW_H = 62;                          // hoogte per scoreboard-rij
+  const TABLE_HEADER_H = 90;                 // header + divider
+  const BASE_BLOCKS_H = 830;                 // logo + title + winnaar-portret + footer
+  const dynamicH = BASE_BLOCKS_H + TABLE_HEADER_H + ROW_H * Math.max(1, N_PLAYERS) + 30;
+  const CH = Math.max(1280, dynamicH);
   const c = document.createElement('canvas');
   c.width = CW; c.height = CH;
   const cx = c.getContext('2d');
@@ -4521,12 +4973,11 @@ async function createScorecardImage() {
   cx.stroke();
 
   /* ============ Rijen ================================================ */
-  // Beschikbare ruimte tussen header en footer; rij-hoogte schaalt met N
-  const footerBlockTop = CH - 165;
+  // Vaste rij-hoogte (canvas is dynamisch verhoogd om alles te laten passen).
   const rowsAreaTop    = y + 34;
-  const rowsAreaH      = footerBlockTop - rowsAreaTop - 20;
-  const rowH = Math.min(72, Math.max(50, rowsAreaH / Math.max(1, N)));
-  const nameFont = Math.round(Math.min(34, Math.max(22, rowH * 0.46)));
+  const rowH = ROW_H;        // constante uit canvas-init (62px)
+  const nameFont = 30;
+  const footerBlockTop = rowsAreaTop + rowH * Math.max(1, N) + 20;
 
   y = rowsAreaTop + rowH * 0.7;     // baseline van eerste rij (alphabetic)
 
@@ -4755,7 +5206,12 @@ function launch() {
    * effective > 0 = landt op gras; effective <= 0 = splash. */
   const ditchEndPx = DITCH_START + ditchWidthPx;
   const gapToClearPx = ditchEndPx - player.x;
-  const effective = Math.max(0, (1 - offset) + effectiveWind * 6);
+  // Wind-multiplier *10 op effective, MAAR z'n bijdrage gecapt op ±0.95 zodat
+  // bij max headwind (tornado, -0.11) perfect-timing (offset 0) net clear:
+  // effective = 1 - 0.95 = 0.05. Iedere andere offset faalt. Voor tailwind
+  // analoog: + 0.95 max → perfect+tornado = effective 1.95 → cap 1.5.
+  const windContrib = Math.max(-0.95, Math.min(0.95, effectiveWind * 10));
+  const effective = Math.max(0, Math.min(1.5, (1 - offset) + windContrib));
   const clears = effective > 0;
 
   let rangePx;
@@ -4764,9 +5220,20 @@ function launch() {
     // landt de speler aanzienlijk verder dan bij OK+geen wind.
     const marginPastBank = ditchWidthPx * (0.05 + effective * 0.70);
     rangePx = gapToClearPx + marginPastBank;
+    // Horizontaal-cap: speler mag nooit voorbij de rechter canvas-rand vliegen.
+    const maxLandingX = W * 0.92;
+    rangePx = Math.min(rangePx, maxLandingX - player.x);
+    // VERTICAAL-cap: voor 52° launch-angle is peak = rangePx × tan(52)/4 ≈
+    // rangePx × 0.32. Op brede landscape-canvas (W >> H) zou de boog
+    // anders boven het scherm uitvliegen. Cap peak op 85% van GROUND_Y
+    // zodat de speler in beeld blijft.
+    const maxPeak = GROUND_Y * 0.85;
+    const rangePxByHeight = maxPeak / 0.32;
+    rangePx = Math.min(rangePx, rangePxByHeight);
   } else {
     // Splash. Hoe verder buiten effective-zone, hoe verder vooral kort.
-    const outBy = Math.min(1.5, Math.max(0, offset - 1) + Math.max(0, -effectiveWind * 6));
+    // Wind-multiplier consistent met de effective-berekening (10×).
+    const outBy = Math.min(1.5, Math.max(0, offset - 1) + Math.max(0, -effectiveWind * 10));
     const shortfall = ditchWidthPx * (0.15 + outBy * 0.55);
     rangePx = Math.max(W * 0.04, gapToClearPx - shortfall);
   }
@@ -5171,21 +5638,56 @@ function ensureClouds() {
 }
 
 function drawBackground() {
-  // Sky gradient as fallback / blends behind everything
+  const theme = getSkyTheme();
+  // Sky gradient — kleuren afhankelijk van weer + dag/nacht-thema
   const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y + H*0.04);
-  sky.addColorStop(0, '#cfeaf7');
-  sky.addColorStop(1, '#ffffff');
+  sky.addColorStop(0, theme.topCol);
+  sky.addColorStop(1, theme.botCol);
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
 
-  // Sun
-  ctx.fillStyle = 'rgba(255,225,150,0.85)';
-  ctx.beginPath(); ctx.arc(W*0.82, H*0.14, H*0.05, 0, Math.PI*2); ctx.fill();
+  // Sterren bij nacht — alleen bij night-themes, twinkle via sin-modulation
+  if (currentTimeOfDay === 'night' && nightStars.length) {
+    const now = performance.now();
+    for (const s of nightStars) {
+      const twk = 0.5 + 0.5 * Math.sin(s.tw + now * 0.002);
+      ctx.fillStyle = `rgba(255,255,230,${0.45 + twk * 0.5})`;
+      const sx = s.x * W;
+      const sy = s.y * GROUND_Y;
+      ctx.beginPath();
+      ctx.arc(sx, sy, s.r * dpr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 
-  // Drifting clouds (kept procedural for life)
+  // Zon of maan — alleen bij zonnig weer (storms verbergen 'm)
+  if (theme.lightShape === 'sun') {
+    ctx.fillStyle = theme.lightCol;
+    ctx.beginPath(); ctx.arc(W*0.82, H*0.14, H*0.05, 0, Math.PI*2); ctx.fill();
+    // Subtiele glow
+    const sunGlow = ctx.createRadialGradient(W*0.82, H*0.14, H*0.03, W*0.82, H*0.14, H*0.12);
+    sunGlow.addColorStop(0, theme.lightCol);
+    sunGlow.addColorStop(1, 'rgba(255,225,150,0)');
+    ctx.fillStyle = sunGlow;
+    ctx.beginPath(); ctx.arc(W*0.82, H*0.14, H*0.12, 0, Math.PI*2); ctx.fill();
+  } else if (theme.lightShape === 'moon') {
+    // Volle maan: bleek-witte cirkel met sterke glow + subtiele crater-vlek
+    ctx.fillStyle = theme.lightCol;
+    ctx.beginPath(); ctx.arc(W*0.82, H*0.14, H*0.045, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(180,180,210,0.25)';
+    ctx.beginPath(); ctx.arc(W*0.825, H*0.135, H*0.015, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(W*0.815, H*0.145, H*0.010, 0, Math.PI*2); ctx.fill();
+    const moonGlow = ctx.createRadialGradient(W*0.82, H*0.14, H*0.03, W*0.82, H*0.14, H*0.14);
+    moonGlow.addColorStop(0, 'rgba(220,225,255,0.45)');
+    moonGlow.addColorStop(1, 'rgba(220,225,255,0)');
+    ctx.fillStyle = moonGlow;
+    ctx.beginPath(); ctx.arc(W*0.82, H*0.14, H*0.14, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Wolken — kleur uit theme zodat storm-wolken donker zijn, dag-wolken wit
   ensureClouds();
   const windDrift = wind * 1.5;
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillStyle = theme.cloudCol;
   for (const c of clouds) {
     c.x += c.s + windDrift;
     if (c.x - c.r > W) c.x = -c.r;
@@ -5196,9 +5698,6 @@ function drawBackground() {
     ctx.arc(c.x - c.r*0.6, c.y + 3, c.r*0.7, 0, Math.PI*2);
     ctx.fill();
   }
-
-  // Wind-label op de canvas is verwijderd — wind staat al duidelijk in de
-  // HUD-balk bovenaan, dubbele tekst leidde af.
 }
 
 /* New flag-mast asset (1024×1536) bevat de complete mast + SPL-vlag + grasbasis.
@@ -5223,12 +5722,16 @@ function drawWavingFlag(bankX0, bankOffsetY, scale) {
   const mastH       = Math.max(minMastH, Math.min(desiredH, H * 0.34));
   const s           = mastH / (FLAG_MAST_BASE_ROW - 109);   // schaalfactor PNG→canvas
 
-  // Anchor: mast-basis op GROUND_Y. Mast staat nu op de RECHTER oever,
-  // ~25% vanaf de cliff-edge naar binnen. (bankX0 wordt genegeerd — we
-  // berekenen poleX direct vanuit de ditch-grens.)
+  // Anchor: mast-basis op GROUND_Y. Mast staat nu op de LINKER oever,
+  // ~25% vanaf de cliff-edge naar binnen — symmetrisch met de oude rechter-
+  // positie maar nu uit het zicht van het kasteel rechts. (bankX0 wordt
+  // genegeerd — we berekenen poleX direct vanuit de ditch-grens.)
+  // Plus FLAG_Y_NUDGE = 12*dpr (~3mm) omhoog zodat de mast-basis net boven
+  // de bank-rand zit en de fabric volledig vrij in beeld komt.
   const ditchEnd = DITCH_START + ditchWidthPx;
-  const poleX = ditchEnd + (W - ditchEnd) * 0.25;
-  const drawY = GROUND_Y - FLAG_MAST_BASE_ROW * s;
+  const poleX = DITCH_START * 0.75;     // 75% van link-bank breedte → 25% van cliff naar binnen
+  const FLAG_Y_NUDGE = 12 * dpr;
+  const drawY = GROUND_Y - FLAG_MAST_BASE_ROW * s - FLAG_Y_NUDGE;
   const drawX = poleX - FLAG_MAST_CENTER_COL * s;
 
   const FW  = FLAG_BBOX_X1 - FLAG_BBOX_X0;   // 651
@@ -5333,11 +5836,15 @@ function drawGround() {
 
   /* ---------- Step 1: HILLS panorama (back) ----------
    * 1536×1024 PNG, sky transparant boven, hills+castle in onderhelft.
-   * We schalen op breedte W en anchoren row HILLS_BOTTOM_ROW op GROUND_Y. */
+   * We schalen op breedte W en anchoren row HILLS_BOTTOM_ROW op GROUND_Y.
+   * Plus ~2mm extra naar beneden zodat het witte streepje tussen de
+   * achtergrond en de waterlijn wordt afgedekt (bg-hills overlapt nu
+   * licht over de water-top). 8*dpr ≈ 2mm bij 96dpi. */
   if (IMG.bgHills.complete && IMG.bgHills.naturalWidth) {
     const scl   = W / HILLS_PNG_W;
     const drawH = HILLS_PNG_H * scl;
-    const drawY = GROUND_Y - HILLS_BOTTOM_ROW * scl;
+    const HILLS_Y_NUDGE = 8 * dpr;
+    const drawY = GROUND_Y - HILLS_BOTTOM_ROW * scl + HILLS_Y_NUDGE;
     ctx.drawImage(IMG.bgHills, 0, drawY, W, drawH);
   } else {
     ctx.fillStyle = '#8fb87a';
@@ -5628,10 +6135,13 @@ function drawPole() {
   ctx.save();
   ctx.translate(pivotX, pivotY);
   ctx.rotate(rot);
-  // Draw met PIVOT_COL,PIVOT_ROW op origin
+  // Draw met PIVOT_COL,PIVOT_ROW op origin. Hoogte-as krijgt extra THICK-
+  // multiplier zodat de pool-stok visueel 1.5× dikker rendert (lengte blijft
+  // ongewijzigd). Pivot-row schaalt mee zodat het pivot-punt blijft kloppen.
+  const POLE_THICK = 1.5;
   ctx.drawImage(IMG.pole,
-    -POLE_PIVOT_COL * scl, -POLE_PIVOT_ROW * scl,
-    POLE_ASSET_W * scl, POLE_ASSET_H * scl);
+    -POLE_PIVOT_COL * scl, -POLE_PIVOT_ROW * scl * POLE_THICK,
+    POLE_ASSET_W * scl, POLE_ASSET_H * scl * POLE_THICK);
   ctx.restore();
 }
 
@@ -5868,6 +6378,130 @@ function drawCelebration() {
   ctx.restore();
 }
 
+/* Weer-effecten: rendered NA achtergrond/heuvels en VOOR de speler.
+ * - Regen: ~120 schuine druppels die continu hervallen
+ * - Bliksem: zelfde druppels (regen-achtig) + random witte flitsen
+ * - Tornado: spiraal-stof + zwaardere atmosfeer-overlay */
+function drawWeather() {
+  if (currentWeather === 'zonnig') return;
+  const now = performance.now();
+
+  // Sky-tint per weer-type voor extra moodiness
+  if (currentWeather === 'regen' || currentWeather === 'bliksem') {
+    ctx.fillStyle = currentWeather === 'bliksem'
+      ? 'rgba(20,30,55,0.30)'
+      : 'rgba(40,60,90,0.22)';
+    ctx.fillRect(0, 0, W, GROUND_Y);
+  } else if (currentWeather === 'tornado') {
+    ctx.fillStyle = 'rgba(50,30,40,0.35)';
+    ctx.fillRect(0, 0, W, GROUND_Y);
+  }
+
+  // Particles spawnen op basis van weer-type
+  const wantParticles = (currentWeather === 'regen' || currentWeather === 'bliksem') ? 110
+                      : (currentWeather === 'tornado') ? 80
+                      : 0;
+  // Top up tot we genoeg particles hebben
+  while (weatherParticles.length < wantParticles) {
+    if (currentWeather === 'tornado') {
+      weatherParticles.push({
+        x: W * (0.3 + Math.random() * 0.4),    // particles concentreren rond center
+        y: Math.random() * GROUND_Y,
+        ang: Math.random() * Math.PI * 2,
+        radius: 40 + Math.random() * 160,
+        speed: 0.04 + Math.random() * 0.08,
+        size: 1.5 + Math.random() * 2.5,
+        life: 999,
+      });
+    } else {
+      // Regen / bliksem
+      weatherParticles.push({
+        x: Math.random() * W * 1.2 - W * 0.1,
+        y: -20 - Math.random() * GROUND_Y,
+        vx: -2 - Math.random() * 1.5,
+        vy: 14 + Math.random() * 8,
+        len: 12 + Math.random() * 8,
+        opacity: 0.45 + Math.random() * 0.3,
+      });
+    }
+  }
+
+  if (currentWeather === 'tornado') {
+    // Tornado PNG-frame — wisselt elke ~120ms tussen 3 sprites met lichte
+    // positie-jitter + roterend frame-keuze voor een "verspringend / dansend"
+    // realistisch effect. Semi-transparant zodat de scene erdoorheen blijft
+    // schemeren. Anchor-bottom op GROUND_Y zodat de basis op de horizon staat.
+    const frames = [IMG.tornado1, IMG.tornado2, IMG.tornado3].filter(im => im && im.complete && im.naturalWidth);
+    if (frames.length > 0) {
+      const tFrame = Math.floor(now / 120) % frames.length;
+      const img = frames[tFrame];
+      // Tornado-hoogte: ~85% van scene-hoogte (boven GROUND_Y)
+      const targetH = GROUND_Y * 0.95;
+      const aspect = img.naturalWidth / img.naturalHeight;
+      const targetW = targetH * aspect;
+      // Jitter: kleine x/y schok elke frame zodat de tornado lijkt te schokken
+      const jitterX = Math.sin(now * 0.013) * 8 + (Math.random() - 0.5) * 4;
+      const jitterY = Math.sin(now * 0.008) * 4;
+      // Tornado iets rechts van center, ~3cm naar links geschoven t.o.v. de
+      // vorige positie (gebruiker-feedback). 114*dpr ≈ 3cm bij 96dpi.
+      const cxT = W * 0.65 - 114 * dpr + jitterX;
+      const drawX = cxT - targetW / 2;
+      // Bottom-anchor: onderkant 3 cm ONDER de horizon (gebruiker-feedback —
+      // tornado stond te hoog in beeld). 133*dpr ≈ 35 mm bij 96 dpi.
+      const TORNADO_BASE_OFFSET = 133 * dpr;
+      const drawY = GROUND_Y - targetH + TORNADO_BASE_OFFSET + jitterY;
+      ctx.save();
+      // 70% transparant → opacity rond 0.30 met lichte sin-modulatie voor leven
+      ctx.globalAlpha = 0.25 + (Math.sin(now * 0.005) * 0.5 + 0.5) * 0.12;
+      ctx.drawImage(img, drawX, drawY, targetW, targetH);
+      ctx.restore();
+    }
+    // Spiraal-stof rond de tornado-basis voor extra "stof opwerveling"
+    // (zelfde x-shift als de funnel zelf zodat het stof onder de tornado blijft)
+    ctx.fillStyle = 'rgba(220,210,190,0.40)';
+    for (const p of weatherParticles) {
+      p.ang += p.speed;
+      const cxC = W * 0.65 - 114 * dpr, cyC = GROUND_Y * 0.85;
+      const px = cxC + Math.cos(p.ang) * p.radius;
+      const py = cyC + Math.sin(p.ang) * p.radius * 0.4;
+      ctx.beginPath();
+      ctx.arc(px, py, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // Regen-druppels (en bliksem-base)
+    ctx.strokeStyle = 'rgba(180,210,240,0.65)';
+    ctx.lineWidth = 1.4;
+    ctx.lineCap = 'round';
+    for (const p of weatherParticles) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.y > GROUND_Y + 10 || p.x < -30) {
+        // recyclen — bovenaan opnieuw spawnen
+        p.x = Math.random() * W * 1.2 - W * 0.1;
+        p.y = -20 - Math.random() * 80;
+      }
+      ctx.globalAlpha = p.opacity;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x + p.vx * 0.6, p.y + p.vy * 0.6);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Bliksem-flitsen — random elke 1.5-4s een korte witte flash
+    if (currentWeather === 'bliksem') {
+      if (now > lastLightningTick + (1500 + Math.random() * 2500)) {
+        lastLightningTick = now;
+        lightningUntil = now + 120;
+      }
+      if (now < lightningUntil) {
+        ctx.fillStyle = 'rgba(255,255,240,0.62)';
+        ctx.fillRect(0, 0, W, H);
+      }
+    }
+  }
+}
+
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   if (state === STATE.CELEBRATION) {
@@ -5879,6 +6513,7 @@ function render() {
   ctx.fillRect(0, 0, W, H);
   drawBackground();
   drawGround();
+  drawWeather();      // weer-effecten boven achtergrond/oevers, onder personages
   drawReferee();      // scheidsrechter op rechter oever, ná banks, vóór particles/player
   drawPole();         // pool-stok met pivot in water, in world coords, vóór de speler
   drawParticles();

@@ -17,7 +17,7 @@
  *  en oude asset-caches worden opgeruimd.
  * ============================================================================= */
 
-const CACHE_VERSION = 'v57-individual-pu-pngs';
+const CACHE_VERSION = 'v79-music-toggle-jarno-fail-rebuild';
 const CACHE_NAME    = `spl-fierljeppen-${CACHE_VERSION}`;
 
 // Core shell — voor offline boot. Alleen pre-cachen wat ALTIJD nodig is.
@@ -58,6 +58,10 @@ const RUNTIME_PATTERNS = [
   /\/Wodka\.png$/,
   /\/Dubbeleshot\.png$/,
   /\/Zwaardereborrel\.png$/,
+  /\/Gamecreator\.png$/i,        // Gamecreator easter-egg portret
+  /\/daan-fail/i,                // Daan fail-video easter-egg
+  /\/Scorecard\.png$/i,          // Team-photo intro vóór scoreboard reveal
+  /\/Tornado[123]\.png$/i,       // Tornado animatie-frames
   /\/logo(-small)?\.png$/,
   /\/app-icon\.png$/,
   /\.mp3$/,
