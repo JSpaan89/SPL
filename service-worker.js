@@ -17,7 +17,7 @@
  *  en oude asset-caches worden opgeruimd.
  * ============================================================================= */
 
-const CACHE_VERSION = 'v82-final-logo';
+const CACHE_VERSION = 'v88-team-celebration-cheer';
 const CACHE_NAME    = `spl-fierljeppen-${CACHE_VERSION}`;
 
 // Core shell — voor offline boot. Alleen pre-cachen wat ALTIJD nodig is.

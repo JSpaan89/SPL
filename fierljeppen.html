@@ -428,6 +428,50 @@
     #buttonRow { gap: 12px; }
   }
 
+  /* Lives-indicator (alleen lives/teams mode) — net boven de actionBar,
+   * gecentreerd. Toont active speler's resterende 🥃 levens. Pulserende
+   * border bij 1 leven (laatste leven, gevaar). */
+  #livesIndicator {
+    position: absolute;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 130px);
+    transform: translateX(-50%);
+    background: rgba(11, 30, 63, 0.85);
+    border: 2px solid #f6d77a;
+    border-radius: 14px;
+    padding: 6px 14px;
+    color: #f6d77a;
+    font-size: 13px;
+    letter-spacing: 2px;
+    font-weight: bold;
+    z-index: 4;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  #livesIndicator .lives-label {
+    font-size: 10px;
+    opacity: 0.75;
+    letter-spacing: 2px;
+  }
+  #livesIndicator .lives-icons {
+    font-size: 22px;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+  #livesIndicator.danger {
+    border-color: #ff4848;
+    box-shadow: 0 0 16px rgba(255,72,72,0.7), 0 4px 12px rgba(0,0,0,0.4);
+    animation: lifeDanger 0.8s ease-in-out infinite;
+  }
+  @keyframes lifeDanger {
+    0%, 100% { transform: translateX(-50%) scale(1); }
+    50%      { transform: translateX(-50%) scale(1.06); }
+  }
+
   #tapPrompt {
     position: absolute;
     left: 50%;
@@ -715,6 +759,22 @@
     cursor: pointer;
   }
   .name-row select.char-select option { background: #0b1e3f; color: #fff; }
+  /* Team-pill — toggle A/B naast naam in teams-mode */
+  .name-row .team-pill {
+    min-width: 60px;
+    margin-left: 6px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 2px solid rgba(11,30,63,0.35);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.35);
+    transition: transform 0.1s;
+  }
+  .name-row .team-pill:active { transform: scale(0.95); }
 
   /* ===== Character manager ===== */
   #charManager {
@@ -1928,6 +1988,13 @@
 
   <div id="tapPrompt" class="hidden"></div>
 
+  <!-- Lives-indicator (alleen in lives/teams mode) — toont active speler's
+       resterende levens onderin boven de action-bar. -->
+  <div id="livesIndicator" class="hidden">
+    <span class="lives-label"></span>
+    <span class="lives-icons"></span>
+  </div>
+
   <div id="launchToast"></div>
   <div id="wordBanner"></div>
   <div id="shotBanger"></div>
@@ -2060,6 +2127,12 @@
         <button class="count-btn" id="roundsMinusBtn" aria-label="Minder rondes" type="button">–</button>
         <div class="count-display" id="roundsDisplay">10</div>
         <button class="count-btn" id="roundsPlusBtn" aria-label="Meer rondes" type="button">+</button>
+      </div>
+      <div class="count-label" style="margin-top:8px;">SPELMODUS</div>
+      <div class="diff-row" id="modePicker">
+        <button class="diff-btn selected" data-mode="klassiek" type="button">KLASSIEK<small>alle rondes</small></button>
+        <button class="diff-btn" data-mode="levens" type="button">LEVENS<small>3 lives p.p.</small></button>
+        <button class="diff-btn" data-mode="teams"  type="button">TEAMS<small>rood vs blauw</small></button>
       </div>
       <div class="count-label" style="margin-top:8px;">MOEILIJKHEID</div>
       <div class="diff-row" id="diffPicker">
@@ -2825,6 +2898,92 @@ const DIFFICULTY_PROFILES = {
     sweepFloor:    250,
   },
 };
+/* ============================================================================
+ *  GAME-MODES — Klassiek (standaard) of Levens (3 lives, eliminatie).
+ * ============================================================================ */
+const GAME_MODES = {
+  klassiek: { label: 'Klassiek' },
+  levens:   { label: 'Levens', startLives: 3 },
+  teams:    { label: 'Teams',  startLives: 3 },   // afvalrace per team
+};
+/* Modi die als afvalrace lopen: unlimited rondes, eindigt wanneer een laatste
+ * speler/team overblijft. Klassiek heeft daarentegen vaste rondes-limiet. */
+function isEliminationMode() {
+  return currentMode === 'levens' || currentMode === 'teams';
+}
+const TEAM_COLOR = { A: '#ff6b6b', B: '#6bb6ff' };
+const TEAM_NAME  = { A: 'ROOD', B: 'BLAUW' };
+const MODE_KEY = 'spl_mode_v1';
+function getGameMode() {
+  const stored = (typeof lsGet === 'function') ? lsGet(MODE_KEY, 'klassiek') : 'klassiek';
+  return GAME_MODES[stored] ? stored : 'klassiek';
+}
+let currentMode = 'klassiek';   // ingesteld bij START
+
+/* ============================================================================
+ *  TEAM POOLS — In teams-mode delen teamgenoten zowel hun ⭐-tokens als hun
+ *  levens. Dit maakt het spel intenser: één blunder kost het hele team een
+ *  leven, en een teamgenoot die clears spaart vult de gedeelde token-pot.
+ *
+ *  • teamTokens[T] = gedeelde ⭐-pool voor team T (A of B)
+ *  • teamLives[T]  = gedeelde levens-pool, init = aantal spelers in team T
+ *
+ *  Buiten teams-mode worden de helpers transparant doorgesluisd naar de
+ *  speler-eigen velden (p.tokens, p.lives), zodat alle bestaande call-sites
+ *  niets hoeven te checken. ============================================== */
+let teamTokens = { A: 0, B: 0 };
+let teamLives  = { A: 0, B: 0 };
+
+function getPlayerTokens(p) {
+  if (!p) return 0;
+  if (currentMode === 'teams' && p.team) return teamTokens[p.team] || 0;
+  return p.tokens || 0;
+}
+function addPlayerTokens(p, n) {
+  if (!p || !n) return;
+  if (currentMode === 'teams' && p.team) {
+    teamTokens[p.team] = (teamTokens[p.team] || 0) + n;
+  } else {
+    p.tokens = (p.tokens || 0) + n;
+  }
+}
+function spendPlayerTokens(p, n) {
+  if (!p || !n) return;
+  if (currentMode === 'teams' && p.team) {
+    teamTokens[p.team] = Math.max(0, (teamTokens[p.team] || 0) - n);
+  } else {
+    p.tokens = Math.max(0, (p.tokens || 0) - n);
+  }
+}
+function getPlayerLives(p) {
+  if (!p) return 0;
+  if (currentMode === 'teams' && p.team) return teamLives[p.team] || 0;
+  return p.lives || 0;
+}
+function getMaxLives(p) {
+  // Max-lives bepaalt hoeveel 🥃-iconen we tekenen in de indicator.
+  if (currentMode === 'teams' && p && p.team) {
+    return Math.max(1, (players || []).filter(pl => pl.team === p.team).length);
+  }
+  return (GAME_MODES[currentMode] && GAME_MODES[currentMode].startLives) || 3;
+}
+function decrementPlayerLives(p, n) {
+  // Verlaag de juiste lives-pool en zet eliminated-flag(s) bij 0.
+  // Returns aantal levens ná aftrek (>=0).
+  if (!p || !n) return getPlayerLives(p);
+  if (currentMode === 'teams' && p.team) {
+    teamLives[p.team] = Math.max(0, (teamLives[p.team] || 0) - n);
+    if (teamLives[p.team] === 0) {
+      // Hele team valt af zodra de gedeelde pool 0 hit.
+      players.forEach(pl => { if (pl.team === p.team) pl.eliminated = true; });
+    }
+    return teamLives[p.team];
+  }
+  p.lives = Math.max(0, (p.lives || 0) - n);
+  if (p.lives === 0) p.eliminated = true;
+  return p.lives;
+}
+
 const DIFF_KEY = 'spl_difficulty';
 function getDifficulty() {
   const stored = (typeof lsGet === 'function') ? lsGet(DIFF_KEY, 'pittig') : 'pittig';
@@ -3425,27 +3584,40 @@ function getAvailablePowerUps() {
  *
  * Reward-tiers:
  *  • PERFECT (hart van de powerbar):
- *      → +1 token DIRECT (instant bonus voor pin-point timing)
+ *      → +N tokens DIRECT (N = huidige streak-multiplier: 1, 2, 3, …)
  *      → +2 hartjes (telt nog steeds dubbel mee in de streak)
  *  • Normale clear: +1 hartje
- *  • Bij elke 3 hartjes: +1 streak-token (overschot blijft staan)
- *  • Plons elders: hartjes terug naar 0 (zie resetHearts) */
+ *  • Bij elke 3 hartjes: +N tokens (streak-multiplier)
+ *  • Streak-multiplier verhoogt met +1 bij elke token-earn-event, reset op
+ *    fail (zie resetHearts). Eerste earn = 1, tweede = 2, derde = 3, etc. */
 function awardHearts(p, isPerfect) {
+  // Note: tokenStreak blijft per-speler (individuele beloning-multiplier).
+  // In teams-mode worden de resulterende tokens via addPlayerTokens naar de
+  // gedeelde team-pool gerouteerd zodat teamgenoten samen kunnen sparen.
   if (isPerfect) {
-    // Direct token cadeau voor het raken van het hart van de powerbar
-    p.tokens = (p.tokens || 0) + 1;
-    showAchievement('⭐ PERFECT TIMING! +1 token');
+    // Direct tokens cadeau voor het raken van het hart van de powerbar.
+    // Streak-multiplier loopt verder op met elke earn-event.
+    p.tokenStreak = (p.tokenStreak || 0) + 1;
+    const reward = p.tokenStreak;
+    addPlayerTokens(p, reward);
+    showAchievement(`⭐ PERFECT TIMING! +${reward} token${reward === 1 ? '' : 's'}${reward > 1 ? ' (×' + reward + ' streak)' : ''}`);
   }
   const inc = isPerfect ? PERFECT_HEARTS : HEARTS_PER_CLEAR;
   p.hearts = (p.hearts || 0) + inc;
   while (p.hearts >= TOKENS_PER_STREAK) {
     p.hearts -= TOKENS_PER_STREAK;
-    p.tokens = (p.tokens || 0) + 1;
-    showAchievement('⭐ Streak-token verdiend!');
+    p.tokenStreak = (p.tokenStreak || 0) + 1;
+    const reward = p.tokenStreak;
+    addPlayerTokens(p, reward);
+    showAchievement(`⭐ Streak-token! +${reward}${reward > 1 ? ' (×' + reward + ')' : ''}`);
   }
   refreshTokenUI();
 }
-function resetHearts(p) { p.hearts = 0; refreshTokenUI(); }
+function resetHearts(p) {
+  p.hearts = 0;
+  p.tokenStreak = 0;   // multiplier reset → volgende token-earn is weer ×1
+  refreshTokenUI();
+}
 
 /* Troost-token: na 2 plonzen op rij krijg je een token cadeau. Reset bij
  * eerstvolgende clear. Aparte teller, los van de heart-streak. */
@@ -3453,20 +3625,20 @@ function bumpFailAndMaybeAwardConsolation(p) {
   p.failsInRow = (p.failsInRow || 0) + 1;
   if (p.failsInRow >= 2) {
     p.failsInRow = 0;
-    p.tokens = (p.tokens || 0) + 1;
+    addPlayerTokens(p, 1);
     showAchievement('🥃 Troost-token: 2× nat = 1 ⭐');
     refreshTokenUI();
   }
 }
 function resetFailStreak(p) { p.failsInRow = 0; }
 
-/* UI: token-counter + ⭐-knop staat */
+/* UI: token-counter + ⭐-knop staat — in teams-mode toont badge de team-pool. */
 function refreshTokenUI() {
   const cur = players[currentIdx];
   const btn = document.getElementById('puBtn');
   const badge = document.getElementById('puTokenCount');
   if (!btn || !cur) return;
-  const tokens = cur.tokens || 0;
+  const tokens = getPlayerTokens(cur);
   const inActiveTurn = (state === STATE.READY) && tokens > 0;
   btn.disabled = !inActiveTurn;
   btn.classList.toggle('has-tokens', inActiveTurn);
@@ -3484,7 +3656,7 @@ function refreshTokenUI() {
  * Tokens worden pas verbruikt bij Stap-B confirm of bij defensive-keuze. */
 function openPowerUpPicker() {
   const cur = players[currentIdx];
-  if (!cur || (cur.tokens || 0) <= 0) return;
+  if (!cur || getPlayerTokens(cur) <= 0) return;
   if (state !== STATE.READY) return;
   renderPowerUpStep();
   document.getElementById('puPicker').hidden = false;
@@ -3501,12 +3673,15 @@ function renderPowerUpStep() {
   const cancelBtn = document.getElementById('puCancelBtn');
 
   titleEl.textContent = 'POWER-UP KIEZEN';
-  sub.textContent = `Je hebt ${cur.tokens} token${cur.tokens === 1 ? '' : 's'} — kies één of ga sparen`;
+  const curTokens = getPlayerTokens(cur);
+  const poolLabel = (currentMode === 'teams' && cur.team)
+    ? ` (team ${TEAM_NAME[cur.team]} pot)` : '';
+  sub.textContent = `Je hebt ${curTokens} token${curTokens === 1 ? '' : 's'}${poolLabel} — kies één of ga sparen`;
   cancelBtn.textContent = 'SPAREN — LATER';
   cancelBtn.onclick = closePowerUpPicker;
 
   grid.innerHTML = getAvailablePowerUps().map(pu => {
-    const tooExpensive = (cur.tokens || 0) < pu.cost;
+    const tooExpensive = curTokens < pu.cost;
     const costLabel = `${pu.cost}⭐`;
     const classes = ['pu-slot'];
     if (tooExpensive) classes.push('too-expensive');
@@ -3522,7 +3697,7 @@ function renderPowerUpStep() {
   grid.querySelectorAll('.pu-slot').forEach(el => {
     const puId = el.dataset.pu;
     const pu = POWERUP_BY_ID[puId];
-    const tooExpensive = (cur.tokens || 0) < (pu ? pu.cost : 1);
+    const tooExpensive = curTokens < (pu ? pu.cost : 1);
     const onSelect = () => { if (!tooExpensive) choosePowerUp(puId); };
     el.addEventListener('click', onSelect);
     el.addEventListener('keydown', e => {
@@ -3544,10 +3719,17 @@ function renderTargetStep(puId) {
   cancelBtn.textContent = 'TERUG';
   cancelBtn.onclick = renderPowerUpStep;
 
-  // Alle andere spelers; current zelf uitsluiten
+  // Alle andere spelers; current zelf uitsluiten. In teams-mode ook
+  // teamgenoten uitsluiten — je raakt alleen de andere team.
+  const cur2 = players[currentIdx];
+  const casterTeam2 = (cur2 && cur2.team) || null;
   const targets = players
     .map((p, idx) => ({ p, idx }))
-    .filter(({ idx }) => idx !== currentIdx);
+    .filter(({ p, idx }) => {
+      if (idx === currentIdx) return false;
+      if (currentMode === 'teams' && casterTeam2) return p.team !== casterTeam2;
+      return true;
+    });
 
   grid.innerHTML = targets.map(({ p, idx }) => {
     const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
@@ -3573,7 +3755,7 @@ function choosePowerUp(puId) {
   const pu = POWERUP_BY_ID[puId];
   if (!pu) return;
   const cur = players[currentIdx];
-  if (!cur || (cur.tokens || 0) < pu.cost) return;
+  if (!cur || getPlayerTokens(cur) < pu.cost) return;
   // allTargets PU (Friese Vloek) raakt iedereen → geen target-pick, direct apply
   if (pu.allTargets) {
     finalizePowerUp(puId, null);
@@ -3597,8 +3779,8 @@ function finalizePowerUp(puId, targetIdx) {
   const pu = POWERUP_BY_ID[puId];
   if (!pu) return;
   const cur = players[currentIdx];
-  if (!cur || (cur.tokens || 0) < pu.cost) return;
-  cur.tokens -= pu.cost;
+  if (!cur || getPlayerTokens(cur) < pu.cost) return;
+  spendPlayerTokens(cur, pu.cost);
   closePowerUpPicker();
 
   // SCREW-YOU-ALL: full-screen celebration met video. Shots worden pas
@@ -3606,14 +3788,27 @@ function finalizePowerUp(puId, targetIdx) {
   // (dismiss-knop). Dit geeft de groep tijd om de drank klaar te maken en
   // het effect te savoreren. De video loopt continu tot dismiss.
   if (pu.allTargets) {
-    const targets = players.filter((_, idx) => idx !== currentIdx);
+    // Teams-mode: Friese Vloek raakt alleen de ANDERE team. Klassiek/levens:
+    // alle tegenstanders.
+    const casterTeam = (cur && cur.team) || null;
+    const targets = players.filter((pl, idx) => {
+      if (idx === currentIdx) return false;
+      if (currentMode === 'teams' && casterTeam) return pl.team !== casterTeam;
+      return true;
+    });
     const casterName = (cur && cur.name) || '—';
     if (typeof triggerShake === 'function') triggerShake(360, 18);
     if (typeof vibrate === 'function') vibrate([60, 40, 80, 40, 60]);
     spawnFrieseVloekBlast();
     showVloekCelebration(targets, casterName, () => {
-      // Op dismiss: NU pas de shots toepassen
-      targets.forEach(pl => { pl.shots += 1; totalShots += 1; });
+      // Op dismiss: NU pas de shots toepassen + levens-mode: -1 leven per target
+      targets.forEach(pl => {
+        pl.shots += 1;
+        totalShots += 1;
+        if (isEliminationMode()) {
+          decrementPlayerLives(pl, 1);
+        }
+      });
       if (typeof totalShotsEl !== 'undefined' && totalShotsEl) totalShotsEl.textContent = totalShots;
       showLaunchToast(`💀 ${pu.name.toUpperCase()} — ${targets.length}× SHOTJE!`, '#ff8a8a', 2700);
     });
@@ -3816,8 +4011,9 @@ function displayNameFor(key) {
 }
 
 function renderNameInputs() {
-  // Preserve any currently-selected values
-  const existing = Array.from(nameInputs.querySelectorAll('select')).map(s => s.value);
+  // Preserve any currently-selected values + team-assignments
+  const existing = Array.from(nameInputs.querySelectorAll('select.char-select')).map(s => s.value);
+  const existingTeams = Array.from(nameInputs.querySelectorAll('button.team-pill')).map(b => b.dataset.team);
   nameInputs.innerHTML = '';
 
   const options = BUILTIN_CHARACTERS.map(key => {
@@ -3825,23 +4021,42 @@ function renderNameInputs() {
     return `<option value="${label}">${label}</option>`;
   }).join('');
 
+  const teamsMode = (typeof getGameMode === 'function') ? getGameMode() === 'teams' : false;
+
   for (let i = 0; i < playerCount; i++) {
     const row = document.createElement('div');
     row.className = 'name-row';
-    // Pre-fill: previous selection > cached name > rotate through builtins
     const fallbackKey = BUILTIN_CHARACTERS[i % BUILTIN_CHARACTERS.length];
     const fallback = displayNameFor(fallbackKey);
     const selected = existing[i] || cachedNames[i] || fallback;
+    // Default team: alternerend A/B (om-en-om)
+    const defaultTeam = (i % 2 === 0) ? 'A' : 'B';
+    const team = existingTeams[i] || defaultTeam;
     row.innerHTML = `
       <span class="idx">${i+1}.</span>
       <select class="char-select">${options}</select>
+      ${teamsMode ? `<button class="team-pill" type="button" data-team="${team}">${TEAM_NAME[team]}</button>` : ''}
     `;
-    const sel = row.querySelector('select');
-    // Force selection (case-insensitive match against display names)
+    const sel = row.querySelector('select.char-select');
     const match = Array.from(sel.options).find(o =>
       o.value.toLowerCase() === selected.toLowerCase()
     );
     sel.value = match ? match.value : fallback;
+    // Team-pill toggle: tap → switch A ↔ B
+    const tp = row.querySelector('.team-pill');
+    if (tp) {
+      const refreshPill = () => {
+        const t = tp.dataset.team;
+        tp.textContent = TEAM_NAME[t];
+        tp.style.background = TEAM_COLOR[t];
+        tp.style.color = '#0b1e3f';
+      };
+      refreshPill();
+      tp.addEventListener('click', () => {
+        tp.dataset.team = tp.dataset.team === 'A' ? 'B' : 'A';
+        refreshPill();
+      });
+    }
     nameInputs.appendChild(row);
   }
 }
@@ -4132,13 +4347,19 @@ startBtn.addEventListener('click', () => {
   // Rondes-keuze ook toepassen → MAX_ROUNDS staat goed voor endGame check
   // en renderLevelDots toont juiste aantal dots vanaf ronde 1.
   applyRoundsSetting();
+  // Game-mode toepassen — bepaalt lives-init + eliminatie-flow + teams
+  currentMode = getGameMode();
+  const startLives = (GAME_MODES[currentMode] && GAME_MODES[currentMode].startLives) || Infinity;
   // Dropdowns replaced the text inputs — read selected display name per row.
-  const selects = Array.from(nameInputs.querySelectorAll('select'));
+  const selects = Array.from(nameInputs.querySelectorAll('select.char-select'));
+  const teamPills = Array.from(nameInputs.querySelectorAll('button.team-pill'));
   const names = selects.map((s, i) => (s.value || `Speler ${i+1}`).slice(0, 14));
   saveCachedNames(names);
-  players = names.map(n => ({
+  players = names.map((n, i) => ({
     name: n, shots: 0, cleared: 0, perfect: 0,
-    tokens: 0, hearts: 0, failsInRow: 0,
+    tokens: 0, hearts: 0, tokenStreak: 0, failsInRow: 0,
+    lives: startLives, eliminated: false,   // levens-mode tracking
+    team: (currentMode === 'teams' && teamPills[i]) ? teamPills[i].dataset.team : null,
     // Map<powerUpId, stackCount>. Meerdere spelers kunnen dezelfde debuff
     // op één target stapelen; effecten schalen met de stack-grootte.
     activeBuffs: new Map(), pendingDebuffs: new Map(),
@@ -4193,6 +4414,50 @@ const PW_VALUE = 'rinske';   // case-insensitive vergelijk
   setTimeout(() => input.focus(), 200);
 })();
 
+/* GameMode-picker: Klassiek vs Levens vs Teams — localStorage opslaan +
+ * visuele state. In Levens/Teams (afvalrace-modes) springt het rondes-veld
+ * automatisch op ∞ en wordt het uitgeschakeld — er is geen vaste ronde-limiet. */
+(function setupModePicker() {
+  const picker = document.getElementById('modePicker');
+  if (!picker) return;
+  const stored = getGameMode();
+  function refreshRoundsForMode(modeId) {
+    const display = document.getElementById('roundsDisplay');
+    const minus   = document.getElementById('roundsMinusBtn');
+    const plus    = document.getElementById('roundsPlusBtn');
+    if (!display) return;
+    if (modeId === 'levens' || modeId === 'teams') {
+      display.textContent = '∞';
+      display.style.opacity = '0.7';
+      if (minus) minus.disabled = true;
+      if (plus)  plus.disabled  = true;
+    } else {
+      const stored = parseInt(lsGet(ROUNDS_KEY, String(ROUNDS_DEFAULT)), 10);
+      const val = isNaN(stored) ? ROUNDS_DEFAULT
+                                : Math.max(ROUNDS_MIN, Math.min(ROUNDS_MAX, stored));
+      display.textContent = String(val);
+      display.style.opacity = '';
+      if (minus) minus.disabled = val <= ROUNDS_MIN;
+      if (plus)  plus.disabled  = val >= ROUNDS_MAX;
+    }
+  }
+  refreshRoundsForMode(stored);   // bij page-load gelijk goed zetten
+  picker.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.mode === stored);
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.mode;
+      if (!GAME_MODES[id]) return;
+      lsSet(MODE_KEY, id);
+      picker.querySelectorAll('.diff-btn').forEach(b =>
+        b.classList.toggle('selected', b.dataset.mode === id));
+      // Naam-inputs herrenderen zodat de team-pills wel/niet meekomen
+      if (typeof renderNameInputs === 'function') renderNameInputs();
+      // Rondes-veld synchroniseren met mode-keuze
+      refreshRoundsForMode(id);
+    });
+  });
+})();
+
 /* Difficulty-picker: 3 knoppen, click → localStorage opslaan + visuele state */
 (function setupDifficultyPicker() {
   const picker = document.getElementById('diffPicker');
@@ -4245,6 +4510,17 @@ function applyRoundsSetting() {
 /* ----------------------------- Game flow -------------------------------- */
 function startGame() {
   currentIdx = 0; round = 1; totalShots = 0; totalClears = 0; clearStreakSinceFail = 0;
+  // Team-pools: tokens delen + levens delen in teams-mode. Levens-pool = aantal
+  // teamgenoten zodat een team van N spelers samen N levens heeft (intenser,
+  // één blunder kost het hele team een leven).
+  teamTokens = { A: 0, B: 0 };
+  if (currentMode === 'teams') {
+    const countA = players.filter(p => p.team === 'A').length;
+    const countB = players.filter(p => p.team === 'B').length;
+    teamLives = { A: countA, B: countB };
+  } else {
+    teamLives = { A: 0, B: 0 };
+  }
   // Weer + dag/nacht reset naar zonnig+dag, counter op 0 zodat eerste beurt
   // direct een random nieuwe weer/tijd-combinatie krijgt
   currentWeather = 'zonnig';
@@ -4414,10 +4690,65 @@ function beginTurn() {
   totalShotsEl.textContent = totalShots;
   // Geen auto-hide timer meer nodig — tapPrompt is permanent verborgen.
   if (promptHideTimer) clearTimeout(promptHideTimer);
+  // Teams-mode: HUD player-block krijgt team-kleur als border zodat duidelijk
+  // is welk team aan de beurt is
+  const playerBlock = curPlayerEl && curPlayerEl.closest('.hud-block');
+  if (playerBlock) {
+    const team = players[currentIdx] && players[currentIdx].team;
+    if (currentMode === 'teams' && team) {
+      playerBlock.style.borderColor = TEAM_COLOR[team];
+      playerBlock.style.boxShadow = `0 0 12px ${TEAM_COLOR[team]}80`;
+    } else {
+      playerBlock.style.borderColor = '';
+      playerBlock.style.boxShadow = '';
+    }
+  }
   // Power-up UI bijwerken: ⭐-knop, badge, actieve-buffs strip, saboteur-overlay
   refreshTokenUI();
   renderActiveBuffsStrip();
   refreshSaboteurOverlay();
+  // Lives-indicator (lives + teams mode) — toont 🥃-iconen voor active speler
+  refreshLivesIndicator();
+}
+
+function refreshLivesIndicator() {
+  const el = document.getElementById('livesIndicator');
+  if (!el) return;
+  if (!isEliminationMode()) {
+    el.classList.add('hidden');
+    return;
+  }
+  const p = players[currentIdx];
+  if (!p) { el.classList.add('hidden'); return; }
+  // In teams-mode tonen we de GEDEELDE team-pool (1 leven per teamgenoot
+  // bij start). Solo-levens-mode toont de individuele speler-levens.
+  const maxLives = getMaxLives(p);
+  const lives = Math.max(0, getPlayerLives(p));
+  let icons = '';
+  // Cap visuele icons op 12 om te voorkomen dat de balk uit beeld loopt
+  // bij grote teams (6vs6 = max 6 icons, dus dit is een safety-cap).
+  const drawCount = Math.min(maxLives, 12);
+  for (let i = 0; i < drawCount; i++) {
+    icons += i < lives ? '🥃' : '<span style="opacity:0.25;filter:grayscale(1)">🥃</span>';
+  }
+  const label = el.querySelector('.lives-label');
+  const iconsEl = el.querySelector('.lives-icons');
+  if (label) {
+    label.textContent = (currentMode === 'teams' && p.team)
+      ? `LEVENS · TEAM ${TEAM_NAME[p.team]}`
+      : 'LEVENS';
+  }
+  if (iconsEl) iconsEl.innerHTML = icons;
+  el.classList.remove('hidden');
+  el.classList.toggle('danger', lives === 1);
+  // Team-kleur in teams-mode op border
+  if (currentMode === 'teams' && p.team && !el.classList.contains('danger')) {
+    el.style.borderColor = TEAM_COLOR[p.team];
+    el.style.boxShadow = `0 0 12px ${TEAM_COLOR[p.team]}66, 0 4px 12px rgba(0,0,0,0.4)`;
+  } else if (!el.classList.contains('danger')) {
+    el.style.borderColor = '';
+    el.style.boxShadow = '';
+  }
 }
 let promptHideTimer = null;
 function resetPlayer() {
@@ -4440,6 +4771,14 @@ function configureDifficulty() {
     const ditchMult = Math.pow(1.10, zbStack);
     ditchWidthPx *= ditchMult;
     ditchWidthMeters *= ditchMult;
+  }
+  // CAP ditch-breedte op 65% van de ruimte tussen left-cliff en canvas-rand,
+  // zodat de rechter oever altijd zichtbaar blijft (en haalbaar). Anders
+  // raakt ditchEnd >= W in late ronden + zwaardere borrel.
+  const maxDitchPx = (W - DITCH_START) * 0.65;
+  if (ditchWidthPx > maxDitchPx) {
+    ditchWidthPx = maxDitchPx;
+    ditchWidthMeters = ditchWidthPx / PX_PER_M;
   }
   ditchEl.textContent = ditchWidthMeters.toFixed(1) + ' m';
   // Sweep period: base from the round table, gemodificeerd door difficulty-
@@ -4566,6 +4905,12 @@ function resolveJump(success) {
     p.shots += shotPenalty; totalShots += shotPenalty;
     // Stash voor het pass-screen — banger pulseert pas wanneer fail-menu opent
     lastFailShots = shotPenalty;
+    // LEVENS/TEAMS-MODE: verlies een leven per shot. Bij 0 levens → eliminated.
+    // In teams-mode wordt het verlies geboekt op de gedeelde team-pool; als
+    // die op 0 hit valt het hele team in één klap af.
+    if (isEliminationMode()) {
+      decrementPlayerLives(p, shotPenalty);
+    }
     clearStreakSinceFail = 0;     // first fail → reset the sweep speed-up
     resetHearts(p);               // hartjes-streak reset bij plons
     // Troost-token logica: 2 fails op rij → cadeau-token
@@ -4737,6 +5082,25 @@ function showPassScreen(success) {
     }
     roastLine.textContent = `"${pickRoast()}"`;
     passMsg.innerHTML = `<strong style="color:#ff8a8a">${escapeHtml(p.name)}</strong> moet een <strong style="color:#ffe091">SHOTJE</strong> nemen.`;
+    // Elimination-modes: laat zien hoeveel levens er nog over zijn (🥃-iconen).
+    // Teams-mode toont de gedeelde team-pool i.p.v. individuele levens.
+    if (isEliminationMode()) {
+      const livesLeft = Math.max(0, getPlayerLives(p));
+      const maxL = Math.min(getMaxLives(p), 12);
+      const fullCount = Math.min(livesLeft, maxL);
+      const emptyCount = Math.max(0, maxL - fullCount);
+      const livesIcons = '🥃'.repeat(fullCount)
+        + (emptyCount ? '<span style="opacity:0.25">' + '🥃'.repeat(emptyCount) + '</span>' : '');
+      const eliminated = p.eliminated;
+      const poolLabel = (currentMode === 'teams' && p.team)
+        ? `<br/><span style="font-size:0.7em;color:${TEAM_COLOR[p.team]};letter-spacing:2px;">TEAM ${TEAM_NAME[p.team]} POT</span>` : '';
+      passMsg.innerHTML += `${poolLabel}<br/><span style="font-size:0.85em;letter-spacing:3px;">${livesIcons}</span>`;
+      if (eliminated) {
+        const outLabel = (currentMode === 'teams' && p.team)
+          ? `— TEAM ${TEAM_NAME[p.team]} UIT —` : '— UIT HET SPEL —';
+        passMsg.innerHTML += `<br/><strong style="color:#ff4848;letter-spacing:3px;">${outLabel}</strong>`;
+      }
+    }
   }
   nextLine.innerHTML = `Geef door aan <span style="color:#ffe091">${escapeHtml(next.name)}</span> ▶`;
   passOv.classList.remove('hidden');
@@ -4763,12 +5127,32 @@ function advanceToNextPlayer() {
   passOv.classList.add('hidden');
   stopShotBanger();    // shot-banger uitzetten zodra we doorklikken
   stopShotIconVideo(); // fail-video stoppen — anders speelt-ie door op achtergrond
-  currentIdx++;
-  if (currentIdx >= players.length) {
-    currentIdx = 0;
-    round++;
-    if (round > MAX_ROUNDS) { endGame(); return; }
+
+  // ELIMINATION-modes: einde-game checks. Afvalrace = unlimited rondes, last
+  // man / last team standing wint.
+  if (currentMode === 'levens') {
+    const alive = players.filter(p => !p.eliminated);
+    if (alive.length <= 1) { endGame(); return; }
+  } else if (currentMode === 'teams') {
+    const aliveA = players.filter(p => !p.eliminated && p.team === 'A');
+    const aliveB = players.filter(p => !p.eliminated && p.team === 'B');
+    if (aliveA.length === 0 || aliveB.length === 0) { endGame(); return; }
   }
+
+  // Skip eliminated spelers tijdens rotatie (max N tries om infinite loop te voorkomen)
+  let tries = 0;
+  do {
+    currentIdx++;
+    if (currentIdx >= players.length) {
+      currentIdx = 0;
+      round++;
+      // KLASSIEK: vaste rondes-limiet. Lives/Teams: unlimited (afvalrace)
+      if (currentMode === 'klassiek' && round > MAX_ROUNDS) { endGame(); return; }
+    }
+    tries++;
+    if (tries > players.length + 2) { endGame(); return; }   // safety
+  } while (isEliminationMode() && players[currentIdx] && players[currentIdx].eliminated);
+
   beginTurn();
 }
 function endGame() {
@@ -4787,16 +5171,48 @@ function endGame() {
   const winner = sorted[0];
   const losers = sorted.slice(1);
 
+  // TEAMS-MODE: winnend team = team met minste shots (tiebreak: meeste clears),
+  // OF het enige overlevende team in afvalrace (alle leden andere team eliminated).
+  // We renderen straks ALLE winning-team-leden naast elkaar juigend in de scene.
+  let winningTeam = null;
+  let teamWinners = null;
+  let teamLosers = null;
+  if (currentMode === 'teams') {
+    const teamA = players.filter(p => p.team === 'A');
+    const teamB = players.filter(p => p.team === 'B');
+    const aliveA = teamA.filter(p => !p.eliminated).length;
+    const aliveB = teamB.filter(p => !p.eliminated).length;
+    if (aliveA === 0 && aliveB > 0)      winningTeam = 'B';
+    else if (aliveB === 0 && aliveA > 0) winningTeam = 'A';
+    else {
+      // Geen knock-out (b.v. klassiek-eind in teams) → score-based winnaar
+      const sumShots = arr => arr.reduce((s, p) => s + p.shots, 0);
+      const sumClears = arr => arr.reduce((s, p) => s + p.cleared, 0);
+      const aShots = sumShots(teamA), bShots = sumShots(teamB);
+      const aClears = sumClears(teamA), bClears = sumClears(teamB);
+      winningTeam = (aShots < bShots || (aShots === bShots && aClears >= bClears)) ? 'A' : 'B';
+    }
+    teamWinners = players.filter(p => p.team === winningTeam);
+    teamLosers  = players.filter(p => p.team !== winningTeam);
+  }
+
   state = STATE.CELEBRATION;
-  celebration = { winner, losers, startTime: performance.now(), duration: 5000 };
+  celebration = {
+    winner, losers,
+    teamWinners, teamLosers, winningTeam,
+    startTime: performance.now(), duration: 5000,
+  };
+  // Voor confetti-spawn gebruiken we de team-losers in teams-mode zodat de
+  // huilende-poppetjes ook echt het verliezende team zijn.
+  const confettiLosers = (teamLosers && teamLosers.length) ? teamLosers : losers;
   // Eerste burst huilende losers + gouden confetti
-  spawnLoserConfetti(losers);
+  spawnLoserConfetti(confettiLosers);
   spawnWinnerShower();
   if (typeof sndCheer === 'function') sndCheer();
 
   // Blijf gedurende de celebration steeds nieuwe huilende-poppetjes spawnen
   // (~elke 200ms) zodat het effect doorloopt over de hele 5s.
-  const dropInterval = setInterval(() => spawnLoserConfetti(losers), 220);
+  const dropInterval = setInterval(() => spawnLoserConfetti(confettiLosers), 220);
 
   setTimeout(() => {
     clearInterval(dropInterval);
@@ -4807,15 +5223,39 @@ function endGame() {
     setTimeout(() => {
       if (intro) intro.hidden = true;
       state = STATE.OVER;
-      // Bouw nu het standaard scoreboard
-      let html = '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
-      sorted.forEach((p, i) => {
-        html += `<tr>
-          <td>${i === 0 ? '<span class="crown">👑</span>' : ''}${escapeHtml(p.name)}</td>
-          <td class="cleared">${p.cleared}</td>
-          <td class="shots">${p.shots}</td>
-        </tr>`;
-      });
+      // Bouw nu het standaard scoreboard. In teams-mode: team-totals + winnend
+      // team gemarkeerd.
+      let html = '';
+      if (currentMode === 'teams') {
+        const teamA = players.filter(p => p.team === 'A');
+        const teamB = players.filter(p => p.team === 'B');
+        const sumShots = arr => arr.reduce((s, p) => s + p.shots, 0);
+        const sumClears = arr => arr.reduce((s, p) => s + p.cleared, 0);
+        const aShots = sumShots(teamA), bShots = sumShots(teamB);
+        const aClears = sumClears(teamA), bClears = sumClears(teamB);
+        const winA = aShots < bShots || (aShots === bShots && aClears >= bClears);
+        const renderTeam = (label, arr, color, isWin) => {
+          let h = `<tr><th colspan="3" style="text-align:left;color:${color};letter-spacing:3px;padding-top:8px;">${isWin ? '👑 ' : ''}TEAM ${label}</th></tr>`;
+          arr.forEach(p => {
+            h += `<tr><td>${escapeHtml(p.name)}</td><td class="cleared">${p.cleared}</td><td class="shots">${p.shots}</td></tr>`;
+          });
+          const ts = sumShots(arr), tc = sumClears(arr);
+          h += `<tr style="border-top:1px solid rgba(246,215,122,0.3);"><td><strong>Totaal</strong></td><td class="cleared"><strong>${tc}</strong></td><td class="shots"><strong>${ts}</strong></td></tr>`;
+          return h;
+        };
+        html = '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
+        html += renderTeam(TEAM_NAME.A, teamA, TEAM_COLOR.A, winA);
+        html += renderTeam(TEAM_NAME.B, teamB, TEAM_COLOR.B, !winA);
+      } else {
+        html = '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
+        sorted.forEach((p, i) => {
+          html += `<tr>
+            <td>${i === 0 ? '<span class="crown">👑</span>' : ''}${escapeHtml(p.name)}</td>
+            <td class="cleared">${p.cleared}</td>
+            <td class="shots">${p.shots}</td>
+          </tr>`;
+        });
+      }
       finalBoard.innerHTML = html;
       overOv.classList.remove('hidden');
       // Extra confetti-vlaag wanneer het scoreboard verschijnt
@@ -5347,7 +5787,7 @@ function tryRefereeCheat(canvasX, canvasY) {
   const now = performance.now();
   if (now - lastRefCheatTime < REF_CHEAT_COOLDOWN) return true;  // swallow tap, no token
   lastRefCheatTime = now;
-  cur.tokens = (cur.tokens || 0) + 1;
+  addPlayerTokens(cur, 1);
   refreshTokenUI();
   showAchievement('🤝 Scheidsrechter knipoogt… +1 ⭐');
   if (typeof vibrate === 'function') vibrate(30);
@@ -6344,67 +6784,119 @@ function drawCelebration() {
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // Winnaar-sprite: huge, gecentreerd, lichte breath + tilt-animatie
-  const w = celebration.winner;
-  const entry = (typeof getNamedSprite === 'function') ? getNamedSprite(w && w.name) : null;
-  if (entry && entry.img && entry.img.complete && entry.img.naturalWidth) {
-    const frames = entry.frames || 4;
-    const frameW = entry.img.naturalWidth / frames;
-    const frameH = entry.img.naturalHeight;
-    // Schaal zo dat winnaar ~60% van canvas-hoogte vult
-    const targetH = Math.min(H * 0.62, W * 0.85);
-    const targetW = targetH * (frameW / frameH);
-    const breath = 1 + Math.sin(t * 0.005) * 0.04;     // borstkast op-en-neer
-    const tilt   = Math.sin(t * 0.0028) * 0.06;        // subtiele wiebel
-    const cx0 = W/2;
-    const cy0 = H * 0.55;
+  // Helper: render één sprite-frame met breath+tilt op gegeven (cx,cy) en hoogte.
+  // Gebruikt FRAME_SUCCESS (juigend) als die er is, anders spriteCheer fallback.
+  // Elke sprite krijgt een eigen 'phase' voor zijn breath/tilt, zodat de groep
+  // niet als één lichaam ademt — voelt levendiger.
+  function drawCheeringSprite(p, cx, cy, targetH, phase) {
+    const entry2 = (typeof getNamedSprite === 'function') ? getNamedSprite(p && p.name) : null;
+    const breath = 1 + Math.sin(t * 0.005 + phase) * 0.04;
+    const tilt   = Math.sin(t * 0.0028 + phase * 1.3) * 0.06;
     ctx.save();
-    ctx.translate(cx0, cy0);
+    ctx.translate(cx, cy);
     ctx.rotate(tilt);
     ctx.scale(breath, breath);
-    // Gouden drop-shadow voor glow
     ctx.shadowColor = 'rgba(246,215,122,0.85)';
     ctx.shadowBlur = 50;
-    ctx.drawImage(entry.img,
-      FRAME_SUCCESS * frameW, 0, frameW, frameH,
-      -targetW/2, -targetH/2, targetW, targetH);
-    ctx.restore();
-  } else {
-    // Fallback: spriteCheer als de winnaar geen named sprite heeft
-    if (IMG.spriteCheer && IMG.spriteCheer.complete && IMG.spriteCheer.naturalWidth) {
+    if (entry2 && entry2.img && entry2.img.complete && entry2.img.naturalWidth) {
+      const frames = entry2.frames || 4;
+      const frameW = entry2.img.naturalWidth / frames;
+      const frameH = entry2.img.naturalHeight;
+      const targetW = targetH * (frameW / frameH);
+      ctx.drawImage(entry2.img,
+        FRAME_SUCCESS * frameW, 0, frameW, frameH,
+        -targetW/2, -targetH/2, targetW, targetH);
+    } else if (IMG.spriteCheer && IMG.spriteCheer.complete && IMG.spriteCheer.naturalWidth) {
       const fw = IMG.spriteCheer.naturalWidth;
       const fh = IMG.spriteCheer.naturalHeight;
-      const targetH = Math.min(H * 0.62, W * 0.85);
       const targetW = targetH * (fw / fh);
-      ctx.save();
-      ctx.translate(W/2, H * 0.55);
-      ctx.shadowColor = 'rgba(246,215,122,0.85)';
-      ctx.shadowBlur = 50;
       ctx.drawImage(IMG.spriteCheer, -targetW/2, -targetH/2, targetW, targetH);
-      ctx.restore();
     }
+    ctx.restore();
   }
 
-  // 'WINNAAR' banner bovenin
+  // === TEAMS-MODE: alle winnaars naast elkaar juigend ===
+  // Anders één huge solo-winnaar in het midden zoals voorheen.
+  const teamWinners = celebration.teamWinners;
+  const w = celebration.winner;
+  if (teamWinners && teamWinners.length) {
+    // Layout: rij van N sprites, schaal omlaag naarmate de groep groter wordt
+    // zodat ze altijd in beeld passen. Voor 1 speler = solo grootte, voor 6
+    // spelers ~50% kleiner.
+    const n = teamWinners.length;
+    // Max-hoogte = klein bij grotere groepen
+    const maxHperHead = Math.min(H * 0.62, W * 0.85);
+    const targetH = maxHperHead * (n === 1 ? 1.0 : n === 2 ? 0.78 : n === 3 ? 0.62 : n === 4 ? 0.52 : n === 5 ? 0.45 : 0.40);
+    // Bereken hoeveel horizontale ruimte we nodig hebben per sprite (gemiddelde
+    // breedte = targetH * 0.75 als ruwe schatting). De spelers staan in een
+    // boog (lichte y-curve) zodat ze niet exact op één lijn staan = warmer.
+    const slotW = targetH * 0.72;
+    const totalW = n * slotW;
+    // Sprites krijgen alleen horizontale spreiding als ze in beeld passen;
+    // anders overlappen ze elkaar lichtjes (knus tegen elkaar aan).
+    const fitFactor = Math.min(1, (W * 0.92) / Math.max(1, totalW));
+    const stepX = slotW * fitFactor;
+    const startX = W/2 - ((n - 1) * stepX) / 2;
+    const cy0 = H * 0.58;
+    // Z-order: midden eerst tekenen, randen daarna — geeft "alle handen omhoog"-vibe
+    const order = teamWinners.map((_, i) => i)
+      .sort((a, b) => Math.abs(a - (n-1)/2) - Math.abs(b - (n-1)/2));
+    for (let k = order.length - 1; k >= 0; k--) {
+      const i = order[k];
+      const p = teamWinners[i];
+      const cx = startX + i * stepX;
+      // Lichte boog: middelste speler iets HOGER, randen iets lager.
+      const norm = (n === 1) ? 0 : (i / (n - 1)) * 2 - 1;        // -1..+1
+      const arc = (1 - norm * norm) * targetH * 0.06;              // 0 op randen, max in midden
+      const cy = cy0 - arc;
+      const phase = i * 0.7;
+      drawCheeringSprite(p, cx, cy, targetH, phase);
+    }
+  } else {
+    // SOLO-mode: één winnaar huge in beeld (gedrag van vóór v87)
+    drawCheeringSprite(w, W/2, H * 0.55, Math.min(H * 0.62, W * 0.85), 0);
+  }
+
+  // 'WINNAAR' banner bovenin — in teams-mode: 'TEAM ROOD WINT'
   ctx.save();
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#f6d77a';
-  ctx.font = `italic bold ${Math.round(W * 0.11)}px Georgia, serif`;
   ctx.shadowColor = 'rgba(0,0,0,0.7)';
   ctx.shadowBlur = 18;
   ctx.shadowOffsetY = 6;
-  ctx.fillText('WINNAAR', W/2, H * 0.16);
-  // Winnaar-naam
-  ctx.font = `bold ${Math.round(W * 0.075)}px Georgia, serif`;
-  ctx.fillStyle = '#ffe091';
-  ctx.shadowBlur = 14;
-  ctx.fillText((w && w.name) || '—', W/2, H * 0.86);
-  // Sub-tekst onder de naam
-  ctx.font = `italic ${Math.round(W * 0.028)}px Georgia, serif`;
-  ctx.fillStyle = '#d6cda3';
-  ctx.shadowBlur = 8;
-  const stats = w ? `${w.cleared} gehaald · ${w.shots} shots` : '';
-  ctx.fillText(stats, W/2, H * 0.91);
+  ctx.font = `italic bold ${Math.round(W * 0.11)}px Georgia, serif`;
+  if (teamWinners && teamWinners.length) {
+    const teamColor = TEAM_COLOR[celebration.winningTeam] || '#f6d77a';
+    ctx.fillStyle = teamColor;
+    ctx.fillText(`TEAM ${TEAM_NAME[celebration.winningTeam] || '?'}`, W/2, H * 0.13);
+    ctx.font = `italic ${Math.round(W * 0.055)}px Georgia, serif`;
+    ctx.fillStyle = '#f6d77a';
+    ctx.fillText('WINT!', W/2, H * 0.20);
+    // Namen-rij onderaan: kort, gescheiden met ·
+    ctx.font = `bold ${Math.round(W * 0.038)}px Georgia, serif`;
+    ctx.fillStyle = '#ffe091';
+    ctx.shadowBlur = 12;
+    const names = teamWinners.map(p => p.name).join('  ·  ');
+    ctx.fillText(names, W/2, H * 0.88);
+    // Team-totalen
+    const ts = teamWinners.reduce((s, p) => s + p.shots, 0);
+    const tc = teamWinners.reduce((s, p) => s + p.cleared, 0);
+    ctx.font = `italic ${Math.round(W * 0.028)}px Georgia, serif`;
+    ctx.fillStyle = '#d6cda3';
+    ctx.shadowBlur = 8;
+    ctx.fillText(`${tc} gehaald · ${ts} shots`, W/2, H * 0.93);
+  } else {
+    ctx.fillStyle = '#f6d77a';
+    ctx.fillText('WINNAAR', W/2, H * 0.16);
+    ctx.font = `bold ${Math.round(W * 0.075)}px Georgia, serif`;
+    ctx.fillStyle = '#ffe091';
+    ctx.shadowBlur = 14;
+    ctx.fillText((w && w.name) || '—', W/2, H * 0.86);
+    ctx.font = `italic ${Math.round(W * 0.028)}px Georgia, serif`;
+    ctx.fillStyle = '#d6cda3';
+    ctx.shadowBlur = 8;
+    const stats = w ? `${w.cleared} gehaald · ${w.shots} shots` : '';
+    ctx.fillText(stats, W/2, H * 0.91);
+  }
   ctx.restore();
 }
 
