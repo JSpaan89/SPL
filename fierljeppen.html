@@ -4677,8 +4677,21 @@ function setShotIconForPlayer(p) {
   }
 }
 
+/* Stop eventuele fail-video die in shotIcon draait. Anders blijft de audio
+ * (en video) op de achtergrond doorspelen na DOORGEVEN of STOP SPEL. */
+function stopShotIconVideo() {
+  if (typeof shotIcon === 'undefined' || !shotIcon) return;
+  const vids = shotIcon.querySelectorAll('video');
+  vids.forEach(v => {
+    try { v.pause(); } catch(e) {}
+    try { v.muted = true; v.removeAttribute('src'); v.load(); } catch(e) {}
+    if (v.parentNode) v.parentNode.removeChild(v);
+  });
+}
+
 function showPassScreen(success) {
   state = STATE.PASS;
+  stopShotIconVideo();   // Veiligheid: clean eventuele oude video van vorige pass
   hud.classList.add('hidden');
   levelDotsEl.classList.add('hidden');
   actionBar.classList.add('hidden');
@@ -4749,6 +4762,7 @@ shareBtn.addEventListener('click', shareResults);
 function advanceToNextPlayer() {
   passOv.classList.add('hidden');
   stopShotBanger();    // shot-banger uitzetten zodra we doorklikken
+  stopShotIconVideo(); // fail-video stoppen — anders speelt-ie door op achtergrond
   currentIdx++;
   if (currentIdx >= players.length) {
     currentIdx = 0;
@@ -4762,6 +4776,7 @@ function endGame() {
   // Daarna pas het standaard game-over scherm met scoreboard + share-knoppen.
   passOv.classList.add('hidden');
   stopShotBanger();
+  stopShotIconVideo();    // fail-video stoppen — anders speelt-ie door op achtergrond
   hud.classList.add('hidden');
   levelDotsEl.classList.add('hidden');
   actionBar.classList.add('hidden');
@@ -6457,9 +6472,12 @@ function drawWeather() {
       // Jitter: kleine x/y schok elke frame zodat de tornado lijkt te schokken
       const jitterX = Math.sin(now * 0.013) * 8 + (Math.random() - 0.5) * 4;
       const jitterY = Math.sin(now * 0.008) * 4;
-      // Tornado iets rechts van center, ~3cm naar links geschoven t.o.v. de
-      // vorige positie (gebruiker-feedback). 114*dpr ≈ 3cm bij 96dpi.
-      const cxT = W * 0.65 - 114 * dpr + jitterX;
+      // Tornado drift van LINKS naar RECHTS over het beeld. Lineaire cycle:
+      // start ~-15% van canvas, eindigt op ~115%, dan herhaalt. Periode 18s.
+      // Op jitterX zit een kleine schok-beweging on top voor extra leven.
+      const DRIFT_PERIOD_MS = 18000;
+      const t01 = (now % DRIFT_PERIOD_MS) / DRIFT_PERIOD_MS;
+      const cxT = W * (-0.15 + 1.30 * t01) + jitterX;
       const drawX = cxT - targetW / 2;
       // Bottom-anchor: onderkant 3 cm ONDER de horizon (gebruiker-feedback —
       // tornado stond te hoog in beeld). 133*dpr ≈ 35 mm bij 96 dpi.
@@ -6471,12 +6489,15 @@ function drawWeather() {
       ctx.drawImage(img, drawX, drawY, targetW, targetH);
       ctx.restore();
     }
-    // Spiraal-stof rond de tornado-basis voor extra "stof opwerveling"
-    // (zelfde x-shift als de funnel zelf zodat het stof onder de tornado blijft)
+    // Spiraal-stof rond de tornado-basis schuift mee met de drift (lineaire
+    // L→R via dezelfde formule als de funnel)
     ctx.fillStyle = 'rgba(220,210,190,0.40)';
+    const DRIFT_MS = 18000;
+    const tDrift = (now % DRIFT_MS) / DRIFT_MS;
+    const cxC = W * (-0.15 + 1.30 * tDrift);
+    const cyC = GROUND_Y * 0.85;
     for (const p of weatherParticles) {
       p.ang += p.speed;
-      const cxC = W * 0.65 - 114 * dpr, cyC = GROUND_Y * 0.85;
       const px = cxC + Math.cos(p.ang) * p.radius;
       const py = cyC + Math.sin(p.ang) * p.radius * 0.4;
       ctx.beginPath();
