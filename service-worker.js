@@ -17,7 +17,7 @@
  *  en oude asset-caches worden opgeruimd.
  * ============================================================================= */
 
-const CACHE_VERSION = 'v118-oever-0.75x';
+const CACHE_VERSION = 'v124-vloek-evil-pitch';
 const CACHE_NAME    = `spl-fierljeppen-${CACHE_VERSION}`;
 
 // Core shell — voor offline boot. Alleen pre-cachen wat ALTIJD nodig is.

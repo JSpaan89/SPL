@@ -2072,7 +2072,7 @@
     <div class="vloek-card" data-interactive>
       <h2 class="vloek-title">FRIESE VLOEK!</h2>
       <div class="vloek-tagline">Salire shots voor iedereen!!</div>
-      <video id="vloekVideo" playsinline loop preload="auto" muted></video>
+      <video id="vloekVideo" playsinline loop preload="auto"></video>
       <div class="vloek-list" id="vloekTargets">—</div>
       <button class="btn vloek-dismiss" id="vloekDismissBtn" type="button">IEDEREEN HEEFT GEDRONKEN ✓</button>
     </div>
@@ -3255,7 +3255,11 @@ function buildAndAttachManifest() {
     if (manifestLink) manifestLink.setAttribute('href', dataUrl);
   });
 }
-buildAndAttachManifest();
+// buildAndAttachManifest();  // UITGESCHAKELD (v120) — overschreef href met een
+// data-URL waarvan iOS Safari soms de embedded icons niet aan kon, waardoor
+// het home-screen-icoon terugviel op het generieke Chrome/Safari-icoon. De
+// statische manifest.json + apple-touch-icon link-tags in <head> zijn nu de
+// enige bron en wijzen direct naar app-icon.png. Geen race-condition meer.
 
 /* Install-knop is verwijderd uit de UI — de auto-popup bij eerste bezoek is
  * voldoende. We laten de helper bestaan zodat oudere code-paden die 'm nog
@@ -3266,14 +3270,25 @@ function refreshInstallButton() {
 refreshInstallButton();
 
 /* ----- Automatische install-popup -----
- * Bij eerste bezoek tonen we direct een kleine popup met INSTALLEER-knop.
- * Op Chrome/Android/desktop gebruiken we het beforeinstallprompt-event om
- * native install te triggeren. Op iOS Safari is dat niet beschikbaar, dus
- * we tonen daar een korte uitleg met de Deel-knop. Eenmaal weggeklikt komt
- * de popup niet meer terug (state in localStorage), maar de pijl-knop
- * rechtsboven blijft beschikbaar om 'm handmatig te openen.
+ * AGGRESSIEVE MODUS (v119+): de popup verschijnt bij ELKE page-load, behalve
+ * wanneer de app al daadwerkelijk in standalone-mode draait (= geïnstalleerd
+ * op het beginscherm). De localStorage-suppression is afgeschaft — er is
+ * geen "ik wil 'm nooit meer zien" knop meer; alleen "later" voor dit bezoek.
+ *
+ * Detectie van geïnstalleerd:
+ *   - Chrome/Android/Desktop: `matchMedia('(display-mode: standalone)')`
+ *   - iOS Safari: `navigator.standalone === true` (na "Zet op beginscherm")
+ *
+ * Tekst:
+ *   - iOS Safari → korte handmatige uitleg (Deel → Zet op beginscherm)
+ *   - Chrome/Android met beforeinstallprompt → INSTALLEER-knop (native)
+ *   - Chrome desktop zonder beforeinstallprompt → browser-menu uitleg
  */
+// Legacy localStorage-key: opruimen bij load zodat oude installaties die
+// daarmee de popup hebben uitgezet 'm vanaf v119 weer te zien krijgen.
 const INSTALL_DISMISSED_KEY = 'spl_install_popup_dismissed_v1';
+try { localStorage.removeItem(INSTALL_DISMISSED_KEY); } catch(e) {}
+
 const installPopupEl = document.getElementById('installPopup');
 const installAcceptBtn = document.getElementById('installAcceptBtn');
 const installSkipBtn = document.getElementById('installSkipBtn');
@@ -3293,9 +3308,13 @@ function configureInstallPopup() {
   }
 }
 
+// Per-sessie flag: één keer wegklikken volstaat voor de huidige tab, maar bij
+// een refresh/herstart komt de popup terug. Geen persistence in localStorage.
+let installDismissedThisSession = false;
+
 function showInstallPopup(force) {
-  if (isStandalone) return;
-  if (!force && localStorage.getItem(INSTALL_DISMISSED_KEY) === '1') return;
+  if (isStandalone) return;                          // al geïnstalleerd → nooit prompten
+  if (!force && installDismissedThisSession) return; // dezelfde tab al weggeklikt
   configureInstallPopup();
   installPopupEl.hidden = false;
 }
@@ -3324,11 +3343,11 @@ installAcceptBtn.addEventListener('click', async () => {
     deferredInstallEvent = null;
   }
   hideInstallPopup();
-  localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+  installDismissedThisSession = true;
 });
 installSkipBtn.addEventListener('click', () => {
   hideInstallPopup();
-  localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+  installDismissedThisSession = true;
 });
 // Corner-knop opent de popup opnieuw (ook na dismissal) — verwijderd uit UI,
 // maar event-listener defensief geguard mocht de knop ooit terugkeren.
@@ -3832,6 +3851,7 @@ function finalizePowerUp(puId, targetIdx) {
     const casterTeam = (cur && cur.team) || null;
     const targets = players.filter((pl, idx) => {
       if (idx === currentIdx) return false;
+      if (pl.eliminated) return false;                              // skip already-out
       if (currentMode === 'teams' && casterTeam) return pl.team !== casterTeam;
       return true;
     });
@@ -3839,18 +3859,48 @@ function finalizePowerUp(puId, targetIdx) {
     if (typeof triggerShake === 'function') triggerShake(360, 18);
     if (typeof vibrate === 'function') vibrate([60, 40, 80, 40, 60]);
     spawnFrieseVloekBlast();
+    // Detecteer welke targets DOOR DEZE VLOEK gaan sneuvelen — handig voor
+    // de celebration-list zodat we ze als "💀 valt af" kunnen markeren.
+    let willEliminate = [];
+    if (isEliminationMode()) {
+      // In teams: één gedeelde lives-pool → check of dit het totaal naar 0
+      // duwt voor het hele team. In solo levens: per-speler check.
+      if (currentMode === 'teams') {
+        // Tel targets per team en check of pool ≤ #hits voor dat team.
+        const targetsByTeam = {};
+        targets.forEach(t => {
+          targetsByTeam[t.team] = (targetsByTeam[t.team] || 0) + 1;
+        });
+        Object.keys(targetsByTeam).forEach(team => {
+          if ((teamLives[team] || 0) <= targetsByTeam[team]) {
+            // Hele team valt af → markeer alle alive teamleden als will-eliminate
+            willEliminate.push(...players.filter(p => p.team === team && !p.eliminated));
+          }
+        });
+      } else {
+        // Solo lives-mode: target zelf valt af als hij maar 1 leven over had
+        willEliminate = targets.filter(t => getPlayerLives(t) <= 1);
+      }
+    }
     showVloekCelebration(targets, casterName, () => {
-      // Op dismiss: NU pas de shots toepassen + levens-mode: -1 leven per target
+      // Op dismiss: NU pas de shots toepassen + levens-mode: -1 leven per target.
+      // Cap shots aan resterende lives in elimination-mode (max 1 per Vloek
+      // per persoon, dus alleen relevant als speler 0 lives over heeft —
+      // skipt nu al via target-filter, maar dubbel-safe).
       targets.forEach(pl => {
-        pl.shots += 1;
-        totalShots += 1;
+        let add = 1;
+        if (isEliminationMode()) {
+          add = Math.min(1, Math.max(0, getPlayerLives(pl)));
+        }
+        pl.shots += add;
+        totalShots += add;
         if (isEliminationMode()) {
           decrementPlayerLives(pl, 1);
         }
       });
       if (typeof totalShotsEl !== 'undefined' && totalShotsEl) totalShotsEl.textContent = totalShots;
       showLaunchToast(`💀 ${pu.name.toUpperCase()} — ${targets.length}× SHOTJE!`, '#ff8a8a', 2700);
-    });
+    }, willEliminate);
     renderActiveBuffsStrip();
     refreshTokenUI();
     return;
@@ -3943,25 +3993,52 @@ function setWodkaBlur(on) {
 /* Friese Vloek celebration — full-screen video + targets-lijst + dismiss-knop.
  * onDismiss() wordt aangeroepen wanneer iedereen heeft gedronken zodat we
  * de shots pas dan toepassen (en de groep tijd geeft om te drinken). */
-function showVloekCelebration(targets, casterName, onDismiss) {
+function showVloekCelebration(targets, casterName, onDismiss, willEliminate) {
   const overlay = document.getElementById('vloekCelebration');
   const list    = document.getElementById('vloekTargets');
   const video   = document.getElementById('vloekVideo');
   const dismissBtn = document.getElementById('vloekDismissBtn');
   if (!overlay || !list || !video || !dismissBtn) return;
   // Eén zin ipv lijst — "iedereen shots behalve {caster}"
-  list.innerHTML = `Iedereen shots behalve <span class="name">${escapeHtml(casterName)}</span>`;
-  // Video laden + autoplay — ALTIJD muted zodat de achtergrond-audio van het
-  // filmpje het feest niet verstoort (gebruiker-feedback). De celebration
-  // werkt puur op visueel + dismiss-knop.
+  let listHtml = `Iedereen shots behalve <span class="name">${escapeHtml(casterName)}</span>`;
+  // Toon eventuele sneuvel-slachtoffers expliciet zodat de groep ziet wie
+  // door deze Vloek wordt geëlimineerd (laatste leven weg).
+  if (willEliminate && willEliminate.length > 0) {
+    const victimNames = willEliminate.map(p => `<span class="name" style="color:#ff8a8a">${escapeHtml(p.name)}</span>`).join(', ');
+    listHtml += `<div style="margin-top:14px;font-size:0.85em;color:#ff8a8a;letter-spacing:2px;">
+      💀 SNEUVELT: ${victimNames}
+    </div>`;
+  }
+  list.innerHTML = listHtml;
+  // Video laden + autoplay MET geluid — gebruiker triggered de PU dus we
+  // hebben user-gesture context, audio mag dus spelen. Mute alleen als
+  // soundOn=false (de globale mute-toggle van het spel respecteren) of als
+  // autoplay-met-sound geblocked wordt (fallback naar muted en retry).
+  const wantSound = (typeof soundOn === 'undefined') ? true : !!soundOn;
   video.src = 'Screw-you-all.mp4';
-  video.muted = true;
-  video.volume = 0;
+  video.muted = !wantSound;
+  video.volume = wantSound ? 1.0 : 0;
   video.currentTime = 0;
+  // EVIL PITCH-DROP: playbackRate < 1 verlaagt zowel snelheid als toonhoogte
+  // van de audio. 0.70 → ~5 halvetonen omlaag, klinkt dieper/sinistere.
+  // preservesPitch op false zodat browsers de pitch ECHT meeschalen (anders
+  // houden Chrome/Safari het op originele pitch en blijft 't te hoog).
+  video.playbackRate = 0.70;
+  if ('preservesPitch' in video) video.preservesPitch = false;
+  // Vendor-prefix safety (oudere Webkit)
+  if ('webkitPreservesPitch' in video) video.webkitPreservesPitch = false;
+  if ('mozPreservesPitch' in video) video.mozPreservesPitch = false;
   overlay.hidden = false;
   const tryPlay = video.play();
   if (tryPlay && typeof tryPlay.catch === 'function') {
-    tryPlay.catch(() => { /* autoplay blocked — gebruiker tikt sowieso de dismiss */ });
+    tryPlay.catch(() => {
+      // Sommige browsers blokkeren autoplay-met-sound zelfs met user-gesture
+      // als de gesture niet "vers" genoeg is. Fallback: mute & herstart, dan
+      // hoort de gebruiker tenminste het visuele effect.
+      video.muted = true;
+      video.volume = 0;
+      video.play().catch(() => { /* helemaal geblokkeerd — dismiss-knop blijft */ });
+    });
   }
   // Dismiss-handler (één keer)
   const handler = () => {
@@ -4560,11 +4637,13 @@ function startGame() {
   } else {
     teamLives = { A: 0, B: 0 };
   }
-  // Weer + dag/nacht reset naar zonnig+dag, counter op 0 zodat eerste beurt
-  // direct een random nieuwe weer/tijd-combinatie krijgt
+  // Weer + dag/nacht reset naar zonnig+dag. Counter staat op 4 zodat de
+  // eerste 4 beurten (= eerste rondje plus wat warm-up) gegarandeerd in
+  // mooi weer beginnen — gebruiker wilde altijd zon bij start. Pas daarna
+  // mag het weer-systeem rollen.
   currentWeather = 'zonnig';
   currentTimeOfDay = 'day';
-  turnsUntilWeatherChange = 0;
+  turnsUntilWeatherChange = 4;
   weatherParticles = [];
   nightStars = [];
   setupOv.classList.add('hidden');
@@ -4950,7 +5029,15 @@ function resolveJump(success) {
     // DUBBELE SHOT (offensive, stacks): basis 1 shot + 1 extra shot per stack
     // (2 stacks van verschillende spelers = 3 shots totaal, etc).
     const dsStack = buffStack('dubbele-shot');
-    const shotPenalty = 1 + dsStack;
+    let shotPenalty = 1 + dsStack;
+    // ELIMINATION MODE: cap shots aan resterende lives — je kunt nooit meer
+    // shots krijgen dan dat je nog leventjes had. Voorkomt dat Dubbele Shot
+    // bij een speler met 1 leven 2 shots toekent terwijl de 2e niet meer
+    // 'verdiend' wordt door een verlorenleven. Score-card bleef anders
+    // doortellen boven de lives-limiet.
+    if (isEliminationMode()) {
+      shotPenalty = Math.min(shotPenalty, Math.max(0, getPlayerLives(p)));
+    }
     p.shots += shotPenalty; totalShots += shotPenalty;
     // Stash voor het pass-screen — banger pulseert pas wanneer fail-menu opent
     lastFailShots = shotPenalty;
