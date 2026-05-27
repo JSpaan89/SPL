@@ -17,7 +17,7 @@
  *  en oude asset-caches worden opgeruimd.
  * ============================================================================= */
 
-const CACHE_VERSION = 'v88-team-celebration-cheer';
+const CACHE_VERSION = 'v107-ship-tweak-pos-speed';
 const CACHE_NAME    = `spl-fierljeppen-${CACHE_VERSION}`;
 
 // Core shell — voor offline boot. Alleen pre-cachen wat ALTIJD nodig is.
@@ -49,6 +49,9 @@ const RUNTIME_PATTERNS = [
   /screw-you-all/i,              // Friese Vloek PU asset (zowel .png als .mp4)
   /niels-fail/i,                 // Niels fail-video easter-egg
   /\/reset\.png$/,               // Schone Lei PU icon
+  /\/shotje\.png$/i,             // Lives-indicator icon (vervangt 🥃-emoji)
+  /\/schip\.png$/i,              // Achtergrond-schip — approach view (op ons af)
+  /\/schip2\.png$/i,             // Achtergrond-schip — recede view (van ons af)
   // Losse PU icons (sinds v57)
   /\/Mulligan\.png$/,
   /\/Windschot\.png$/,

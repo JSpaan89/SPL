@@ -428,23 +428,24 @@
     #buttonRow { gap: 12px; }
   }
 
-  /* Lives-indicator (alleen lives/teams mode) — net boven de actionBar,
-   * gecentreerd. Toont active speler's resterende 🥃 levens. Pulserende
-   * border bij 1 leven (laatste leven, gevaar). */
+  /* Lives-indicator (alleen lives/teams mode) — staat NET BOVEN de power-
+   * bar (actionBar begint op top:78vh), zodat de balk niet onder de POWER-UP
+   * knop verdwijnt. Gecentreerd, klein en uit de weg van de scene. */
   #livesIndicator {
     position: absolute;
     left: 50%;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 130px);
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 1cm);
     transform: translateX(-50%);
     background: rgba(11, 30, 63, 0.85);
     border: 2px solid #f6d77a;
     border-radius: 14px;
-    padding: 6px 14px;
+    padding: 5px 12px;
     color: #f6d77a;
-    font-size: 13px;
+    font-size: 12px;
     letter-spacing: 2px;
     font-weight: bold;
-    z-index: 4;
+    z-index: 6;
     pointer-events: none;
     display: flex;
     align-items: center;
@@ -458,9 +459,30 @@
     letter-spacing: 2px;
   }
   #livesIndicator .lives-icons {
-    font-size: 22px;
-    letter-spacing: 2px;
+    font-size: 18px;
+    letter-spacing: 1px;
     line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  /* shotje.png als lives-icon — XL formaat (68px). Negatieve vertical margin
+   * laat de iconen UIT het balkje steken (boven en onder), zodat het balkje
+   * zelf compact blijft maar de glaasjes lekker prominent in beeld komen. */
+  #livesIndicator {
+    overflow: visible;
+  }
+  #livesIndicator .lives-icons img.life-icon {
+    height: 68px;
+    width: auto;
+    vertical-align: middle;
+    display: inline-block;
+    margin-top: -22px;
+    margin-bottom: -22px;
+  }
+  #livesIndicator .lives-icons img.life-icon.spent {
+    opacity: 0.25;
+    filter: grayscale(1);
   }
   #livesIndicator.danger {
     border-color: #ff4848;
@@ -2205,6 +2227,19 @@
     </div>
   </div>
 
+  <!-- Bevestiging voor STOP SPEL — voorkomt per ongeluk afbreken midden in een
+       rondje. Komt over de pass-screen heen met hogere z-index. -->
+  <div id="quitConfirm" class="overlay hidden" style="z-index:14;background:rgba(11,30,63,0.92);">
+    <h2 style="color:#f6d77a;letter-spacing:3px;margin-bottom:6px;">SPEL STOPPEN?</h2>
+    <p style="color:#d6cda3;max-width:340px;margin:0 auto 22px;font-style:italic;">
+      Weet je zeker dat je het spel wilt beëindigen? De huidige stand gaat verloren.
+    </p>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">
+      <button class="btn secondary" id="quitConfirmCancelBtn" style="min-width:140px;">ANNULEREN</button>
+      <button class="btn big" id="quitConfirmYesBtn" style="min-width:140px;background:#7a2a2a;border-color:#ff8a8a;color:#ffe091;">JA, STOP</button>
+    </div>
+  </div>
+
   <!-- Game over -->
   <div id="gameover" class="overlay hidden">
     <img class="logo" src="logo.png" alt="" style="width:clamp(140px, 28vw, 220px);" onerror="this.style.display='none'" />
@@ -2796,6 +2831,8 @@ IMG.spriteWet.onload = markReady;   IMG.spriteWet.src   = 'sprite-wet.png';
 IMG.flag.onload = markReady;        IMG.flag.src        = 'flag-mast.png';  // NEW: mast + vlag combined asset
 IMG.pole.onload = markReady;        IMG.pole.src        = 'poolstok.png';  // NEW: water-side is pivot, handle volgt speler
 IMG.bgHills.onload = markReady;     IMG.bgHills.src     = 'bg-hills.png';
+IMG.ship  = new Image(); IMG.ship.onload  = markReady; IMG.ship.src  = 'schip.png';   // bow-left, approach-view
+IMG.ship2 = new Image(); IMG.ship2.onload = markReady; IMG.ship2.src = 'schip2.png';  // bow-right, recede-view (from us afvarend)
 // Tornado-frames — 3 stuks, alternerend gerenderd voor "verspringend" effect
 IMG.tornado1 = new Image(); IMG.tornado1.onload = markReady; IMG.tornado1.src = 'Tornado1.png';
 IMG.tornado2 = new Image(); IMG.tornado2.onload = markReady; IMG.tornado2.src = 'Tornado2.png';
@@ -4729,7 +4766,8 @@ function refreshLivesIndicator() {
   // bij grote teams (6vs6 = max 6 icons, dus dit is een safety-cap).
   const drawCount = Math.min(maxLives, 12);
   for (let i = 0; i < drawCount; i++) {
-    icons += i < lives ? '🥃' : '<span style="opacity:0.25;filter:grayscale(1)">🥃</span>';
+    const cls = i < lives ? 'life-icon' : 'life-icon spent';
+    icons += `<img src="shotje.png" alt="" class="${cls}" />`;
   }
   const label = el.querySelector('.lives-label');
   const iconsEl = el.querySelector('.lives-icons');
@@ -5082,15 +5120,15 @@ function showPassScreen(success) {
     }
     roastLine.textContent = `"${pickRoast()}"`;
     passMsg.innerHTML = `<strong style="color:#ff8a8a">${escapeHtml(p.name)}</strong> moet een <strong style="color:#ffe091">SHOTJE</strong> nemen.`;
-    // Elimination-modes: laat zien hoeveel levens er nog over zijn (🥃-iconen).
+    // Elimination-modes: laat zien hoeveel levens er nog over zijn (shotje-iconen).
     // Teams-mode toont de gedeelde team-pool i.p.v. individuele levens.
     if (isEliminationMode()) {
       const livesLeft = Math.max(0, getPlayerLives(p));
       const maxL = Math.min(getMaxLives(p), 12);
       const fullCount = Math.min(livesLeft, maxL);
       const emptyCount = Math.max(0, maxL - fullCount);
-      const livesIcons = '🥃'.repeat(fullCount)
-        + (emptyCount ? '<span style="opacity:0.25">' + '🥃'.repeat(emptyCount) + '</span>' : '');
+      const shotImg = (cls) => `<img src="shotje.png" alt="" style="height:56px;width:auto;vertical-align:middle;margin:0 2px;${cls === 'spent' ? 'opacity:0.25;filter:grayscale(1);' : ''}" />`;
+      const livesIcons = shotImg('full').repeat(fullCount) + shotImg('spent').repeat(emptyCount);
       const eliminated = p.eliminated;
       const poolLabel = (currentMode === 'teams' && p.team)
         ? `<br/><span style="font-size:0.7em;color:${TEAM_COLOR[p.team]};letter-spacing:2px;">TEAM ${TEAM_NAME[p.team]} POT</span>` : '';
@@ -5116,7 +5154,29 @@ function showPassScreen(success) {
 }
 
 passBtn.addEventListener('click', advanceToNextPlayer);
-quitBtn.addEventListener('click', endGame);
+// STOP SPEL → eerst bevestigings-dialog tonen. Pas op JA wordt endGame()
+// echt aangeroepen. Voorkomt per ongeluk afbreken na een misklik.
+const quitConfirmOv = document.getElementById('quitConfirm');
+const quitConfirmYesBtn = document.getElementById('quitConfirmYesBtn');
+const quitConfirmCancelBtn = document.getElementById('quitConfirmCancelBtn');
+function openQuitConfirm() { if (quitConfirmOv) quitConfirmOv.classList.remove('hidden'); }
+function closeQuitConfirm() { if (quitConfirmOv) quitConfirmOv.classList.add('hidden'); }
+quitBtn.addEventListener('click', openQuitConfirm);
+if (quitConfirmYesBtn) {
+  quitConfirmYesBtn.addEventListener('click', () => {
+    closeQuitConfirm();
+    endGame();
+  });
+}
+if (quitConfirmCancelBtn) {
+  quitConfirmCancelBtn.addEventListener('click', closeQuitConfirm);
+}
+// Click-buiten-de-knoppen op de overlay-achtergrond annuleert ook
+if (quitConfirmOv) {
+  quitConfirmOv.addEventListener('click', (e) => {
+    if (e.target === quitConfirmOv) closeQuitConfirm();
+  });
+}
 retryBtn.addEventListener('click', () => {
   overOv.classList.add('hidden');
   setupOv.classList.remove('hidden');
@@ -6295,6 +6355,217 @@ function drawReferee() {
   lastRefereeBox = { x: drawX, y: drawY, w: drawW, h: drawH };
 }
 
+/* ============================================================================
+ *  DRAW DISTANT SHIP — schip vaart langzaam in de verte over de sloot.
+ *  Wordt aangeroepen TUSSEN water-laag en bank-laag in drawGround zodat de
+ *  banks de randen afdekken voor een echt parallax-perspectief.
+ *
+ *  Beweging-cyclus (periode ~36 s):
+ *    • Ping-pong tussen W*(-0.2) en W*(1.2) — start ver buiten beeld zodat-ie
+ *      "in beeld vaart" vanuit een onzichtbaar punt.
+ *    • Per richting wordt het schip horizontaal gespiegeld zodat de boeg
+ *      altijd voor het mast staat (visueel klopt-ie dus heen-en-weer).
+ *    • Scale pulseert tussen 0.55× en 1.0× via een tweede sinus met andere
+ *      frequentie — geeft dichterbij/verder-weg-illusie los van x-positie.
+ *    • Lichte y-bob (~6 px) zodat-ie zachtjes deint op de golven.
+ *    • Subtiele 'reflectie' onder de waterlijn (mirror + alpha 0.18) voor
+ *      extra optische diepte.
+ *
+ *  Performance: alle berekeningen zijn O(1), geen allocaties per frame.
+ * ============================================================================ */
+function drawDistantShip() {
+  if (!IMG.ship || !IMG.ship.complete || !IMG.ship.naturalWidth) return;
+  // Schip2 is optioneel — als-ie nog niet geladen is gebruiken we schip1 voor
+  // de recede-fase. Niet blocking.
+  const ship2Ready = IMG.ship2 && IMG.ship2.complete && IMG.ship2.naturalWidth;
+
+  const now = performance.now();
+
+  // ===== 4-FASE CYCLUS (32s totaal, 8s per fase) =====
+  // Elke fase = één complete journey (ver weg → dichtbij of dichtbij → ver weg)
+  //
+  //   Q0 [0.00-0.25]: schip1, L→R, GROEIEND (komt op ons af, neus rechts)
+  //   Q1 [0.25-0.50]: schip2, L→R, KRIMPEND (vaart van ons weg, neus rechts)
+  //   Q2 [0.50-0.75]: schip1, R→L, GROEIEND (komt op ons af, neus links)
+  //   Q3 [0.75-1.00]: schip2, R→L, KRIMPEND (vaart van ons weg, neus links)
+  //
+  // Bij elke overgang Q0→Q1 / Q2→Q3 "passeert" de boot ons (maximaal dichtbij);
+  // dan zien we i.p.v. de voorkant nu de achterkant verdwijnen.
+  // Bij Q1→Q2 en Q3→Q0 zien we hem ver achter de horizon van richting wisselen
+  // (kleinste schaal) — visueel onopvallend doordat-ie dan toch nauwelijks
+  // zichtbaar is.
+  // PERIOD verdubbeld (64s totaal, 16s per fase) — gebruiker wilde snelheid
+  // halveren voor een nog statiger, schilderachtige beweging.
+  const PERIOD = 64000;
+  const phase = (now % PERIOD) / PERIOD;
+  const q = Math.min(3, Math.floor(phase * 4));
+  const localPhase = (phase * 4) % 1;            // 0..1 binnen quadrant
+
+  // Direction: Q0+Q1 = sailing rechts (+1), Q2+Q3 = sailing links (-1)
+  const direction = (q < 2) ? 1 : -1;
+  // Approach (groeiend, schip1) of recede (krimpend, schip2)
+  const isReceding = (q === 1 || q === 3);
+  const useShip2   = isReceding && ship2Ready;
+  const shipImg    = useShip2 ? IMG.ship2 : IMG.ship;
+
+  // Schaal: groeiend van ver→dichtbij in approach-fase, krimpend in recede-fase
+  const scaleFar  = 0.30;
+  const scaleNear = 1.30;
+  const depth01 = isReceding
+    ? (1 - localPhase)        // 1 (dichtbij) → 0 (ver weg)
+    : localPhase;             // 0 (ver weg)  → 1 (dichtbij)
+  const scalePulse = scaleFar + (scaleNear - scaleFar) * depth01;
+  const baseScale = Math.min(W, H * 1.6) / 1600;
+  const finalScale = baseScale * scalePulse * 0.70;
+
+  const sw = shipImg.naturalWidth * finalScale;
+  const sh = shipImg.naturalHeight * finalScale;
+
+  // X-positie: continue over twee fases samen. Q0+Q1 = -0.2→1.2*W. Q2+Q3 = 1.2→-0.2*W.
+  // (binnen de 8s van één Q gaat hij van rand naar midden of midden naar rand)
+  const halfPhase = (q < 2) ? (phase * 2) : ((phase - 0.5) * 2);   // 0..1 binnen half
+  const shipX = (direction === 1)
+    ? W * (-0.20 + 1.40 * halfPhase)
+    : W * ( 1.20 - 1.40 * halfPhase);
+
+  // MIRROR-logica voor de boeg-richting:
+  //   schip1 native = boeg LEFT  → flipX = -direction (mirror om rechts te varen)
+  //   schip2 native = boeg RIGHT → flipX = +direction (native om rechts te varen)
+  const flipX = useShip2 ? direction : -direction;
+
+  // WATERLINE-anker — verschilt per asset (foam-positie zit anders in PNG):
+  //   schip.png  foam-bottom op y=903/1024 ≈ 0.882
+  //   schip2.png foam-bottom op y=859/1024 ≈ 0.839
+  const SHIP_WATERLINE_FRAC = useShip2 ? 0.84 : 0.86;
+  const bob = Math.sin(now * 0.0011) * 4;
+  // Verschuiving t.o.v. GROUND_Y: was +1cm (38px), gebruiker wilde 5mm omhoog → +5mm.
+  // 1cm ≈ 38px @ 96dpi, dus 5mm ≈ 19px.
+  const SHIP_VERT_OFFSET = 19 * dpr;               // ~5mm onder GROUND_Y
+  // Diepte-arc: dichterbij = iets lager in beeld (perspectief), maar de
+  // verticale beweging was te dramatisch waardoor de boot er halverwege
+  // bovenuit leek te zweven. Teruggebracht van 12% → 5% canvas-hoogte zodat
+  // hij wel deint maar de horizon-band aanhoudt.
+  const depthDrop = depth01 * H * 0.05;
+  const shipWaterY = GROUND_Y + Math.max(4, H * 0.006) + SHIP_VERT_OFFSET + depthDrop + bob;
+  const drawY = shipWaterY - sh * SHIP_WATERLINE_FRAC;
+
+  ctx.save();
+  const distanceDim = 0.78 + scalePulse * 0.18;
+  ctx.globalAlpha = distanceDim;
+
+  /* ---- REFLECTIE ---- onder de boot in water-tint */
+  ctx.save();
+  ctx.globalAlpha = 0.18 * distanceDim;
+  ctx.translate(shipX, shipWaterY);
+  ctx.scale(flipX, -1);                       // mirror + vertical-flip
+  ctx.scale(1, 0.55);                          // verkort-reflectie squash
+  // Vertical offset zodat de reflectie aansluit op de waterlijn-anker.
+  const reflOffsetY = -sh * SHIP_WATERLINE_FRAC;
+  ctx.drawImage(shipImg, -sw/2, reflOffsetY, sw, sh);
+  ctx.restore();
+
+  /* ---- SCHIP ROMP + SAILS (zonder vlaggen) ---- in 1 drawImage,
+   * maar we knippen de bovenste 20% af zodat we de vlaggen daarna apart
+   * met een wapper-effect overheen kunnen tekenen.  ============== */
+  const FLAG_BAND_TOP_FRAC = 0.00;
+  const FLAG_BAND_BOT_FRAC = 0.22;   // 0..22% van PNG-hoogte = vlaggen-zone
+  // De rest van het schip (sails + romp + foam) — gewoon tekenen, gemirrored.
+  ctx.save();
+  ctx.translate(shipX, drawY + sh / 2);
+  ctx.scale(flipX, 1);
+  // Rest van schip: source y vanaf FLAG_BAND_BOT_FRAC tot 1.0
+  const srcW = shipImg.naturalWidth;
+  const srcH = shipImg.naturalHeight;
+  const yFromSrc = FLAG_BAND_BOT_FRAC * srcH;
+  const heightSrc = srcH - yFromSrc;
+  const yFromDst = -sh/2 + FLAG_BAND_BOT_FRAC * sh;
+  const heightDst = sh - FLAG_BAND_BOT_FRAC * sh;
+  ctx.drawImage(shipImg,
+    0, yFromSrc, srcW, heightSrc,
+    -sw/2, yFromDst, sw, heightDst);
+  ctx.restore();
+
+  /* ---- VLAGGEN met wapper-effect ----
+   * De bovenste 22% van het sprite bevat de Nederlandse vlaggen op de masten.
+   * We tekenen deze strook in horizontale slices, elk met een kleine x-offset
+   * o.b.v. een sinus, zodat het lijkt of de vlaggen wapperen in de wind.
+   * De globale wind-richting van het spel bepaalt de wapper-richting; sterkte
+   * is een combinatie van baseline + windSpeed. */
+  const wind01 = (typeof wind === 'number') ? wind : 0;
+  // Wapper-amplitude: 4-10px afhankelijk van wind-magnitude
+  const waveAmp = 4 + Math.abs(wind01) * 120;   // ~4..10
+  const waveAmpClamped = Math.min(waveAmp, 10);
+  // Wapper-bias: standaard naar achteren wapperen (tegenovergesteld van
+  // vaar-richting), versterkt door zijwind
+  const flagBias = -direction * 1 + Math.sign(wind01) * 0.5;
+  const SLICES = 14;
+  ctx.save();
+  ctx.translate(shipX, drawY + sh / 2);
+  ctx.scale(flipX, 1);
+  for (let i = 0; i < SLICES; i++) {
+    const u0 = i / SLICES;
+    const u1 = (i + 1) / SLICES;
+    const srcY0 = (FLAG_BAND_TOP_FRAC + (FLAG_BAND_BOT_FRAC - FLAG_BAND_TOP_FRAC) * u0) * srcH;
+    const srcY1 = (FLAG_BAND_TOP_FRAC + (FLAG_BAND_BOT_FRAC - FLAG_BAND_TOP_FRAC) * u1) * srcH;
+    const dstY0 = -sh/2 + FLAG_BAND_TOP_FRAC * sh + (FLAG_BAND_BOT_FRAC - FLAG_BAND_TOP_FRAC) * sh * u0;
+    const dstY1 = -sh/2 + FLAG_BAND_TOP_FRAC * sh + (FLAG_BAND_BOT_FRAC - FLAG_BAND_TOP_FRAC) * sh * u1;
+    // Wapper: sterker hoe hoger (= verder van mast-top = meer vrij vlaggen-uiteinde)
+    const heightFactor = 1 - u0;             // 1 bovenaan, 0 onderaan band
+    const dx = Math.sin(now * 0.006 + u0 * 5) * waveAmpClamped * heightFactor
+             + flagBias * heightFactor * 2;
+    ctx.drawImage(shipImg,
+      0, srcY0, srcW, srcY1 - srcY0 + 1,       // +1 om hairline gaps tussen slices te voorkomen
+      -sw/2 + dx, dstY0, sw, dstY1 - dstY0 + 1);
+  }
+  ctx.restore();
+
+  /* ---- BOW/STERN WAVE + BUBBELS ----
+   * Bij APPROACH (schip1): bow-wave VOOR het schip uit (in motion-richting).
+   * Bij RECEDE (schip2):    stern-wake ACHTER het schip aan (tegen motion-richting in).
+   * In beide gevallen 8 levende bubbels die uitvagen, plus side-foam langs de romp. */
+  const wakeDir = useShip2 ? -direction : direction;   // recede → wake achter, approach → bow vooraan
+  const bowX = shipX + (sw * 0.42) * wakeDir;
+  const bowY = shipWaterY - sh * 0.04;
+  const BUBBLE_COUNT = 8;
+  const BUBBLE_LIFE = 1400;
+  for (let i = 0; i < BUBBLE_COUNT; i++) {
+    const seed = i / BUBBLE_COUNT;
+    const tBubble = ((now + seed * BUBBLE_LIFE) % BUBBLE_LIFE) / BUBBLE_LIFE;
+    const dist = tBubble * (sw * 0.35);
+    const bx = bowX + dist * wakeDir + Math.sin(seed * 7) * 4;
+    const by = bowY + tBubble * 6 - Math.sin(tBubble * Math.PI) * 8;
+    const radius = (2 + tBubble * 7) * (0.7 + 0.3 * Math.sin(seed * 11));
+    const alpha = (1 - tBubble) * 0.55 * distanceDim;
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.beginPath();
+    ctx.ellipse(bx, by, radius, radius * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Streep direct voor/onder de wake-source
+  ctx.fillStyle = `rgba(255,255,255,${0.42 * distanceDim})`;
+  ctx.beginPath();
+  ctx.ellipse(bowX + 6 * wakeDir, bowY + 1, sw * 0.07, 3.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Side-foam: van romp-flank weglopende kleine spatten die meedeinen.
+  // Voor recede gebruiken we de motion-direction (foam loopt langs het schip
+  // mee met zijn beweging) i.p.v. wakeDir.
+  for (let i = 0; i < 5; i++) {
+    const sideU = i / 5;
+    const tSide = ((now * 0.0007 + sideU) % 1);
+    const fx = shipX - sw * 0.35 * direction + sideU * sw * 0.6 * direction;
+    const fy = shipWaterY + 2 + Math.sin((tSide + sideU) * Math.PI * 2) * 3;
+    const fa = (1 - tSide) * 0.32 * distanceDim;
+    const fr = 3 + tSide * 5;
+    ctx.fillStyle = `rgba(255,255,255,${fa})`;
+    ctx.beginPath();
+    ctx.ellipse(fx, fy, fr, fr * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
 function drawGround() {
   const ditchEnd = DITCH_START + ditchWidthPx;
 
@@ -6313,7 +6584,9 @@ function drawGround() {
   if (IMG.bgHills.complete && IMG.bgHills.naturalWidth) {
     const scl   = W / HILLS_PNG_W;
     const drawH = HILLS_PNG_H * scl;
-    const HILLS_Y_NUDGE = 8 * dpr;
+    // +12*dpr (3mm) extra omlaag tov v100 — gebruiker wilde hills nog iets
+    // dieper richting horizon zodat ze niet boven de waterlijn uit pieken.
+    const HILLS_Y_NUDGE = 20 * dpr;
     const drawY = GROUND_Y - HILLS_BOTTOM_ROW * scl + HILLS_Y_NUDGE;
     ctx.drawImage(IMG.bgHills, 0, drawY, W, drawH);
   } else {
@@ -6358,6 +6631,14 @@ function drawGround() {
     }
     ctx.restore();
   }
+
+  /* ---------- Step 2b: SCHIP in de verte ----------
+   * Een statig scheepje vaart langzaam van links naar rechts en weer terug.
+   * Drawn NA water (zit op de waterlijn) maar VOOR de banks, zodat de banks
+   * hem op de randen afdekken (echte parallax-perspectief). Schaal pulseert
+   * zachtjes voor "dichterbij/verder weg"-effect, en hij wordt gespiegeld
+   * wanneer hij omkeert. ============================================== */
+  drawDistantShip();
 
   /* ---------- Step 3: BANK PNGs (links + rechts) ----------
    * Elke bank bevat gras-top + cliff + eigen water-overgang. We schalen zo
@@ -6908,15 +7189,48 @@ function drawWeather() {
   if (currentWeather === 'zonnig') return;
   const now = performance.now();
 
-  // Sky-tint per weer-type voor extra moodiness
-  if (currentWeather === 'regen' || currentWeather === 'bliksem') {
-    ctx.fillStyle = currentWeather === 'bliksem'
-      ? 'rgba(20,30,55,0.30)'
-      : 'rgba(40,60,90,0.22)';
-    ctx.fillRect(0, 0, W, GROUND_Y);
-  } else if (currentWeather === 'tornado') {
-    ctx.fillStyle = 'rgba(50,30,40,0.35)';
-    ctx.fillRect(0, 0, W, GROUND_Y);
+  // Sky-tint per weer-type voor extra moodiness.
+  // -----------------------------------------------------------------
+  // Vroeger: harde fillRect(0,0,W,GROUND_Y) — gaf zichtbare lijn op de
+  // horizon waar de tint stopte en de groene heuvels begonnen.
+  // Nu: verticale gradient die TOP→BOTTOM uitfaden, doorlopend tot iets
+  // ÓNDER GROUND_Y (in het gras), zodat het effect organisch wegloopt
+  // ipv abrupt afgekapt te worden. Ook het water onder de horizon krijgt
+  // een hele lichte tint mee, voor sfeer-consistentie.
+  // -----------------------------------------------------------------
+  if (currentWeather !== 'zonnig') {
+    let topRGB, midRGB, botRGB;
+    if (currentWeather === 'bliksem') {
+      topRGB = 'rgba(20,30,55,0.45)';     // top: stevig donker
+      midRGB = 'rgba(30,40,65,0.32)';     // horizon
+      botRGB = 'rgba(30,40,65,0.10)';     // gras-niveau, zacht
+    } else if (currentWeather === 'regen') {
+      topRGB = 'rgba(40,60,90,0.35)';
+      midRGB = 'rgba(55,75,105,0.22)';
+      botRGB = 'rgba(55,75,105,0.07)';
+    } else if (currentWeather === 'tornado') {
+      topRGB = 'rgba(50,30,40,0.55)';     // sfeerverhogend voor storm
+      midRGB = 'rgba(70,45,55,0.32)';
+      botRGB = 'rgba(80,55,60,0.10)';
+    }
+    if (topRGB) {
+      // Gradient loopt door tot 10% onder GROUND_Y zodat de overgang in het
+      // gras valt en compleet onzichtbaar is. Midden-kleur zit op horizon
+      // zelf zodat we daar niet abrupt verspringen naar transparant.
+      const gradEndY = Math.min(H, GROUND_Y + H * 0.10);
+      const grad = ctx.createLinearGradient(0, 0, 0, gradEndY);
+      grad.addColorStop(0, topRGB);
+      grad.addColorStop(GROUND_Y / gradEndY * 0.85, midRGB);   // ~horizon
+      grad.addColorStop(1, botRGB);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, gradEndY);
+      // Lichte water-tint onderdeur: stilstaand water reflecteert de lucht,
+      // dus bij storm-weer ook een vleugje donker op het water.
+      ctx.fillStyle = (currentWeather === 'tornado') ? 'rgba(50,30,40,0.10)'
+                    : (currentWeather === 'bliksem') ? 'rgba(20,30,55,0.10)'
+                    : 'rgba(40,60,90,0.08)';
+      ctx.fillRect(0, gradEndY, W, H - gradEndY);
+    }
   }
 
   // Particles spawnen op basis van weer-type
