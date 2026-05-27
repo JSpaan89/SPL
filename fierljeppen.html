@@ -2834,6 +2834,7 @@ IMG.pole.onload = markReady;        IMG.pole.src        = 'poolstok.png';  // NE
 IMG.bgHills.onload = markReady;     IMG.bgHills.src     = 'bg-hills.png';
 IMG.ship  = new Image(); IMG.ship.onload  = markReady; IMG.ship.src  = 'schip.png';   // bow-left, approach-view
 IMG.ship2 = new Image(); IMG.ship2.onload = markReady; IMG.ship2.src = 'schip2.png';  // bow-right, recede-view (from us afvarend)
+IMG.oever = new Image(); IMG.oever.onload = markReady; IMG.oever.src = 'oever.png';   // verre oever op horizon, tussen hills en water
 // Tornado-frames — 3 stuks, alternerend gerenderd voor "verspringend" effect
 IMG.tornado1 = new Image(); IMG.tornado1.onload = markReady; IMG.tornado1.src = 'Tornado1.png';
 IMG.tornado2 = new Image(); IMG.tornado2.onload = markReady; IMG.tornado2.src = 'Tornado2.png';
@@ -4628,10 +4629,12 @@ let nightStars = [];               // sterren — gegenereerd bij overgang naar 
 
 /* Time-of-day weights: dag overheerst, nacht regelmatig, dusk zeldzamer */
 function rollTimeOfDay() {
+  // Gebruiker wilde vaker dag of avond (dusk) en minder nacht.
+  // 60% dag, 30% dusk (= avond), 10% nacht.
   const r = Math.random();
-  if (r < 0.55) return 'day';
-  if (r < 0.80) return 'night';
-  return 'dusk';
+  if (r < 0.60) return 'day';
+  if (r < 0.90) return 'dusk';
+  return 'night';
 }
 /* Sterren gegenereerd bij elke transitie naar 'night' — voorkomt dat
  * dezelfde star-positions per game terugkomen. */
@@ -4648,9 +4651,16 @@ function regenStars() {
   }
 }
 function rollWeather() {
-  // Kies een NIEUW weer-type (niet hetzelfde als nu) zodat het altijd opvalt
+  // Gebruiker wilde vaker zonnig — 60% kans op zonnig (mits we nu iets anders
+  // hebben), anders random uit de overige weer-types. Zo blijft het ritme
+  // overwegend mooi met af en toe een storm voor spannende variatie.
   const others = WEATHER_IDS.filter(w => w !== currentWeather);
-  currentWeather = others[Math.floor(Math.random() * others.length)];
+  if (currentWeather !== 'zonnig' && Math.random() < 0.60) {
+    currentWeather = 'zonnig';
+  } else {
+    // Pak een ander weer-type, exclusive de huidige
+    currentWeather = others[Math.floor(Math.random() * others.length)];
+  }
   // Time-of-day rolt mee — kan toevallig hetzelfde blijven (~50%)
   const prevTod = currentTimeOfDay;
   currentTimeOfDay = rollTimeOfDay();
@@ -5232,12 +5242,21 @@ function endGame() {
   const winner = sorted[0];
   const losers = sorted.slice(1);
 
+  // TIE-detectie (solo modes): meerdere spelers met identieke (shots, cleared)
+  // bovenaan → gelijkspel, geen unieke winnaar. Bij tie tonen we alle gelijk-
+  // geëindigde spelers naast elkaar juigend op het celebration-scherm.
+  const tiedPlayers = sorted.filter(p =>
+    p.shots === sorted[0].shots && p.cleared === sorted[0].cleared
+  );
+  let isTie = (currentMode !== 'teams') && tiedPlayers.length > 1;
+
   // TEAMS-MODE: winnend team = team met minste shots (tiebreak: meeste clears),
   // OF het enige overlevende team in afvalrace (alle leden andere team eliminated).
   // We renderen straks ALLE winning-team-leden naast elkaar juigend in de scene.
   let winningTeam = null;
   let teamWinners = null;
   let teamLosers = null;
+  let teamTie = false;
   if (currentMode === 'teams') {
     const teamA = players.filter(p => p.team === 'A');
     const teamB = players.filter(p => p.team === 'B');
@@ -5245,22 +5264,45 @@ function endGame() {
     const aliveB = teamB.filter(p => !p.eliminated).length;
     if (aliveA === 0 && aliveB > 0)      winningTeam = 'B';
     else if (aliveB === 0 && aliveA > 0) winningTeam = 'A';
+    else if (aliveA === 0 && aliveB === 0) {
+      // Beide teams tegelijk eliminated (theoretisch onmogelijk maar safe)
+      teamTie = true;
+    }
     else {
-      // Geen knock-out (b.v. klassiek-eind in teams) → score-based winnaar
+      // Geen knock-out (b.v. klassiek-eind in teams) → score-based winnaar.
+      // Gelijke shots EN gelijke clears = echte gelijkspel.
       const sumShots = arr => arr.reduce((s, p) => s + p.shots, 0);
       const sumClears = arr => arr.reduce((s, p) => s + p.cleared, 0);
       const aShots = sumShots(teamA), bShots = sumShots(teamB);
       const aClears = sumClears(teamA), bClears = sumClears(teamB);
-      winningTeam = (aShots < bShots || (aShots === bShots && aClears >= bClears)) ? 'A' : 'B';
+      if (aShots === bShots && aClears === bClears) {
+        teamTie = true;
+      } else {
+        winningTeam = (aShots < bShots || (aShots === bShots && aClears > bClears)) ? 'A' : 'B';
+      }
     }
-    teamWinners = players.filter(p => p.team === winningTeam);
-    teamLosers  = players.filter(p => p.team !== winningTeam);
+    if (teamTie) {
+      // Bij team-gelijkspel = iedereen "wint" → toon alle spelers juigend.
+      teamWinners = players.slice();
+      teamLosers  = [];
+    } else if (winningTeam) {
+      teamWinners = players.filter(p => p.team === winningTeam);
+      teamLosers  = players.filter(p => p.team !== winningTeam);
+    }
+  }
+
+  // Solo-tie: route tied players door dezelfde side-by-side-renderer als teams
+  // zodat ze allemaal naast elkaar staan te juichen.
+  if (isTie) {
+    teamWinners = tiedPlayers.slice();
+    teamLosers  = sorted.filter(p => !tiedPlayers.includes(p));
   }
 
   state = STATE.CELEBRATION;
   celebration = {
     winner, losers,
     teamWinners, teamLosers, winningTeam,
+    isTie, teamTie, tiedPlayers,
     startTime: performance.now(), duration: 5000,
   };
   // Voor confetti-spawn gebruiken we de team-losers in teams-mode zodat de
@@ -5287,6 +5329,13 @@ function endGame() {
       // Bouw nu het standaard scoreboard. In teams-mode: team-totals + winnend
       // team gemarkeerd.
       let html = '';
+      // Tie-banner bovenaan als er gelijkspel was
+      if (isTie || teamTie) {
+        const tieMsg = (currentMode === 'teams')
+          ? 'Beide teams eindigen exact gelijk!'
+          : `${tiedPlayers.length} spelers eindigen exact gelijk!`;
+        html += `<tr><th colspan="3" style="text-align:center;color:#ffe091;letter-spacing:3px;padding:8px 0;font-size:1.1em;">🤝 GELIJKSPEL — ${escapeHtml(tieMsg)}</th></tr>`;
+      }
       if (currentMode === 'teams') {
         const teamA = players.filter(p => p.team === 'A');
         const teamB = players.filter(p => p.team === 'B');
@@ -5294,7 +5343,9 @@ function endGame() {
         const sumClears = arr => arr.reduce((s, p) => s + p.cleared, 0);
         const aShots = sumShots(teamA), bShots = sumShots(teamB);
         const aClears = sumClears(teamA), bClears = sumClears(teamB);
-        const winA = aShots < bShots || (aShots === bShots && aClears >= bClears);
+        // Bij teamTie: geen winner-markering. Anders winningTeam zoals bepaald.
+        const winA = !teamTie && (winningTeam === 'A');
+        const winB = !teamTie && (winningTeam === 'B');
         const renderTeam = (label, arr, color, isWin) => {
           let h = `<tr><th colspan="3" style="text-align:left;color:${color};letter-spacing:3px;padding-top:8px;">${isWin ? '👑 ' : ''}TEAM ${label}</th></tr>`;
           arr.forEach(p => {
@@ -5304,14 +5355,19 @@ function endGame() {
           h += `<tr style="border-top:1px solid rgba(246,215,122,0.3);"><td><strong>Totaal</strong></td><td class="cleared"><strong>${tc}</strong></td><td class="shots"><strong>${ts}</strong></td></tr>`;
           return h;
         };
-        html = '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
+        html += '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
         html += renderTeam(TEAM_NAME.A, teamA, TEAM_COLOR.A, winA);
-        html += renderTeam(TEAM_NAME.B, teamB, TEAM_COLOR.B, !winA);
+        html += renderTeam(TEAM_NAME.B, teamB, TEAM_COLOR.B, winB);
       } else {
-        html = '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
+        html += '<tr><th>SPELER</th><th style="text-align:right">GEHAALD</th><th style="text-align:right">SHOTS</th></tr>';
         sorted.forEach((p, i) => {
+          // Kroon alleen bij UNIEKE winnaar (geen tie). Bij tie krijgen alle
+          // gelijke spelers een 🤝-icoon ipv kroon.
+          let icon = '';
+          if (isTie && tiedPlayers.includes(p)) icon = '<span class="crown">🤝</span>';
+          else if (!isTie && i === 0)           icon = '<span class="crown">👑</span>';
           html += `<tr>
-            <td>${i === 0 ? '<span class="crown">👑</span>' : ''}${escapeHtml(p.name)}</td>
+            <td>${icon}${escapeHtml(p.name)}</td>
             <td class="cleared">${p.cleared}</td>
             <td class="shots">${p.shots}</td>
           </tr>`;
@@ -6395,10 +6451,14 @@ function drawDistantShip() {
   // Bij Q1→Q2 en Q3→Q0 zien we hem ver achter de horizon van richting wisselen
   // (kleinste schaal) — visueel onopvallend doordat-ie dan toch nauwelijks
   // zichtbaar is.
-  // PERIOD verdubbeld (64s totaal, 16s per fase) — gebruiker wilde snelheid
-  // halveren voor een nog statiger, schilderachtige beweging.
-  const PERIOD = 64000;
-  const phase = (now % PERIOD) / PERIOD;
+  // ACTIVE = 64s (de 4 fases). PAUSE = 20s rustpauze tussen cycli zodat het
+  // schip niet continu in beeld is — gebruiker wilde tussenpozes.
+  const ACTIVE = 64000;
+  const PAUSE  = 20000;
+  const TOTAL_CYCLE = ACTIVE + PAUSE;
+  const cycleTime = now % TOTAL_CYCLE;
+  if (cycleTime >= ACTIVE) return;               // RUSTPAUZE — schip niet renderen
+  const phase = cycleTime / ACTIVE;
   const q = Math.min(3, Math.floor(phase * 4));
   const localPhase = (phase * 4) % 1;            // 0..1 binnen quadrant
 
@@ -6465,25 +6525,60 @@ function drawDistantShip() {
   ctx.drawImage(shipImg, -sw/2, reflOffsetY, sw, sh);
   ctx.restore();
 
-  /* ---- SCHIP ROMP + SAILS (zonder vlaggen) ---- in 1 drawImage,
-   * maar we knippen de bovenste 20% af zodat we de vlaggen daarna apart
-   * met een wapper-effect overheen kunnen tekenen.  ============== */
+  /* ---- SCHIP ROMP + SAILS (zonder vlaggen, zonder foam) ----
+   * We splitten het schip in 3 banden zodat we onafhankelijk vlaggen (boven)
+   * en foam (onder) kunnen animeren, terwijl het middendeel (romp + sails)
+   * stabiel blijft.  ===================================================== */
   const FLAG_BAND_TOP_FRAC = 0.00;
-  const FLAG_BAND_BOT_FRAC = 0.22;   // 0..22% van PNG-hoogte = vlaggen-zone
-  // De rest van het schip (sails + romp + foam) — gewoon tekenen, gemirrored.
+  const FLAG_BAND_BOT_FRAC = 0.22;   // 0..22% van PNG = vlaggen-zone
+  const FOAM_BAND_TOP_FRAC = 0.81;   // 81%..100% van PNG = opspattend water
   ctx.save();
   ctx.translate(shipX, drawY + sh / 2);
   ctx.scale(flipX, 1);
-  // Rest van schip: source y vanaf FLAG_BAND_BOT_FRAC tot 1.0
   const srcW = shipImg.naturalWidth;
   const srcH = shipImg.naturalHeight;
-  const yFromSrc = FLAG_BAND_BOT_FRAC * srcH;
-  const heightSrc = srcH - yFromSrc;
-  const yFromDst = -sh/2 + FLAG_BAND_BOT_FRAC * sh;
-  const heightDst = sh - FLAG_BAND_BOT_FRAC * sh;
+  // MIDDEN-band: van na de vlaggen tot voor het water-foam — clean, niet animeren
+  const ySrcMid = FLAG_BAND_BOT_FRAC * srcH;
+  const hSrcMid = (FOAM_BAND_TOP_FRAC - FLAG_BAND_BOT_FRAC) * srcH;
+  const yDstMid = -sh/2 + FLAG_BAND_BOT_FRAC * sh;
+  const hDstMid = (FOAM_BAND_TOP_FRAC - FLAG_BAND_BOT_FRAC) * sh;
   ctx.drawImage(shipImg,
-    0, yFromSrc, srcW, heightSrc,
-    -sw/2, yFromDst, sw, heightDst);
+    0, ySrcMid, srcW, hSrcMid,
+    -sw/2, yDstMid, sw, hDstMid);
+  ctx.restore();
+
+  /* ---- FOAM-band met heftige kleine golven ----
+   * De onderste 19% van het sprite is het painted foam/spatten-water rond
+   * de romp. We tekenen die in 24 verticale strips, elk met eigen y-offset
+   * uit een combinatie van twee sinussen: een snelle chop + een korte roll.
+   * Resultaat: het water OND het schip lijkt heftig (hoge frequentie) en
+   * fijn (lage amplitude) te golven — anders dan het rustige hoofdwater. */
+  const FOAM_STRIPS = 24;
+  ctx.save();
+  ctx.translate(shipX, drawY + sh / 2);
+  ctx.scale(flipX, 1);
+  const srcFoamY = FOAM_BAND_TOP_FRAC * srcH;
+  const srcFoamH = (1.0 - FOAM_BAND_TOP_FRAC) * srcH;
+  const dstFoamY = -sh/2 + FOAM_BAND_TOP_FRAC * sh;
+  const dstFoamH = (1.0 - FOAM_BAND_TOP_FRAC) * sh;
+  const stripSrcW = srcW / FOAM_STRIPS;
+  const stripDstW = sw / FOAM_STRIPS;
+  // Twee tijdsignalen: chop (snel, kleine bursts) + roll (matig, golven)
+  const tFoamRoll = now * 0.0040;
+  const tFoamChop = now * 0.0090;
+  // Amplitudes verder ingetuned — moet ZICHT tegen het hout aan golven.
+  // Sub-pixel niveau bij verre afstand, max ~2px dichtbij.
+  const ampFoamRoll = Math.min(Math.max(sh * 0.005, 0.4), 2);    // ~0.4..2 px
+  const ampFoamChop = Math.min(Math.max(sh * 0.0025, 0.2), 1);   // ~0.2..1 px
+  for (let i = 0; i < FOAM_STRIPS; i++) {
+    const u = i / FOAM_STRIPS;
+    const dyRoll = Math.sin(tFoamRoll + u * Math.PI * 4)  * ampFoamRoll;
+    const dyChop = Math.sin(tFoamChop + u * Math.PI * 13) * ampFoamChop;
+    const dy = dyRoll + dyChop;
+    ctx.drawImage(shipImg,
+      i * stripSrcW, srcFoamY, stripSrcW + 1, srcFoamH,
+      -sw/2 + i * stripDstW, dstFoamY + dy, stripDstW + 1, dstFoamH);
+  }
   ctx.restore();
 
   /* ---- VLAGGEN met wapper-effect ----
@@ -6644,6 +6739,31 @@ function drawGround() {
         i * dstStripW, GROUND_Y + dy, dstStripW + 1, H - GROUND_Y);
     }
     ctx.restore();
+  }
+
+  /* ---------- Step 2a: VERRE OEVER over de horizon + water-top ----------
+   * Nieuwe oever.png (1536x1024) toont een houten balustrade-hek met stenen
+   * voet. Content-band y=816-912. We anchoren de BOVENKANT van het hek
+   * (~y=820 in PNG) op GROUND_Y zodat het hek op de waterlijn rust en de
+   * stenen + foam-overgang doorloopt in het water — dekt meteen de wave-top
+   * fluctuaties bij hoge golven af. */
+  if (IMG.oever && IMG.oever.complete && IMG.oever.naturalWidth) {
+    const OEVER_PNG_W = IMG.oever.naturalWidth;
+    const OEVER_PNG_H = IMG.oever.naturalHeight;
+    const OEVER_BANK_ROW = 820;                // y-row waar het hek begint = horizon
+    // Non-uniform schaling met 0.75x extra verkleining (gebruiker wilde-em
+    // kleiner+scherper). X-scale = 0.75 van full-width → fence-strook 75%
+    // van canvas-breedte, gecentreerd. Randen worden alsnog afgedekt door
+    // de bg-left/bg-right banks. Y-scale blijft halve van X (0.5 squash)
+    // dus eindresultaat ~0.375 van het oorspronkelijke height-bereik.
+    const SHRINK = 0.75;
+    const oeverSclX = (W / OEVER_PNG_W) * SHRINK;
+    const oeverSclY = oeverSclX * 0.5;
+    const oeverW    = OEVER_PNG_W * oeverSclX;
+    const oeverH    = OEVER_PNG_H * oeverSclY;
+    const oeverX    = (W - oeverW) / 2;        // horizontaal gecentreerd
+    const oeverY    = GROUND_Y - OEVER_BANK_ROW * oeverSclY;
+    ctx.drawImage(IMG.oever, oeverX, oeverY, oeverW, oeverH);
   }
 
   /* ---------- Step 2b: SCHIP in de verte ----------
@@ -7152,14 +7272,35 @@ function drawCelebration() {
     drawCheeringSprite(w, W/2, H * 0.55, Math.min(H * 0.62, W * 0.85), 0);
   }
 
-  // 'WINNAAR' banner bovenin — in teams-mode: 'TEAM ROOD WINT'
+  // 'WINNAAR' banner bovenin — in teams-mode: 'TEAM ROOD WINT'. Bij gelijkspel:
+  // 'GELIJKSPEL!' met alle gelijkgeëindigde spelers eronder.
   ctx.save();
   ctx.textAlign = 'center';
   ctx.shadowColor = 'rgba(0,0,0,0.7)';
   ctx.shadowBlur = 18;
   ctx.shadowOffsetY = 6;
   ctx.font = `italic bold ${Math.round(W * 0.11)}px Georgia, serif`;
-  if (teamWinners && teamWinners.length) {
+  if (celebration.teamTie || celebration.isTie) {
+    // Gelijkspel — geen unieke winnaar, alle tied spelers samen op het scherm.
+    ctx.fillStyle = '#f6d77a';
+    ctx.fillText('🤝', W/2, H * 0.13);
+    ctx.font = `italic ${Math.round(W * 0.075)}px Georgia, serif`;
+    ctx.fillStyle = '#ffe091';
+    ctx.fillText('GELIJKSPEL!', W/2, H * 0.21);
+    // Namen-rij
+    ctx.font = `bold ${Math.round(W * 0.038)}px Georgia, serif`;
+    ctx.fillStyle = '#ffe091';
+    ctx.shadowBlur = 12;
+    const names = (teamWinners || []).map(p => p.name).join('  ·  ');
+    ctx.fillText(names, W/2, H * 0.88);
+    // Stats voor één van de tied spelers (zijn allemaal gelijk)
+    ctx.font = `italic ${Math.round(W * 0.028)}px Georgia, serif`;
+    ctx.fillStyle = '#d6cda3';
+    ctx.shadowBlur = 8;
+    const sample = (teamWinners && teamWinners[0]) || null;
+    const stats = sample ? `${sample.cleared} gehaald · ${sample.shots} shots — ieder` : '';
+    ctx.fillText(stats, W/2, H * 0.93);
+  } else if (teamWinners && teamWinners.length) {
     const teamColor = TEAM_COLOR[celebration.winningTeam] || '#f6d77a';
     ctx.fillStyle = teamColor;
     ctx.fillText(`TEAM ${TEAM_NAME[celebration.winningTeam] || '?'}`, W/2, H * 0.13);
