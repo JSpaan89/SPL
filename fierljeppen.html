@@ -436,12 +436,16 @@
     position: absolute;
     left: 50%;
     top: auto;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5cm);   /* 5mm hoger t.o.v. v98 */
+    /* 3mm omlaag t.o.v. v98 (1.5cm → 1.2cm) — gebruiker wilde extra
+       spacing tussen lives-balk en power-bar. */
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2cm);
     transform: translateX(-50%);
     background: rgba(11, 30, 63, 0.85);
     border: 2px solid #f6d77a;
     border-radius: 14px;
-    padding: 5px 12px;
+    /* Horizontale padding gehalveerd van 12px → 5px (per kant) zodat de
+       balk 4mm smaller wordt. Verticaal blijft 5px. */
+    padding: 5px 5px;
     color: #f6d77a;
     font-size: 12px;
     letter-spacing: 2px;
