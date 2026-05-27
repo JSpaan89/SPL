@@ -236,7 +236,8 @@
   #actionBar {
     position: absolute;
     left: 0; right: 0;
-    top: 78vh;
+    /* 5mm omhoog t.o.v. v107 — gebruiker wilde power + power-up balken hoger */
+    top: calc(78vh - 5mm);
     bottom: auto;
     z-index: 5;
     display: flex;
@@ -435,7 +436,7 @@
     position: absolute;
     left: 50%;
     top: auto;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 1cm);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5cm);   /* 5mm hoger t.o.v. v98 */
     transform: translateX(-50%);
     background: rgba(11, 30, 63, 0.85);
     border: 2px solid #f6d77a;
@@ -6438,9 +6439,9 @@ function drawDistantShip() {
   //   schip2.png foam-bottom op y=859/1024 ≈ 0.839
   const SHIP_WATERLINE_FRAC = useShip2 ? 0.84 : 0.86;
   const bob = Math.sin(now * 0.0011) * 4;
-  // Verschuiving t.o.v. GROUND_Y: was +1cm (38px), gebruiker wilde 5mm omhoog → +5mm.
-  // 1cm ≈ 38px @ 96dpi, dus 5mm ≈ 19px.
-  const SHIP_VERT_OFFSET = 19 * dpr;               // ~5mm onder GROUND_Y
+  // Verschuiving t.o.v. GROUND_Y: was +5mm (19px), gebruiker wilde nog 5mm omhoog → 0.
+  // Schip vaart nu exact op de waterlijn (GROUND_Y).
+  const SHIP_VERT_OFFSET = 0;                      // op GROUND_Y
   // Diepte-arc: dichterbij = iets lager in beeld (perspectief), maar de
   // verticale beweging was te dramatisch waardoor de boot er halverwege
   // bovenuit leek te zweven. Teruggebracht van 12% → 5% canvas-hoogte zodat
@@ -6582,13 +6583,26 @@ function drawGround() {
    * achtergrond en de waterlijn wordt afgedekt (bg-hills overlapt nu
    * licht over de water-top). 8*dpr ≈ 2mm bij 96dpi. */
   if (IMG.bgHills.complete && IMG.bgHills.naturalWidth) {
-    const scl   = W / HILLS_PNG_W;
+    // 1.5x scaling — gebruiker wilde het kasteel groter in beeld. Bonus:
+    // bij 1.5x wordt het 148-rijen-stukje ÓNDER de HILLS_BOTTOM_ROW anchor
+    // ook 1.5x groter (~100+ pixels), waardoor het natuurlijk past over de
+    // waterlijn heen en het oude "blauwe strookje" tussen hills en water
+    // dichtgroeit.
+    const HILLS_SCALE = 1.5;
+    const scl   = (W / HILLS_PNG_W) * HILLS_SCALE;
+    const drawW = HILLS_PNG_W * scl;
     const drawH = HILLS_PNG_H * scl;
-    // +12*dpr (3mm) extra omlaag tov v100 — gebruiker wilde hills nog iets
-    // dieper richting horizon zodat ze niet boven de waterlijn uit pieken.
-    const HILLS_Y_NUDGE = 20 * dpr;
+    // Horizontaal: gecentreerd + 6% W extra naar LINKS zodat het kasteel
+    // (rechter helft van de PNG) wat meer in zicht komt.
+    const drawX = (W - drawW) / 2 - W * 0.06;
+    // Vertical anchor: HILLS_BOTTOM_ROW landt op GROUND_Y, plus een kleine
+    // POSITIEVE nudge zodat de gras-onderlijn van de hills overlapt met de
+    // water-top. Anders zit er een dunne maroon strook (weer-tint) tussen
+    // hills en water doordat de visible grass-line ~876 niet helemaal tot
+    // GROUND_Y reikt.
+    const HILLS_Y_NUDGE = 12 * dpr;    // ~3mm overlap, dekt de gap dicht
     const drawY = GROUND_Y - HILLS_BOTTOM_ROW * scl + HILLS_Y_NUDGE;
-    ctx.drawImage(IMG.bgHills, 0, drawY, W, drawH);
+    ctx.drawImage(IMG.bgHills, drawX, drawY, drawW, drawH);
   } else {
     ctx.fillStyle = '#8fb87a';
     ctx.fillRect(0, GROUND_Y - H*0.18, W, H*0.18);
