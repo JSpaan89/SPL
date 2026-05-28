@@ -1,7 +1,7 @@
 {
   "name": "SPL Fierljeppen",
   "short_name": "Fierljeppen",
-  "description": "Salire Perticea Longa — Fries fierljep drankspel.",
+  "description": "Salire Perticae Longa — Fries fierljep drankspel.",
   "start_url": "./fierljeppen.html",
   "scope": "./",
   "display": "standalone",

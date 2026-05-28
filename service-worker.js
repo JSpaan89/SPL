@@ -17,7 +17,7 @@
  *  en oude asset-caches worden opgeruimd.
  * ============================================================================= */
 
-const CACHE_VERSION = 'v126-jarno-eindbaas-separate';
+const CACHE_VERSION = 'v136-weddenmaar-solo-sort-by-price';
 const CACHE_NAME    = `spl-fierljeppen-${CACHE_VERSION}`;
 
 // Core shell — voor offline boot. Alleen pre-cachen wat ALTIJD nodig is.
@@ -62,6 +62,9 @@ const RUNTIME_PATTERNS = [
   /\/Wodka\.png$/,
   /\/Dubbeleshot\.png$/,
   /\/Zwaardereborrel\.png$/,
+  /\/Frieselegende\.png$/i,      // PU icon: kroon op kussen
+  /\/weddenmaar\.png$/i,         // PU icon: dobbelstenen
+  /\/Casino\.png$/i,             // PU icon: slot-machine 777
   /\/Gamecreator\.png$/i,        // Gamecreator easter-egg portret
   /\/daan-fail/i,                // Daan fail-video easter-egg
   /\/Scorecard\.png$/i,          // Team-photo intro vóór scoreboard reveal

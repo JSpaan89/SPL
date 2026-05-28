@@ -4,7 +4,7 @@
 
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>Salire Perticea Longa — Fierljep Drankspel</title>
+<title>Salire Perticae Longa — Fierljep Drankspel</title>
 <link rel="icon" type="image/png" href="app-icon.png" />
 <link rel="apple-touch-icon" href="app-icon.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="app-icon.png" />
@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="SPL Fierljeppen" />
-<meta name="description" content="Salire Perticea Longa — een Friese fierljep drankspel voor de borrel." />
+<meta name="description" content="Salire Perticae Longa — een Friese fierljep drankspel voor de borrel." />
 <link rel="manifest" id="pwa-manifest" href="manifest.json" />
 <script>
   /* Service worker + auto-update logica.
@@ -62,7 +62,7 @@
 </template>
 <!--
   ============================================================
-  FIERLJEPPEN — Salire Perticea Longa (SPL)
+  FIERLJEPPEN — Salire Perticae Longa (SPL)
   Versie: v2.1  ·  mei 2026
   ------------------------------------------------------------
   v2.1 (deze iteratie):
@@ -471,19 +471,19 @@
     align-items: center;
     gap: 3px;
   }
-  /* shotje.png als lives-icon — XL formaat (68px). Negatieve vertical margin
-   * laat de iconen UIT het balkje steken (boven en onder), zodat het balkje
-   * zelf compact blijft maar de glaasjes lekker prominent in beeld komen. */
+  /* shotje.png als lives-icon — formaat wordt dynamisch via inline style
+   * gezet (zie refreshLivesIndicator) zodat-ie schaalt naar het aantal
+   * levens en altijd in beeld blijft passen. Negatieve vertical margin
+   * laat de iconen UIT het balkje steken zodat het balkje zelf compact blijft. */
   #livesIndicator {
     overflow: visible;
   }
   #livesIndicator .lives-icons img.life-icon {
-    height: 68px;
     width: auto;
     vertical-align: middle;
     display: inline-block;
-    margin-top: -22px;
-    margin-bottom: -22px;
+    margin-top: -8px;
+    margin-bottom: -8px;
   }
   #livesIndicator .lives-icons img.life-icon.spent {
     opacity: 0.25;
@@ -1276,29 +1276,49 @@
     position: absolute;
     top: 8px;
     right: 8px;
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     border: 1px solid rgba(246,215,122,0.35);
     background: rgba(11,30,63,0.4);
     cursor: pointer;
     padding: 0;
     opacity: 0.35;
-    transition: opacity 0.2s, box-shadow 0.25s, background 0.25s;
+    transition: opacity 0.2s, box-shadow 0.25s, background 0.25s, border-color 0.25s, transform 0.2s;
     z-index: 2;
   }
   #creatorOverlay .creator-card { position: relative; }   /* anker voor absolute btn */
   #creatorOverlay .boss-secret-btn:hover { opacity: 0.85; }
+  /* Wanneer AAN: zeer prominente gouden glow + kroontje-indicator + sterkere
+     pulse, zodat helemaal niet te missen is dat de boss-modus actief staat. */
   #creatorOverlay .boss-secret-btn.boss-on {
-    background: radial-gradient(circle, #ffe091 0%, #d4a73a 100%);
-    border-color: #f6d77a;
+    background: radial-gradient(circle, #fff5c8 0%, #ffd147 55%, #c98a18 100%);
+    border-color: #fff5c8;
+    border-width: 2px;
     opacity: 1;
-    box-shadow: 0 0 12px rgba(246,215,122,0.85), 0 0 24px rgba(246,215,122,0.5);
-    animation: bossPulse 1.8s ease-in-out infinite;
+    box-shadow:
+      0 0 0 3px rgba(255,200,90,0.35),
+      0 0 18px rgba(255,220,120,1),
+      0 0 36px rgba(255,180,60,0.75),
+      0 0 60px rgba(255,150,40,0.5);
+    animation: bossPulse 1.2s ease-in-out infinite;
+    /* Kroontje overlay (alleen zichtbaar wanneer AAN) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    color: #5a3500;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  #creatorOverlay .boss-secret-btn.boss-on::before {
+    content: '👑';
+    display: block;
+    line-height: 1;
   }
   @keyframes bossPulse {
-    0%, 100% { transform: scale(1); }
-    50%      { transform: scale(1.18); }
+    0%, 100% { transform: scale(1);    box-shadow: 0 0 0 3px rgba(255,200,90,0.35), 0 0 14px rgba(255,220,120,0.85), 0 0 28px rgba(255,180,60,0.55); }
+    50%      { transform: scale(1.22); box-shadow: 0 0 0 5px rgba(255,200,90,0.55), 0 0 28px rgba(255,220,120,1.00), 0 0 56px rgba(255,180,60,0.85); }
   }
 
   /* Setup-logo: long-press = easter egg, NIET de iOS/Android 'kopieer
@@ -1448,6 +1468,144 @@
     flex-direction: column;
     color: #f3eed7;
     box-shadow: 0 18px 50px rgba(0,0,0,0.6);
+    position: relative;
+  }
+  /* Info-knop rechtsboven in PU-picker — opent uitleg-overlay */
+  #puPicker .pu-info-btn {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(246,215,122,0.45);
+    background: rgba(11,30,63,0.7);
+    color: #f6d77a;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  }
+  #puPicker .pu-info-btn:hover {
+    background: rgba(246,215,122,0.18);
+    border-color: #f6d77a;
+    transform: scale(1.06);
+  }
+
+  /* Power-up info overlay (volledige uitleg-modal) */
+  #puInfo[hidden] { display: none !important; }
+  #puInfo {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.72);
+    z-index: 10000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: fadeIn 0.2s ease-out;
+  }
+  #puInfo .pu-info-card {
+    background: #0b1e3f;
+    border: 2px solid #f6d77a;
+    border-radius: 18px;
+    padding: 20px 18px 14px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 92vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    color: #f3eed7;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.7);
+  }
+  #puInfo h2 {
+    color: #f6d77a;
+    font-size: 19px;
+    letter-spacing: 2px;
+    margin: 0 0 4px;
+    text-align: center;
+  }
+  #puInfo .pu-info-sub {
+    color: #d6cda3;
+    font-size: 12px;
+    text-align: center;
+    margin-bottom: 14px;
+    letter-spacing: 1.5px;
+  }
+  #puInfo .pu-info-list {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-right: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  #puInfo .pu-info-row {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 10px 6px;
+    border-bottom: 1px solid rgba(246,215,122,0.15);
+  }
+  #puInfo .pu-info-row:last-child { border-bottom: none; }
+  #puInfo .pu-info-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background-size: cover;
+    background-position: center;
+    background-color: rgba(11,30,63,0.6);
+    border: 1px solid rgba(246,215,122,0.4);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    line-height: 1;
+  }
+  #puInfo .pu-info-name {
+    color: #ffe091;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  #puInfo .pu-info-cost {
+    color: #f6d77a;
+    font-size: 12px;
+    font-weight: normal;
+    margin-left: 6px;
+  }
+  #puInfo .pu-info-cost.top-tier { color: #ffe091; }
+  #puInfo .pu-info-desc {
+    color: #d6cda3;
+    font-size: 12.5px;
+    line-height: 1.45;
+    margin-top: 3px;
+  }
+  #puInfo .pu-info-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    letter-spacing: 1px;
+    vertical-align: middle;
+  }
+  #puInfo .pu-info-tag.def { background: rgba(135,232,154,0.25); color: #87e89a; }
+  #puInfo .pu-info-tag.off { background: rgba(255,138,138,0.25); color: #ff8a8a; }
+  #puInfo .pu-info-tag.teams { background: rgba(255,200,90,0.2); color: #ffe091; }
+  #puInfo .pu-info-footer {
+    flex-shrink: 0;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(246,215,122,0.25);
+    text-align: center;
   }
   #puPicker .pu-grid {
     overflow-y: auto;
@@ -1602,6 +1760,46 @@
   }
   #activeBuffs .buff-pill[data-pu="schone-lei"]::before {
     background-image: url('reset.png');
+    background-size: cover;
+    background-position: center;
+  }
+  /* Wedden Maar — eigen PNG (weddenmaar.png, dobbelstenen + Hollandse vlag) */
+  #puPicker .pu-slot[data-pu="wedden-maar"] .pu-icon {
+    background-image: url('weddenmaar.png');
+    background-size: cover;
+    background-position: center;
+  }
+  #activeBuffs .buff-pill[data-pu="wedden-maar"]::before {
+    background-image: url('weddenmaar.png');
+    background-size: cover;
+    background-position: center;
+  }
+
+  /* Casino — eigen PNG (Casino.png, slot-machine met 777) */
+  #puPicker .pu-slot[data-pu="casino"] .pu-icon {
+    background-image: url('Casino.png');
+    background-size: cover;
+    background-position: center;
+  }
+  #activeBuffs .buff-pill[data-pu="casino"]::before {
+    background-image: url('Casino.png');
+    background-size: cover;
+    background-position: center;
+  }
+
+  /* Friese Legende — eigen PNG (Frieselegende.png, kroon op kussen + kasteel) */
+  #puPicker .pu-slot[data-pu="friese-legende"] .pu-icon {
+    background-image: url('Frieselegende.png');
+    background-size: cover;
+    background-position: center;
+  }
+  #puPicker .pu-slot[data-pu="friese-legende"] {
+    border-color: #ffe091;
+    background: linear-gradient(180deg, rgba(246,215,122,0.14) 0%, rgba(246,215,122,0.03) 100%);
+    box-shadow: 0 0 10px rgba(246,215,122,0.35), inset 0 0 8px rgba(246,215,122,0.10);
+  }
+  #activeBuffs .buff-pill[data-pu="friese-legende"]::before {
+    background-image: url('Frieselegende.png');
     background-size: cover;
     background-position: center;
   }
@@ -2085,11 +2283,24 @@
   <!-- Power-up picker overlay -->
   <div id="puPicker" hidden data-interactive>
     <div class="pu-card" data-interactive>
+      <button class="pu-info-btn" id="puInfoBtn" type="button" aria-label="Uitleg power-ups" data-interactive>ℹ️</button>
       <h2>POWER-UP KIEZEN</h2>
       <div class="pu-sub" id="puPickerSub">Eén keer per beurt</div>
       <div class="pu-grid" id="puGrid"></div>
       <div class="pu-card-footer">
         <button class="btn secondary pu-cancel" id="puCancelBtn">SPAREN — LATER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Power-up info overlay — uitleg van alle PUs -->
+  <div id="puInfo" hidden data-interactive>
+    <div class="pu-info-card" data-interactive>
+      <h2>POWER-UPS — UITLEG</h2>
+      <div class="pu-info-sub">Alle krachten en hun werking</div>
+      <div class="pu-info-list" id="puInfoList"></div>
+      <div class="pu-info-footer">
+        <button class="btn secondary" id="puInfoCloseBtn" data-interactive>SLUITEN</button>
       </div>
     </div>
   </div>
@@ -2135,9 +2346,9 @@
   </div>
 
   <div id="setup" class="overlay hidden">
-<img class="logo setup-logo" src="logo.png" alt="SPL — Salire Perticea Longa" onerror="this.style.display='none'" />
+<img class="logo setup-logo" src="logo.png" alt="SPL — Salire Perticae Longa" onerror="this.style.display='none'" />
     <h1>FIERLJEPPEN</h1>
-    <div class="latin">— Salire Perticea Longa —</div>
+    <div class="latin">— Salire Perticae Longa —</div>
     <p>Polsstokverspringen drankspel. Wie de sloot niet haalt: <strong style="color:#ffe091">SHOTJE</strong>.</p>
 
     <div id="setupForm">
@@ -2264,7 +2475,7 @@
 "use strict";
 
 /* =========================================================================
-   FIERLJEPPEN — v2  ·  SPL (Salire Perticea Longa)
+   FIERLJEPPEN — v2  ·  SPL (Salire Perticae Longa)
    Single-file vanilla JS. No build step. Open by double-click.
    Sections: Canvas · Constants · DOM · Audio · State · Setup · Game flow
              Input · Particles · Update · Drawing · Achievements · Sim
@@ -2497,21 +2708,37 @@ resize();
     if (e.target === overlay) overlay.hidden = true;
   });
 
-  /* DEPRECATED v126: de oude boss-toggle wisselde Jarno's sprite-sheet live,
-   * wat ervoor zorgde dat de FAIL-frame van normal-Jarno alsnog de eindbaas
-   * toonde. Vanaf v126 is "Jarno (Eindbaas)" een eigen builtin-character in
-   * het dropdown, dus de toggle is overbodig. We laten de knop bestaan maar
-   * neutralizeren z'n effect: één klik geeft een korte uitleg-toast i.p.v.
-   * de sprite te verwisselen. */
+  /* v130: Geheime EINDBAAS-unlock. Default is jarnoboss ONZICHTBAAR in het
+   * dropdown. Wie deze knop in de Gamecreator-overlay vindt en aantikt
+   * unlockt een 2e "Jarno"-entry in het keuzemenu — pure verrassing voor
+   * tegenspelers. State persistent in localStorage. */
   const bossBtn = document.getElementById('bossToggleBtn');
+  // Legacy flag (v126) opruimen zodat oude installs geen vreemde toggle hebben
+  try { lsSet('spl_jarno_boss', '0'); } catch(e) {}
+  const BOSS_UNLOCK_KEY = 'spl_jarno_boss_unlocked';
+  function refreshBossBtnState() {
+    if (!bossBtn) return;
+    const on = lsGet(BOSS_UNLOCK_KEY, '0') === '1';
+    bossBtn.classList.toggle('boss-on', on);
+  }
   if (bossBtn) {
-    // Oude flag opruimen zodat we niemand meer in de boss-modus laten hangen.
-    try { lsSet('spl_jarno_boss', '0'); } catch(e) {}
-    bossBtn.classList.remove('boss-on');
+    refreshBossBtnState();
     bossBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      const on = lsGet(BOSS_UNLOCK_KEY, '0') === '1';
+      lsSet(BOSS_UNLOCK_KEY, on ? '0' : '1');
+      refreshBossBtnState();
+      // BELANGRIJK: rebuild de 'jarno' registry-entry met de juiste sprite.
+      // addBuiltin maakt een nieuwe Image en analyseert de frameBoxes opnieuw,
+      // dus de FAIL-frame klopt ook correct ná de toggle. Geen dropdown-
+      // re-render nodig: dropdown heeft maar één "Jarno"-entry, alleen de
+      // sprite-bron wisselt.
+      const newSrc = (!on) ? 'sprite-name-jarno-boss.png' : 'sprite-name-jarno.png';
+      if (typeof CharacterRegistry !== 'undefined' && CharacterRegistry.addBuiltin) {
+        CharacterRegistry.addBuiltin('jarno', newSrc);
+      }
       if (typeof showAchievement === 'function') {
-        showAchievement('👑 Kies "Jarno (Eindbaas)" in het dropdown');
+        showAchievement(on ? '🫥 Jarno terug naar normaal' : '👑 Jarno-Boss actief!');
       }
     });
   }
@@ -2795,17 +3022,18 @@ const CharacterRegistry = (() => {
   return { addBuiltin, addUpload, remove, get, list, onChange };
 })();
 
-const BUILTIN_CHARACTERS = ['niels','sven','jarno','jarnoboss','daan','sanderl','sanderk','jochem','jesper','hidde','stefan','frank','koen'];
+const BUILTIN_CHARACTERS = ['niels','sven','jarno','daan','sanderl','sanderk','jochem','jesper','hidde','stefan','frank','koen'];
+// Eindbaas-versie van Jarno is een DYNAMIC sprite-swap op de 'jarno' entry.
+// Geen aparte 'jarnoboss' character meer in BUILTIN_CHARACTERS, dus geen
+// dubbele entry in het dropdown. De boss-toggle in de Gamecreator overlay
+// bouwt de registry-entry opnieuw met de boss-sprite — frameBoxes worden
+// dan ook ge-her-analyseerd zodat ook de FAIL-frame klopt.
+function _jarnoSrcForCurrentMode() {
+  const bossOn = (typeof lsGet === 'function') && lsGet('spl_jarno_boss_unlocked', '0') === '1';
+  return bossOn ? 'sprite-name-jarno-boss.png' : 'sprite-name-jarno.png';
+}
 for (const n of BUILTIN_CHARACTERS) {
-  // Eindbaas-versie van Jarno (rode jas + scepter) is nu een ZELFSTANDIG
-  // character ('jarnoboss') i.p.v. een toggle-overschrijving van 'jarno'.
-  // Voorheen werd de hele sprite-sheet (incl. FAIL-frame) live gewisseld
-  // o.b.v. localStorage 'spl_jarno_boss', wat de bug veroorzaakte dat normal-
-  // Jarno's pass-screen FAIL alsnog de eindbaas toonde. Nu zijn het twee
-  // verschillende karakters die je expliciet kiest in het dropdown.
-  const src = (n === 'jarnoboss')
-    ? 'sprite-name-jarno-boss.png'
-    : `sprite-name-${n}.png`;
+  const src = (n === 'jarno') ? _jarnoSrcForCurrentMode() : `sprite-name-${n}.png`;
   CharacterRegistry.addBuiltin(n, src);
 }
 // User uploads from a previous session override the builtins.
@@ -2821,6 +3049,14 @@ for (const n of BUILTIN_CHARACTERS) {
 })();
 
 function getNamedSprite(name) { return CharacterRegistry.get(name); }
+/* Resolve a sprite voor een player-object. Prefereert player.characterKey
+ * (uniek per character) boven player.name (kan voor verschillende characters
+ * hetzelfde zijn, b.v. 2x "Jarno" voor jarno + jarnoboss). Fallback op name
+ * voor oude code-paden die nog rechtstreeks getNamedSprite(string) deden. */
+function spriteFor(p) {
+  if (!p) return null;
+  return CharacterRegistry.get(p.characterKey || p.name);
+}
 let imagesReady = 0;
 function markReady() { imagesReady++; }
 IMG.bgLeft.onload = markReady;  IMG.bgLeft.src  = 'bg-left.png';
@@ -2974,6 +3210,17 @@ let currentMode = 'klassiek';   // ingesteld bij START
  *  niets hoeven te checken. ============================================== */
 let teamTokens = { A: 0, B: 0 };
 let teamLives  = { A: 0, B: 0 };
+
+// WEDDEN MAAR tracker — Map<player-object, casterTeam>. Onthoudt welk team
+// de gok plaatste op deze target, zodat we bij target's eerstvolgende sprong
+// de juiste consequence kunnen toepassen (target clear → caster team -1;
+// target fail → target team -3 extra).
+let weddenMaarTracker = new Map();
+
+// CASINO stake tracker — Map<player-object, stake>. Bij activate slaan we
+// het ingezette aantal tokens op. Bij CLEAR keert het 3× uit. Bij PLONS
+// gewoon kwijt.
+let casinoStakes = new Map();
 
 function getPlayerTokens(p) {
   if (!p) return 0;
@@ -3168,6 +3415,70 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+/* ------- Power-up INFO overlay — uitleg van alle PUs -------------------- */
+const puInfoEl       = document.getElementById('puInfo');
+const puInfoListEl   = document.getElementById('puInfoList');
+const puInfoBtn      = document.getElementById('puInfoBtn');
+const puInfoCloseBtn = document.getElementById('puInfoCloseBtn');
+function buildPowerUpInfo() {
+  if (!puInfoListEl) return;
+  // Render alle PUs in dezelfde volgorde als de picker (JEZELF eerst, dan
+  // TARGET; binnen elke groep oplopend op cost).
+  const sorted = POWERUPS.slice().sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'def' ? -1 : 1;
+    return (a.cost || 0) - (b.cost || 0);
+  });
+  puInfoListEl.innerHTML = sorted.map(pu => {
+    // Probeer eerst de PNG, anders emoji-fallback per id
+    const EMOJI_FALLBACK = {
+      'friese-legende': '👑', 'wedden-maar': '🎲', 'casino': '🎰',
+    };
+    const iconStyle = pu.iconSrc
+      ? `background-image: url('${pu.iconSrc}');`
+      : `font-size: 26px;`;
+    const iconInner = pu.iconSrc ? '' : (EMOJI_FALLBACK[pu.id] || '⭐');
+    const typeTag = pu.type === 'def'
+      ? `<span class="pu-info-tag def">JEZELF</span>`
+      : `<span class="pu-info-tag off">${pu.allTargets ? 'IEDEREEN' : 'TARGET'}</span>`;
+    const teamsTag = pu.teamsOnly
+      ? `<span class="pu-info-tag teams">TEAMS</span>` : '';
+    const costClass = pu.top ? 'top-tier' : '';
+    const costText = pu.costLabel || `${pu.cost}⭐`;
+    return `
+      <div class="pu-info-row">
+        <div class="pu-info-icon" style="${iconStyle}">${iconInner}</div>
+        <div class="pu-info-body">
+          <div class="pu-info-name">
+            ${escapeHtml(pu.name)}
+            <span class="pu-info-cost ${costClass}">${costText}</span>
+            ${typeTag}${teamsTag}
+          </div>
+          <div class="pu-info-desc">${escapeHtml(pu.desc)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+function openPuInfo() {
+  if (!puInfoEl) return;
+  buildPowerUpInfo();
+  puInfoEl.hidden = false;
+}
+function closePuInfo() {
+  if (puInfoEl) puInfoEl.hidden = true;
+}
+if (puInfoBtn) puInfoBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  openPuInfo();
+});
+if (puInfoCloseBtn) puInfoCloseBtn.addEventListener('click', closePuInfo);
+if (puInfoEl) puInfoEl.addEventListener('click', (e) => {
+  if (e.target === puInfoEl) closePuInfo();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && puInfoEl && !puInfoEl.hidden) closePuInfo();
+});
+
 /* ----------------------------- Background music -----------------------
  * Loops continuously on every screen. Volume scales with the user's sound
  * toggle. iOS/Safari blocks autoplay until a user gesture — we kick it off
@@ -3240,7 +3551,7 @@ function buildAndAttachManifest() {
     const manifest = {
       name: 'SPL Fierljeppen',
       short_name: 'Fierljeppen',
-      description: 'Salire Perticea Longa — Fries fierljep drankspel.',
+      description: 'Salire Perticae Longa — Fries fierljep drankspel.',
       start_url: '.',
       scope: '.',
       display: 'standalone',
@@ -3484,7 +3795,7 @@ const POWERUPS = [
   { id: 'zwaardere-borrel', iconSrc: 'Zwaardereborrel.png',  type: 'off', cost: 3, stacks: true,  name: 'Zwaardere Borrel', desc: 'Target: sloot +10% & sweep +30%' },
   // TOP-tier: aparte PNG (Helikopterview.png), gouden glow in picker. Sweep
   // overgeslagen → gegarandeerde PERFECT bij eerstvolgende launch-tik.
-  { id: 'helikopterview',   iconSrc: 'Helikopterview.png', type: 'def', cost: 5, stacks: false, top: true, name: 'Helikopterview', desc: 'Marker staat stil op PERFECT — gegarandeerde clear' },
+  { id: 'helikopterview',   iconSrc: 'Helikopterview.png', type: 'def', cost: 5, stacks: false, top: true, name: 'Helikopterview', desc: 'Marker staat stil op PERFECT — gegarandeerde clear', incompatibleWith: ['casino'] },
   // SCREW-YOU-ALL nuke: iedere tegenstander krijgt direct +1 shot. CSS-icon
   // (rode skull-gradient) — geen PNG nodig. Geen target-pick stap want het
   // raakt iedereen automatisch. Top-tier prijskaartje.
@@ -3493,6 +3804,27 @@ const POWERUPS = [
   // (geen streak-versnelling) voor deze beurt. Safety-net wanneer de sloot
   // smaller wordt dan speelbaar. Eigen PNG (reset.png, powerbar + arrows).
   { id: 'schone-lei',       iconSrc: 'reset.png',          type: 'def', cost: 3, stacks: false, name: 'Schone Lei',     desc: 'Reset: zone wijd, sweep traag (deze beurt)' },
+  // DE FRIESE LEGENDE (teams-only): high-stakes mega-buff. Caster neemt de
+  // hele team-druk op zich deze beurt. Bij CLEAR krijgt het team +1 leven
+  // en +2 ⭐ voor de caster. Bij PLONS wordt het team-pool gedecimeerd tot
+  // 25% (floor, min 1) en iedereen krijgt +1 shot collateral damage.
+  // CSS-icon (geen PNG nodig — gouden kroon op donkere achtergrond).
+  // FRIESE LEGENDE — universele high-stakes PU. In teams = team-pool effect,
+  // in levens-mode = persoonlijke lives, in klassiek = puur token-bonus.
+  { id: 'friese-legende',   iconSrc: 'Frieselegende.png',  type: 'def', cost: 8, stacks: false, name: 'Friese Legende', desc: 'CLEAR: +2 levens & +2 ⭐ · PLONS: -75% levens (teams: team-pool, levens: jezelf)' },
+  // WEDDEN MAAR — offensive gok, beschikbaar in levens + teams. Target's
+  // volgende beurt bepaalt asymmetrische pay-off: bij hun plons verliezen
+  // ZIJ -3 extra levens, bij hun clear verliest de CASTER -1 leven.
+  { id: 'wedden-maar',      iconSrc: 'weddenmaar.png',     type: 'off', cost: 4, stacks: false, elimOnly: true, name: 'Wedden Maar', desc: 'Target faalt: target -3 levens · target clear: JIJ -1 leven' },
+  // CASINO — ALL-IN token-gok. Alle huidige tokens worden ingezet, sprong
+  // wordt 3× zo zwaar (zone × 0.33, sweep × 0.33). Bij CLEAR: 3× uitbetaling
+  // van de stake (netto +2× je inzet). Bij PLONS: alle ingezette tokens kwijt.
+  // Cost = 1 (minimale entry), de rest wordt in finalize bovenop spent.
+  // costLabel override zodat de picker "ALL-IN ⭐" toont i.p.v. het misleidende
+  // "1⭐". De 1 is alleen de minimum-entry; de rest wordt ALL-IN gespent.
+  // incompatibleWith: Helikopterview garandeert PERFECT clear → combineren
+  // met Casino zou een gratis jackpot worden. Wederzijds geblokkeerd.
+  { id: 'casino',           iconSrc: 'Casino.png',         type: 'def', cost: 1, stacks: false, name: 'Casino', desc: 'ALL-IN: alle ⭐ inzetten · CLEAR = 3× payout · sprong 3× zo zwaar', costLabel: 'ALL-IN ⭐', incompatibleWith: ['helikopterview'] },
 ];
 const POWERUP_BY_ID = Object.fromEntries(POWERUPS.map(p => [p.id, p]));
 
@@ -3634,7 +3966,21 @@ preparePowerUpIcons();
  * de picker-presentatie, niet de lookup in POWERUP_BY_ID. */
 function getAvailablePowerUps() {
   const diff = (typeof getDifficulty === 'function') ? getDifficulty() : 'pittig';
-  return POWERUPS.filter(pu => !(pu.id === 'schone-lei' && diff === 'pittig'));
+  const inTeams = (currentMode === 'teams');
+  const inElim  = (typeof isEliminationMode === 'function') && isEliminationMode();
+  const filtered = POWERUPS.filter(pu => {
+    if (pu.id === 'schone-lei' && diff === 'pittig') return false;
+    if (pu.teamsOnly && !inTeams) return false;        // teams-only (b.v. niets meer momenteel)
+    if (pu.elimOnly  && !inElim)  return false;        // lives + teams (Wedden Maar)
+    return true;
+  });
+  // Sorteer: eerst op type (def/JEZELF voor, off/TARGET na), binnen type
+  // op kosten oplopend. Gebruiker wilde duidelijke prijs+target-rangschikking.
+  filtered.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'def' ? -1 : 1;
+    return (a.cost || 0) - (b.cost || 0);
+  });
+  return filtered;
 }
 // (geen per-beurt throttle meer — speler mag zoveel PUs gebruiken als-ie
 //  tokens heeft en kan ze stapelen)
@@ -3740,17 +4086,30 @@ function renderPowerUpStep() {
   cancelBtn.textContent = 'SPAREN — LATER';
   cancelBtn.onclick = closePowerUpPicker;
 
+  // Helper: bepaalt of een PU geblokkeerd is doordat een incompatibele
+  // power-up al actief is op de caster (b.v. Casino + Helikopterview combo).
+  function isBlockedByActive(pu) {
+    if (!pu.incompatibleWith) return false;
+    return pu.incompatibleWith.some(otherId => hasBuff(otherId));
+  }
   grid.innerHTML = getAvailablePowerUps().map(pu => {
     const tooExpensive = curTokens < pu.cost;
-    const costLabel = `${pu.cost}⭐`;
+    const blocked = isBlockedByActive(pu);
+    // costLabel-override (b.v. Casino → "ALL-IN ⭐") zodat misleidende
+    // getallen voorkomen worden.
+    const costLabel = pu.costLabel || `${pu.cost}⭐`;
     const classes = ['pu-slot'];
-    if (tooExpensive) classes.push('too-expensive');
+    if (tooExpensive || blocked) classes.push('too-expensive');
     if (pu.top) classes.push('top-tier');
+    const blockedHint = blocked
+      ? `<div class="pu-blocked-hint" style="color:#ff8a8a;font-size:11px;margin-top:4px;letter-spacing:1px;">🚫 Conflicteert met actieve buff</div>`
+      : '';
     return `
-    <div class="${classes.join(' ')}" data-pu="${pu.id}" data-interactive role="button" tabindex="0" aria-disabled="${tooExpensive}">
+    <div class="${classes.join(' ')}" data-pu="${pu.id}" data-interactive role="button" tabindex="0" aria-disabled="${tooExpensive || blocked}">
       <div class="pu-icon"></div>
       <div class="pu-name">${pu.name}</div>
       <div class="pu-desc">${pu.desc}</div>
+      ${blockedHint}
       <span class="pu-type ${pu.type === 'def' ? 'def' : 'off'}">${pu.type === 'def' ? 'JEZELF · ' : 'TARGET · '}${costLabel}</span>
     </div>`;
   }).join('');
@@ -3758,7 +4117,8 @@ function renderPowerUpStep() {
     const puId = el.dataset.pu;
     const pu = POWERUP_BY_ID[puId];
     const tooExpensive = curTokens < (pu ? pu.cost : 1);
-    const onSelect = () => { if (!tooExpensive) choosePowerUp(puId); };
+    const blocked = pu ? isBlockedByActive(pu) : false;
+    const onSelect = () => { if (!tooExpensive && !blocked) choosePowerUp(puId); };
     el.addEventListener('click', onSelect);
     el.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); }
@@ -3913,12 +4273,42 @@ function finalizePowerUp(puId, targetIdx) {
     configureDifficulty();
     positionPerfectZone();
     refreshSaboteurOverlay();
-    showLaunchToast(`${pu.name.toUpperCase()} ACTIEF`, '#87e89a');
+    // FRIESE LEGENDE: speciale dramatic-activate (vervangt generieke toast)
+    if (puId === 'friese-legende') {
+      showLaunchToast('👑 DE FRIESE LEGENDE — ALLE OGEN OP JOU', '#ffd700', 3000);
+      if (typeof triggerShake === 'function') triggerShake(220, 8);
+      if (typeof vibrate === 'function') vibrate([80, 40, 80]);
+    } else if (puId === 'casino') {
+      // CASINO ALL-IN: alle nog-resterende tokens worden ook ingezet
+      // (de pu.cost = 1 is al via finalize gespent). Stake = totaal.
+      const restTokens = getPlayerTokens(cur);
+      spendPlayerTokens(cur, restTokens);
+      const totalStake = pu.cost + restTokens;
+      casinoStakes.set(cur, totalStake);
+      showLaunchToast(`🎰 ALL-IN! ${totalStake} ⭐ ingezet — 3× payout bij CLEAR`, '#ffd700', 3500);
+      if (typeof triggerShake === 'function') triggerShake(220, 8);
+      if (typeof vibrate === 'function') vibrate([60, 30, 60]);
+      refreshTokenUI();
+    } else {
+      showLaunchToast(`${pu.name.toUpperCase()} ACTIEF`, '#87e89a');
+    }
   } else {
     const target = players[targetIdx];
     if (!target) return;
     addPendingDebuffStack(target, puId, 1);
-    showLaunchToast(`${pu.name.toUpperCase()} → ${target.name}`, '#ff8a8a');
+    if (puId === 'wedden-maar') {
+      // Onthoud WIE de gok plaatste — bij target's volgende sprong wordt
+      // de uitkomst hier op gerouteerd. In teams gebruiken we caster.team,
+      // in solo lives gebruiken we caster zelf om diens p.lives te modden.
+      weddenMaarTracker.set(target, cur);
+      const stakeLabel = (currentMode === 'teams' && cur.team)
+        ? `Team ${TEAM_NAME[cur.team]} staat in!`
+        : `${cur.name} staat in met 1 leven!`;
+      showLaunchToast(`🎲 WEDDEN MAAR → ${target.name} (${stakeLabel})`, '#ffd700', 3500);
+      if (typeof triggerShake === 'function') triggerShake(180, 6);
+    } else {
+      showLaunchToast(`${pu.name.toUpperCase()} → ${target.name}`, '#ff8a8a');
+    }
   }
   renderActiveBuffsStrip();
   refreshTokenUI();
@@ -4114,7 +4504,6 @@ const CHARACTER_DISPLAY = {
   niels:     'Niels',
   sven:      'Sven',
   jarno:     'Jarno',
-  jarnoboss: 'Jarno (Eindbaas)',
   daan:      'Daan',
   sanderl:   'SanderL',
   sanderk:   'SanderK',
@@ -4135,9 +4524,13 @@ function renderNameInputs() {
   const existingTeams = Array.from(nameInputs.querySelectorAll('button.team-pill')).map(b => b.dataset.team);
   nameInputs.innerHTML = '';
 
+  // Option value = registry KEY (b.v. 'jarno'), label = display naam ('Jarno').
+  // De boss-versie van Jarno is een dynamische sprite-swap op dezelfde 'jarno'
+  // entry (geactiveerd via de secret-knop in Gamecreator overlay) — geen
+  // dubbele entry in het dropdown nodig.
   const options = BUILTIN_CHARACTERS.map(key => {
     const label = displayNameFor(key);
-    return `<option value="${label}">${label}</option>`;
+    return `<option value="${key}">${label}</option>`;
   }).join('');
 
   const teamsMode = (typeof getGameMode === 'function') ? getGameMode() === 'teams' : false;
@@ -4146,8 +4539,10 @@ function renderNameInputs() {
     const row = document.createElement('div');
     row.className = 'name-row';
     const fallbackKey = BUILTIN_CHARACTERS[i % BUILTIN_CHARACTERS.length];
-    const fallback = displayNameFor(fallbackKey);
-    const selected = existing[i] || cachedNames[i] || fallback;
+    // existing[i] is nu een KEY (b.v. 'jarnoboss'); cachedNames kan nog oude
+    // display-labels bevatten (b.v. 'Jarno'). We accepteren beide en matchen
+    // case-insensitive op zowel value als label tijdens de option-selectie.
+    const selected = existing[i] || cachedNames[i] || fallbackKey;
     // Default team: alternerend A/B (om-en-om)
     const defaultTeam = (i % 2 === 0) ? 'A' : 'B';
     const team = existingTeams[i] || defaultTeam;
@@ -4157,10 +4552,13 @@ function renderNameInputs() {
       ${teamsMode ? `<button class="team-pill" type="button" data-team="${team}">${TEAM_NAME[team]}</button>` : ''}
     `;
     const sel = row.querySelector('select.char-select');
+    // Match eerst op KEY (value), dan op LABEL (text) — voor backwards-compat
+    // met oude cachedNames die nog display-labels bevatten.
+    const selLower = (selected || '').toLowerCase();
     const match = Array.from(sel.options).find(o =>
-      o.value.toLowerCase() === selected.toLowerCase()
+      o.value.toLowerCase() === selLower || o.text.toLowerCase() === selLower
     );
-    sel.value = match ? match.value : fallback;
+    sel.value = match ? match.value : fallbackKey;
     // Team-pill toggle: tap → switch A ↔ B
     const tp = row.querySelector('.team-pill');
     if (tp) {
@@ -4469,13 +4867,21 @@ startBtn.addEventListener('click', () => {
   // Game-mode toepassen — bepaalt lives-init + eliminatie-flow + teams
   currentMode = getGameMode();
   const startLives = (GAME_MODES[currentMode] && GAME_MODES[currentMode].startLives) || Infinity;
-  // Dropdowns replaced the text inputs — read selected display name per row.
+  // Dropdowns replaced the text inputs — read selected KEY per row.
+  // Sinds v129 is option.value = registry-key (b.v. 'jarnoboss'), terwijl de
+  // user-zichtbare label de display-naam is (b.v. 'Jarno'). We slaan beide
+  // op: player.name = display label voor HUD, player.characterKey = registry
+  // key voor sprite-lookup. Hierdoor kunnen 2 verschillende characters (jarno
+  // en jarnoboss) toch dezelfde label "Jarno" tonen.
   const selects = Array.from(nameInputs.querySelectorAll('select.char-select'));
   const teamPills = Array.from(nameInputs.querySelectorAll('button.team-pill'));
-  const names = selects.map((s, i) => (s.value || `Speler ${i+1}`).slice(0, 14));
-  saveCachedNames(names);
+  const keys  = selects.map((s, i) => s.value || BUILTIN_CHARACTERS[i % BUILTIN_CHARACTERS.length]);
+  const names = keys.map((k, i) => displayNameFor(k).slice(0, 14) || `Speler ${i+1}`);
+  saveCachedNames(keys);   // cache de KEYS zodat we ze later kunnen herstellen
   players = names.map((n, i) => ({
-    name: n, shots: 0, cleared: 0, perfect: 0,
+    name: n,
+    characterKey: keys[i],            // 'jarno' / 'jarnoboss' / etc.
+    shots: 0, cleared: 0, perfect: 0,
     tokens: 0, hearts: 0, tokenStreak: 0, failsInRow: 0,
     lives: startLives, eliminated: false,   // levens-mode tracking
     team: (currentMode === 'teams' && teamPills[i]) ? teamPills[i].dataset.team : null,
@@ -4633,6 +5039,8 @@ function startGame() {
   // teamgenoten zodat een team van N spelers samen N levens heeft (intenser,
   // één blunder kost het hele team een leven).
   teamTokens = { A: 0, B: 0 };
+  weddenMaarTracker = new Map();    // reset gokken bij elke nieuwe game
+  casinoStakes     = new Map();
   if (currentMode === 'teams') {
     const countA = players.filter(p => p.team === 'A').length;
     const countB = players.filter(p => p.team === 'B').length;
@@ -4852,15 +5260,22 @@ function refreshLivesIndicator() {
   if (!p) { el.classList.add('hidden'); return; }
   // In teams-mode tonen we de GEDEELDE team-pool (1 leven per teamgenoot
   // bij start). Solo-levens-mode toont de individuele speler-levens.
-  const maxLives = getMaxLives(p);
   const lives = Math.max(0, getPlayerLives(p));
+  // maxLives = max van (initial), zodat verloren levens grijs blijven staan.
+  // BELANGRIJK: als de pool door b.v. Friese Legende GROEIDE boven het
+  // initial-aantal, dan tellen we de extra levens er ook bij — anders
+  // zouden er icoontjes wegvallen uit beeld.
+  const initialMax = getMaxLives(p);
+  const maxLives = Math.max(initialMax, lives);
+  // Dynamische icon-grootte zodat ook bij 10-15 levens alles netjes past in
+  // de container. Schaal lineair van 56px (4 icons of minder) tot 28px (15+).
+  const drawCount = Math.min(maxLives, 15);
+  const iconSize = Math.max(28, 56 - Math.max(0, drawCount - 4) * 2.5);
+  const gapSize = Math.max(2, Math.round(6 - Math.max(0, drawCount - 4) * 0.3));
   let icons = '';
-  // Cap visuele icons op 12 om te voorkomen dat de balk uit beeld loopt
-  // bij grote teams (6vs6 = max 6 icons, dus dit is een safety-cap).
-  const drawCount = Math.min(maxLives, 12);
   for (let i = 0; i < drawCount; i++) {
     const cls = i < lives ? 'life-icon' : 'life-icon spent';
-    icons += `<img src="shotje.png" alt="" class="${cls}" />`;
+    icons += `<img src="shotje.png" alt="" class="${cls}" style="height:${iconSize}px;" />`;
   }
   const label = el.querySelector('.lives-label');
   const iconsEl = el.querySelector('.lives-icons');
@@ -4869,7 +5284,10 @@ function refreshLivesIndicator() {
       ? `LEVENS · TEAM ${TEAM_NAME[p.team]}`
       : 'LEVENS';
   }
-  if (iconsEl) iconsEl.innerHTML = icons;
+  if (iconsEl) {
+    iconsEl.innerHTML = icons;
+    iconsEl.style.gap = gapSize + 'px';
+  }
   el.classList.remove('hidden');
   el.classList.toggle('danger', lives === 1);
   // Team-kleur in teams-mode op border
@@ -4934,6 +5352,13 @@ function configureDifficulty() {
   // BREDE ZONE (defensive, stacks): zone ×1.40 per stack, cap op 0.95
   const bzStack = buffStack('brede-zone');
   if (bzStack > 0) perfectWidth = Math.min(0.95, perfectWidth * Math.pow(1.40, bzStack));
+  // CASINO (defensive, ALL-IN gok): jump 3× zo zwaar voor 3× payout.
+  //   Zone × 0.33  (een derde van normaal — heel smal)
+  //   Sweep × 0.33 — 3× zo snel = bijna onmogelijk te timen
+  if (hasBuff('casino')) {
+    perfectWidth = Math.max(0.03, perfectWidth * 0.33);
+    sweepPeriod  = Math.max(SWEEP_FLOOR_MS, sweepPeriod * 0.33);
+  }
   zoneLo = 0.5 - perfectWidth / 2;
   zoneHi = 0.5 + perfectWidth / 2;
 }
@@ -5009,6 +5434,59 @@ function resolveJump(success) {
     recentClearStreak[currentIdx] = (recentClearStreak[currentIdx] || 0) + 1;
     // Bij 3+ clears op rij: bonus confetti-shower als feedback voor de streak
     if (recentClearStreak[currentIdx] >= 3) spawnStreakBurst();
+    // FRIESE LEGENDE BONUS — universeel: in teams = team-pool, in levens =
+    // persoonlijk, in klassiek = pure token-bonus.
+    if (hasBuff('friese-legende')) {
+      let livesMsg = '';
+      if (currentMode === 'teams' && p.team) {
+        teamLives[p.team] = (teamLives[p.team] || 0) + 2;
+        livesMsg = `Team ${TEAM_NAME[p.team]} +2 levens`;
+      } else if (currentMode === 'levens') {
+        p.lives = (p.lives || 0) + 2;
+        livesMsg = `${p.name} +2 levens`;
+      }
+      addPlayerTokens(p, 2);
+      const tokenMsg = `${p.name} +2 ⭐`;
+      const full = livesMsg ? `${livesMsg} · ${tokenMsg}` : tokenMsg;
+      showLaunchToast(`👑 LEGENDE! ${full}`, '#ffd700', 3500);
+      if (typeof spawnWinnerShower === 'function') spawnWinnerShower();
+      if (typeof sndCheer === 'function') sndCheer();
+      if (typeof refreshLivesIndicator === 'function') refreshLivesIndicator();
+      refreshTokenUI();
+    }
+    // CASINO BONUS: ALL-IN gok geslaagd → 3× je stake terug. De stake is
+    // bij activate al volledig ingezet, dus payout is bruto 3× (netto +2×).
+    if (hasBuff('casino')) {
+      const stake = casinoStakes.get(p) || 0;
+      const payout = stake * 3;
+      addPlayerTokens(p, payout);
+      casinoStakes.delete(p);
+      showLaunchToast(`🎰 JACKPOT! ${stake} ⭐ → ${payout} ⭐ uitbetaald (3×)`, '#ffd700', 3500);
+      if (typeof spawnConfetti === 'function') spawnConfetti();
+      if (typeof sndCheer === 'function') sndCheer();
+      refreshTokenUI();
+    }
+    // WEDDEN MAAR: target clearde → caster verliest 1 leven (gok verloren).
+    // Pop in tracker zodat de gok niet doorrolt naar volgende beurt.
+    if (hasBuff('wedden-maar')) {
+      const caster = weddenMaarTracker.get(p);
+      if (caster) {
+        if (currentMode === 'teams' && caster.team) {
+          teamLives[caster.team] = Math.max(0, (teamLives[caster.team] || 0) - 1);
+          if (teamLives[caster.team] === 0) {
+            players.forEach(pl => { if (pl.team === caster.team) pl.eliminated = true; });
+          }
+          showLaunchToast(`🎲 ${p.name} CLEARDE — Team ${TEAM_NAME[caster.team]} -1 leven (${caster.name}'s gok verloren)`, '#ff8a8a', 4000);
+        } else if (currentMode === 'levens') {
+          // Solo: de CASTER verliest persoonlijk 1 leven
+          caster.lives = Math.max(0, (caster.lives || 0) - 1);
+          if (caster.lives === 0) caster.eliminated = true;
+          showLaunchToast(`🎲 ${p.name} CLEARDE — ${caster.name} -1 leven (gok verloren)`, '#ff8a8a', 4000);
+        }
+        if (typeof refreshLivesIndicator === 'function') refreshLivesIndicator();
+        weddenMaarTracker.delete(p);
+      }
+    }
   } else {
     // MULLIGAN (defensive, stacks): elke stack = 1 gratis retry. Decrementeer
     // de stack — bij meerdere mulligans heb je meerdere retries.
@@ -5056,6 +5534,62 @@ function resolveJump(success) {
     bumpFailAndMaybeAwardConsolation(p);
     sndSplash();
     recentClearStreak[currentIdx] = 0;
+    // CASINO BUST: ALL-IN gok mislukt → de stake is volledig kwijt (al
+    // gespent bij activate). Toon dramatic "BUST!" toast als zichtbare straf.
+    if (hasBuff('casino')) {
+      const stake = casinoStakes.get(p) || 0;
+      casinoStakes.delete(p);
+      showLaunchToast(`🎰 BUST! ${stake} ⭐ kwijt aan het Casino`, '#ff4848', 3500);
+      if (typeof triggerShake === 'function') triggerShake(220, 12);
+      refreshTokenUI();
+    }
+    // WEDDEN MAAR: target plonsde → target verliest 3 EXTRA levens (boven op
+    // de normale -1 die net is afgehandeld). De gokker (caster) had gelijk.
+    if (hasBuff('wedden-maar') && isEliminationMode()) {
+      const caster = weddenMaarTracker.get(p);
+      if (caster) {
+        decrementPlayerLives(p, 3);   // werkt zowel solo (p.lives) als teams (teamLives[p.team])
+        const casterLabel = (currentMode === 'teams' && caster.team)
+          ? `Team ${TEAM_NAME[caster.team]}` : caster.name;
+        const targetLabel = (currentMode === 'teams' && p.team)
+          ? `Team ${TEAM_NAME[p.team]}` : p.name;
+        showLaunchToast(`🎲 ${p.name} PLONSDE — ${targetLabel} -3 levens EXTRA! (${casterLabel} wint de gok)`, '#ff4848', 4500);
+        if (typeof triggerShake === 'function') triggerShake(360, 18);
+        if (typeof vibrate === 'function') vibrate([80, 40, 80, 40, 80]);
+        if (typeof refreshLivesIndicator === 'function') refreshLivesIndicator();
+        weddenMaarTracker.delete(p);
+      }
+    }
+    // FRIESE LEGENDE STRAF — universeel:
+    //   teams:    team-pool naar 25% (floor, min 1) + alle alive teammates +1 shot
+    //   levens:   eigen lives naar 25% (floor, min 1)
+    //   klassiek: caster verliest alle tokens (geen lives om te decimeren)
+    if (hasBuff('friese-legende')) {
+      if (currentMode === 'teams' && p.team) {
+        const beforePool = teamLives[p.team] || 0;
+        const newPool = Math.max(1, Math.floor(beforePool * 0.25));
+        teamLives[p.team] = newPool;
+        const livesLost = beforePool - newPool;
+        const teammates = players.filter(pl => pl.team === p.team && pl !== p && !pl.eliminated);
+        teammates.forEach(pl => { pl.shots += 1; totalShots += 1; });
+        showLaunchToast(`💀 VERRAAD! Team ${TEAM_NAME[p.team]} -${livesLost} leven · iedereen +1 shot`, '#ff4848', 4000);
+      } else if (currentMode === 'levens') {
+        const before = p.lives || 0;
+        p.lives = Math.max(1, Math.floor(before * 0.25));
+        const lost = before - p.lives;
+        showLaunchToast(`💀 VERRAAD! ${p.name} -${lost} leven`, '#ff4848', 4000);
+      } else {
+        // Klassiek: geen lives — caster verliest al z'n tokens
+        const tokensLost = getPlayerTokens(p);
+        if (tokensLost > 0) spendPlayerTokens(p, tokensLost);
+        showLaunchToast(`💀 VERRAAD! ${p.name} verliest ${tokensLost} ⭐`, '#ff4848', 4000);
+        refreshTokenUI();
+      }
+      if (typeof triggerShake === 'function') triggerShake(420, 22);
+      if (typeof vibrate === 'function') vibrate([100, 50, 120, 50, 100]);
+      if (typeof refreshLivesIndicator === 'function') refreshLivesIndicator();
+      if (typeof totalShotsEl !== 'undefined' && totalShotsEl) totalShotsEl.textContent = totalShots;
+    }
   }
   // Achievements check after this jump completes. Wrapped so a thrown
   // exception here can NEVER prevent the pass-screen timer from being set —
@@ -5102,7 +5636,7 @@ function setShotIconForPlayer(p) {
     }
     return;
   }
-  const entry = getNamedSprite(p && p.name);
+  const entry = spriteFor(p);
   if (entry && entry.frames >= 4 && entry.img && entry.img.naturalWidth) {
     /* Render the FAIL frame tightly, using the bbox computed at sprite-load.
      * We use a SUB-IMAGE viewport: place an absolute <img> inside a clipped
@@ -5549,7 +6083,7 @@ async function createScorecardImage() {
 
   cx.font = 'italic 19px Georgia, serif';
   cx.fillStyle = '#d6cda3';
-  cx.fillText('— Salire Perticea Longa —', CW/2, titleY + 66);
+  cx.fillText('— Salire Perticae Longa —', CW/2, titleY + 66);
 
   // Gouden divider
   const dividerY1 = titleY + 92;
@@ -5571,7 +6105,7 @@ async function createScorecardImage() {
   const winSectionTop = dividerY1 + 15;
   const winSectionH   = 220;
   if (winner) {
-    const wEntry = (typeof getNamedSprite === 'function') ? getNamedSprite(winner.name) : null;
+    const wEntry = (typeof spriteFor === 'function') ? spriteFor(winner) : null;
     if (wEntry && wEntry.img && wEntry.img.complete && wEntry.img.naturalWidth) {
       const frames = wEntry.frames || 4;
       const fw = wEntry.img.naturalWidth / frames;
@@ -5707,7 +6241,7 @@ async function createScorecardImage() {
   cx.font = 'italic 22px Georgia, serif';
   cx.fillStyle = '#f6d77a';
   cx.textAlign = 'center';
-  cx.fillText('🥃  Salire Perticea Longa  🌾', CW/2, footerBlockTop + 40);
+  cx.fillText('🥃  Salire Perticae Longa  🌾', CW/2, footerBlockTop + 40);
   cx.font = 'bold 16px Georgia, serif';
   cx.fillStyle = '#9ab1d8';
   cx.fillText('jspaan89.github.io/SPL', CW/2, footerBlockTop + 75);
@@ -5727,7 +6261,7 @@ async function shareResults() {
     `Winnaar: ${winner.name} (${winner.cleared} gehaald, ${winner.shots} shots)`,
     `Meeste shots: ${drinker.name} — ${drinker.shots} 🥃`,
     '',
-    'Salire Perticea Longa 🌾',
+    'Salire Perticae Longa 🌾',
     'jspaan89.github.io/SPL'
   ].join('\n');
 
@@ -6226,9 +6760,9 @@ function update(dt) {
     if (!player.apexTriggered && player.vy >= -0.5) {
       player.apexTriggered = true;
       slowmoUntil = performance.now() + 220;
-      // PERTICEA — mid-air shout
-      showWordBanner('PERTICEA', '#ffe091');
-      speakChant('Perticea', 0.85, 0.85);
+      // PERTICAE — mid-air shout
+      showWordBanner('PERTICAE', '#ffe091');
+      speakChant('Perticae', 0.85, 0.85);
     }
     const speedScale = W / 960;
     const GRAV = 0.42 * speedScale;
@@ -6952,7 +7486,7 @@ function drawCharacterAt(cx, cy, rot, wet, reflectionMode=false) {
   // right pose (READY/JUMP/FAIL/SUCCESS) sliced out; single-pose legacy
   // images are drawn for every state.
   const entry = (state !== STATE.SETUP && state !== STATE.OVER && players[currentIdx])
-    ? getNamedSprite(players[currentIdx].name) : null;
+    ? spriteFor(players[currentIdx]) : null;
   const named = entry ? entry.img : null;
 
   let sprite, frames = 1, frameIdx = 0;
@@ -7223,7 +7757,7 @@ function spawnLoserConfetti(losers) {
   if (!losers || losers.length === 0) return;
   for (let k = 0; k < 4; k++) {
     const loser = losers[Math.floor(Math.random() * losers.length)];
-    const entry = (typeof getNamedSprite === 'function') ? getNamedSprite(loser.name) : null;
+    const entry = (typeof spriteFor === 'function') ? spriteFor(loser) : null;
     if (!entry || !entry.img || !entry.img.complete || !entry.img.naturalWidth) continue;
     const frames = entry.frames || 4;
     const frameW = entry.img.naturalWidth / frames;
@@ -7294,7 +7828,7 @@ function drawCelebration() {
   // Elke sprite krijgt een eigen 'phase' voor zijn breath/tilt, zodat de groep
   // niet als één lichaam ademt — voelt levendiger.
   function drawCheeringSprite(p, cx, cy, targetH, phase) {
-    const entry2 = (typeof getNamedSprite === 'function') ? getNamedSprite(p && p.name) : null;
+    const entry2 = (typeof spriteFor === 'function') ? spriteFor(p) : null;
     const breath = 1 + Math.sin(t * 0.005 + phase) * 0.04;
     const tilt   = Math.sin(t * 0.0028 + phase * 1.3) * 0.06;
     ctx.save();
@@ -7661,7 +8195,7 @@ function showLaunchToast(text, color, duration) {
   toastTimeout = setTimeout(() => launchToast.classList.remove('show'), ms);
 }
 
-/* ------------------------ Chant: SALIRE / PERTICEA / LONGA -------------- */
+/* ------------------------ Chant: SALIRE / PERTICAE / LONGA -------------- */
 const wordBanner = document.getElementById('wordBanner');
 let bannerTimer = null;
 /* Shot-banger — bij plons: aantal shots herhaaldelijk in beeld in SALIRE-stijl.
@@ -7696,7 +8230,7 @@ function showWordBanner(text, color) {
 
 let ttsVoice = null;
 /* ===== Chant disabled =====================================================
- * The Latin scream (SALIRE / PERTICEA / LONGA) was distracting. speakChant
+ * The Latin scream (SALIRE / PERTICAE / LONGA) was distracting. speakChant
  * is now a no-op so every existing call site still works, but no voice
  * synthesis fires. The themed sound effects below replace it. */
 function pickVoice() {}
