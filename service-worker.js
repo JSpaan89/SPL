@@ -17,7 +17,7 @@
  *  en oude asset-caches worden opgeruimd.
  * ============================================================================= */
 
-const CACHE_VERSION = 'v136-weddenmaar-solo-sort-by-price';
+const CACHE_VERSION = 'v147-tornado-behind-banks';
 const CACHE_NAME    = `spl-fierljeppen-${CACHE_VERSION}`;
 
 // Core shell — voor offline boot. Alleen pre-cachen wat ALTIJD nodig is.
@@ -65,6 +65,7 @@ const RUNTIME_PATTERNS = [
   /\/Frieselegende\.png$/i,      // PU icon: kroon op kussen
   /\/weddenmaar\.png$/i,         // PU icon: dobbelstenen
   /\/Casino\.png$/i,             // PU icon: slot-machine 777
+  /\/videoclip-spl-lite\.mp4$/i, // Lite SPL promo-clip (12.6MB)
   /\/Gamecreator\.png$/i,        // Gamecreator easter-egg portret
   /\/daan-fail/i,                // Daan fail-video easter-egg
   /\/Scorecard\.png$/i,          // Team-photo intro vóór scoreboard reveal

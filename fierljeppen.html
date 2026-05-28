@@ -429,61 +429,150 @@
     #buttonRow { gap: 12px; }
   }
 
-  /* Lives-indicator (alleen lives/teams mode) — staat NET BOVEN de power-
-   * bar (actionBar begint op top:78vh), zodat de balk niet onder de POWER-UP
-   * knop verdwijnt. Gecentreerd, klein en uit de weg van de scene. */
-  #livesIndicator {
-    position: absolute;
-    left: 50%;
-    top: auto;
-    /* 3mm omlaag t.o.v. v98 (1.5cm → 1.2cm) — gebruiker wilde extra
-       spacing tussen lives-balk en power-bar. */
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2cm);
-    transform: translateX(-50%);
-    background: rgba(11, 30, 63, 0.85);
-    border: 2px solid #f6d77a;
-    border-radius: 14px;
-    /* Horizontale padding gehalveerd van 12px → 5px (per kant) zodat de
-       balk 4mm smaller wordt. Verticaal blijft 5px. */
-    padding: 5px 5px;
-    color: #f6d77a;
-    font-size: 12px;
-    letter-spacing: 2px;
-    font-weight: bold;
-    z-index: 6;
-    pointer-events: none;
+  /* ===== ELIMINATIE-BURST — full-screen "screen crack" + giga UIT! tekst ===== */
+  #eliminationBurst[hidden] { display: none !important; }
+  #eliminationBurst {
+    position: fixed; inset: 0;
+    z-index: 15;
+    background: radial-gradient(circle at center,
+      rgba(120, 0, 0, 0.55) 0%,
+      rgba(60, 0, 0, 0.85) 60%,
+      rgba(10, 0, 0, 0.96) 100%);
+    pointer-events: auto;
+    overflow: hidden;
     display: flex;
     align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    justify-content: center;
+    animation: elimBurstShake 0.55s cubic-bezier(.4,.1,.3,1) 2;
+  }
+  /* SVG crack-overlay — wit gouden splinters die uit het midden barsten,
+     met witte flash bovenop de eerste 200ms voor de "klap" */
+  #eliminationBurst .elim-crack {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    filter: drop-shadow(0 0 8px rgba(255,255,255,0.55)) drop-shadow(0 0 16px rgba(255,200,80,0.45));
+    opacity: 0;
+    animation: elimCrackIn 0.45s ease-out forwards;
+  }
+  #eliminationBurst::before {
+    /* witte flash op het moment van inslag */
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.85);
+    pointer-events: none;
+    animation: elimFlash 0.32s ease-out forwards;
+  }
+  #eliminationBurst .elim-text {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 16px;
+    animation: elimTextPop 0.55s cubic-bezier(.2,1.5,.4,1) 0.15s backwards;
+  }
+  #eliminationBurst .elim-big {
+    font-family: 'Salire', Georgia, serif;
+    font-size: clamp(120px, 30vw, 240px);
+    font-weight: 900;
+    color: #ff3030;
+    letter-spacing: 14px;
+    line-height: 0.85;
+    text-shadow:
+      0 0 20px rgba(255,40,40,0.95),
+      0 0 50px rgba(255,80,40,0.75),
+      0 6px 0 rgba(80,0,0,0.7),
+      0 12px 30px rgba(0,0,0,0.8);
+    transform: rotate(-3deg);
+  }
+  #eliminationBurst .elim-name {
+    font-family: Georgia, serif;
+    font-size: clamp(28px, 7vw, 52px);
+    color: #ffe091;
+    font-weight: bold;
+    margin-top: 12px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8), 0 0 16px rgba(0,0,0,0.6);
+    letter-spacing: 3px;
+  }
+  #eliminationBurst .elim-sub {
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-size: clamp(14px, 3.5vw, 22px);
+    color: #ffb0b0;
+    margin-top: 10px;
+    letter-spacing: 2px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  }
+  @keyframes elimBurstShake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-8px, 4px); }
+    40% { transform: translate(7px, -3px); }
+    60% { transform: translate(-5px, -5px); }
+    80% { transform: translate(4px, 6px); }
+  }
+  @keyframes elimCrackIn {
+    0%   { opacity: 0; transform: scale(0.7); }
+    40%  { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 0.95; transform: scale(1); }
+  }
+  @keyframes elimFlash {
+    0%   { opacity: 0; }
+    20%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes elimTextPop {
+    0%   { opacity: 0; transform: scale(0.3) rotate(-15deg); }
+    60%  { opacity: 1; transform: scale(1.15) rotate(2deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0); }
+  }
+
+  /* Lives-indicator — derde rij binnen #actionBar, zelfde opmaak als de
+   * power bar en power-up knop daarboven (rondzijden, gouden border,
+   * navy gradient, dezelfde shadow). Maximaal 6 icoontjes per rij,
+   * daarna wrap naar 2e rij eronder. */
+  #livesIndicator {
+    position: relative;
+    width: 100%;
+    min-height: 40px;
+    padding: 6px 18px;
+    background: linear-gradient(180deg, rgba(11,30,63,0.92) 0%, rgba(11,30,63,0.78) 100%);
+    border: 2.5px solid #f6d77a;
+    border-radius: 24px;
+    color: #f6d77a;
+    font-size: 11px;
+    letter-spacing: 2px;
+    font-weight: bold;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.06);
     transition: border-color 0.3s, box-shadow 0.3s;
   }
   #livesIndicator .lives-label {
-    font-size: 10px;
-    opacity: 0.75;
+    font-size: 11px;
+    opacity: 0.85;
     letter-spacing: 2px;
+    white-space: nowrap;
   }
   #livesIndicator .lives-icons {
-    font-size: 18px;
-    letter-spacing: 1px;
     line-height: 1;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 3px;
-  }
-  /* shotje.png als lives-icon — formaat wordt dynamisch via inline style
-   * gezet (zie refreshLivesIndicator) zodat-ie schaalt naar het aantal
-   * levens en altijd in beeld blijft passen. Negatieve vertical margin
-   * laat de iconen UIT het balkje steken zodat het balkje zelf compact blijft. */
-  #livesIndicator {
-    overflow: visible;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    /* Max 6 icoontjes per rij: bepaal max-width o.b.v. icon-grootte + gap.
+     * Bij 32px icon: 6*32 + 5*4 = 212px. Plus wat speling. Wrap naar 2e rij. */
+    max-width: 240px;
   }
   #livesIndicator .lives-icons img.life-icon {
     width: auto;
     vertical-align: middle;
     display: inline-block;
-    margin-top: -8px;
-    margin-bottom: -8px;
   }
   #livesIndicator .lives-icons img.life-icon.spent {
     opacity: 0.25;
@@ -494,9 +583,12 @@
     box-shadow: 0 0 16px rgba(255,72,72,0.7), 0 4px 12px rgba(0,0,0,0.4);
     animation: lifeDanger 0.8s ease-in-out infinite;
   }
+  /* Lives-balk zit nu in flex-flow van #actionBar (geen absolute centering
+   * meer), dus de translateX(-50%) hoort hier niet meer in — die deed de
+   * balk naar links uit-beeld schieten bij 1 leven (danger-mode trigger). */
   @keyframes lifeDanger {
-    0%, 100% { transform: translateX(-50%) scale(1); }
-    50%      { transform: translateX(-50%) scale(1.06); }
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
   }
 
   #tapPrompt {
@@ -1028,9 +1120,10 @@
     position: relative;
     width: 100%;
     min-height: 54px;
-    padding: 8px 16px;
+    padding: 8px 22px;
     border: 2.5px solid #f6d77a;
-    border-radius: 16px;
+    /* Volledig ronde zijkanten zoals de power bar erboven (height/2 = 27px) */
+    border-radius: 27px;
     background: linear-gradient(180deg, rgba(11,30,63,0.92) 0%, rgba(11,30,63,0.78) 100%);
     color: #f6d77a;
     font-family: inherit;
@@ -1136,6 +1229,150 @@
   /* Scorecard-intro — 2s teaser vóór het echte scoreboard verschijnt.
    * Gouden ornament-lijst rond de groepsfoto + dankbericht. Fade-in/out
    * voor sfeer. */
+  /* Tussenstand-overlay — toont huidige scores tijdens het spel */
+  #standingsOverlay[hidden] { display: none !important; }
+  #standingsOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 11;
+    background: rgba(0,0,0,0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeIn 0.2s ease-out;
+  }
+  #standingsOverlay .standings-card {
+    background: #0b1e3f;
+    border: 2px solid #f6d77a;
+    border-radius: 18px;
+    padding: 20px 18px 14px;
+    max-width: 460px;
+    width: 100%;
+    max-height: 92vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    color: #f3eed7;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.7);
+  }
+  #standingsOverlay h2 {
+    color: #f6d77a;
+    font-size: 19px;
+    letter-spacing: 3px;
+    margin: 0 0 4px;
+    text-align: center;
+  }
+  #standingsOverlay .standings-sub {
+    color: #d6cda3;
+    font-size: 13px;
+    text-align: center;
+    margin-bottom: 14px;
+    letter-spacing: 1.5px;
+  }
+  #standingsOverlay .standings-list {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-right: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  #standingsOverlay table.standings-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #f3eed7;
+    font-size: 14px;
+  }
+  #standingsOverlay table.standings-table th {
+    color: #f6d77a;
+    font-weight: bold;
+    text-align: left;
+    padding: 6px 4px;
+    border-bottom: 1px solid rgba(246,215,122,0.4);
+    letter-spacing: 1.5px;
+    font-size: 11px;
+  }
+  #standingsOverlay table.standings-table td {
+    padding: 6px 4px;
+    border-bottom: 1px solid rgba(246,215,122,0.12);
+  }
+  #standingsOverlay table.standings-table td.shots  { color: #ff8a8a; text-align: right; font-weight: bold; }
+  #standingsOverlay table.standings-table td.cleared { color: #87e89a; text-align: right; font-weight: bold; }
+  #standingsOverlay table.standings-table td.lives  { color: #ffe091; text-align: right; }
+  #standingsOverlay table.standings-table tr.eliminated td {
+    opacity: 0.45;
+    text-decoration: line-through;
+  }
+  #standingsOverlay table.standings-table tr.current td {
+    background: rgba(246,215,122,0.12);
+    font-weight: bold;
+  }
+  #standingsOverlay .team-header td {
+    color: #ffe091;
+    font-weight: bold;
+    letter-spacing: 3px;
+    padding: 12px 4px 4px;
+    font-size: 12px;
+  }
+  #standingsOverlay .team-totals td {
+    border-top: 1px solid rgba(246,215,122,0.35);
+    font-weight: bold;
+  }
+  #standingsOverlay .standings-footer {
+    flex-shrink: 0;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(246,215,122,0.25);
+    text-align: center;
+  }
+
+  /* SPL promo-clip overlay (triggered via 3-tap easter-egg op bedankt-scherm) */
+  #splClipOverlay[hidden] { display: none !important; }
+  #splClipOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.25s ease-out;
+  }
+  #splClipOverlay video {
+    width: 100%;
+    height: 100%;
+    max-width: 100vw;
+    max-height: 100vh;
+    object-fit: contain;
+    background: #000;
+  }
+  #splClipOverlay #splClipDismissBtn {
+    position: absolute;
+    top: max(env(safe-area-inset-top, 0px), 14px);
+    right: max(env(safe-area-inset-right, 0px), 14px);
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 2px solid #f6d77a;
+    background: rgba(11,30,63,0.85);
+    color: #f6d77a;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 21;
+    transition: background 0.15s, transform 0.15s;
+  }
+  #splClipOverlay #splClipDismissBtn:hover {
+    background: rgba(246,215,122,0.18);
+    transform: scale(1.05);
+  }
+
   #scorecardIntro[hidden] { display: none !important; }
   #scorecardIntro {
     position: fixed; inset: 0;
@@ -1743,55 +1980,46 @@
   /* Helikopterview heeft een EIGEN PNG, niet uit de 4×2 sprite-sheet */
   #puPicker .pu-slot[data-pu="helikopterview"] .pu-icon {
     background-image: url('Helikopterview.png');
-    background-size: cover;
-    background-position: center;
   }
   /* Friese Vloek — eigen PNG (screw-you-all.png), bom + shotjes-explosie. */
   #puPicker .pu-slot[data-pu="friese-vloek"] .pu-icon {
     background-image: url('screw-you-all.png');
-    background-size: cover;
-    background-position: center;
   }
   /* Schone Lei — eigen PNG (reset.png, powerbar + gouden refresh-pijlen) */
   #puPicker .pu-slot[data-pu="schone-lei"] .pu-icon {
     background-image: url('reset.png');
-    background-size: cover;
-    background-position: center;
   }
   #activeBuffs .buff-pill[data-pu="schone-lei"]::before {
     background-image: url('reset.png');
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
   }
   /* Wedden Maar — eigen PNG (weddenmaar.png, dobbelstenen + Hollandse vlag) */
   #puPicker .pu-slot[data-pu="wedden-maar"] .pu-icon {
     background-image: url('weddenmaar.png');
-    background-size: cover;
-    background-position: center;
   }
   #activeBuffs .buff-pill[data-pu="wedden-maar"]::before {
     background-image: url('weddenmaar.png');
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
   }
 
   /* Casino — eigen PNG (Casino.png, slot-machine met 777) */
   #puPicker .pu-slot[data-pu="casino"] .pu-icon {
     background-image: url('Casino.png');
-    background-size: cover;
-    background-position: center;
   }
   #activeBuffs .buff-pill[data-pu="casino"]::before {
     background-image: url('Casino.png');
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
   }
 
   /* Friese Legende — eigen PNG (Frieselegende.png, kroon op kussen + kasteel) */
   #puPicker .pu-slot[data-pu="friese-legende"] .pu-icon {
     background-image: url('Frieselegende.png');
-    background-size: cover;
-    background-position: center;
   }
   #puPicker .pu-slot[data-pu="friese-legende"] {
     border-color: #ffe091;
@@ -2198,6 +2426,12 @@
         <span class="pu-big-label">POWER-UP</span>
         <span class="token-count" id="puTokenCount" hidden>0</span>
       </button>
+      <!-- Lives-indicator: inline kind van actionBar zodat-ie netjes onder
+           power-up button stacked is. Styling matcht de andere bars. -->
+      <div id="livesIndicator" class="hidden">
+        <span class="lives-label"></span>
+        <span class="lives-icons"></span>
+      </div>
       <div id="buttonRow">
         <button id="climbBtn" class="action-btn" type="button">
           <span class="label">POWER</span>
@@ -2213,13 +2447,6 @@
 
   <div id="tapPrompt" class="hidden"></div>
 
-  <!-- Lives-indicator (alleen in lives/teams mode) — toont active speler's
-       resterende levens onderin boven de action-bar. -->
-  <div id="livesIndicator" class="hidden">
-    <span class="lives-label"></span>
-    <span class="lives-icons"></span>
-  </div>
-
   <div id="launchToast"></div>
   <div id="wordBanner"></div>
   <div id="shotBanger"></div>
@@ -2234,6 +2461,19 @@
     <button class="icon-btn" id="castBtn" aria-label="Cast naar TV" title="Cast naar TV">📺</button>
     <button class="icon-btn" id="soundToggle" aria-label="Geluid aan/uit" title="Geluid effecten">🔊</button>
     <button class="icon-btn" id="musicToggle" aria-label="Muziek aan/uit" title="Achtergrondmuziek">🎵</button>
+    <button class="icon-btn" id="standingsBtn" aria-label="Tussenstand bekijken" title="Tussenstand">📊</button>
+  </div>
+
+  <!-- Tussenstand overlay — toont scores tijdens het spel (klik 📊-knop) -->
+  <div id="standingsOverlay" hidden data-interactive>
+    <div class="standings-card" data-interactive>
+      <h2>TUSSENSTAND</h2>
+      <div class="standings-sub" id="standingsSub">Ronde —</div>
+      <div class="standings-list" id="standingsList"></div>
+      <div class="standings-footer">
+        <button class="btn secondary" id="standingsCloseBtn" data-interactive>SLUITEN</button>
+      </div>
+    </div>
   </div>
 
   <!-- Active buffs / debuffs strip (verschijnt tijdens beurt) -->
@@ -2241,6 +2481,13 @@
 
   <!-- Mulligan-toast (gratis retry na plons) -->
   <div id="mulliganToast">MULLIGAN!</div>
+
+  <!-- Easter-egg: 3x snel tikken op het bedankt-scherm → full-screen
+       SPL-promo-clip met audio. Bg-music pauseert tijdens playback. -->
+  <div id="splClipOverlay" hidden data-interactive>
+    <video id="splClipVideo" playsinline preload="metadata" controls></video>
+    <button id="splClipDismissBtn" type="button" data-interactive aria-label="Sluiten">✕</button>
+  </div>
 
   <!-- Scorecard intro — verschijnt 2s tussen celebration en scoreboard-reveal.
        Foto van het entertainment-team in gouden lijst + dankbericht. -->
@@ -2440,6 +2687,47 @@
     <div id="passActions">
       <button class="btn big" id="passBtn">DOORGEVEN ▶</button>
       <button class="btn secondary" id="quitBtn">STOP SPEL</button>
+    </div>
+  </div>
+
+  <!-- Eliminatie-burst: dramatic overlay wanneer een speler eruit ligt.
+       Full-screen, SVG crack-pattern, giga rode "UIT!" tekst. Auto-fades
+       na ~3s, daarna zie je het normale pass-screen eronder. -->
+  <div id="eliminationBurst" hidden>
+    <svg class="elim-crack" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <!-- Crack-lijnen vanaf het midden naar de randen — onregelmatig,
+           verschillende dikte, splinters tussendoor voor 'glass shatter' look -->
+      <g stroke="#fff8c0" stroke-linecap="round" fill="none" stroke-opacity="0.9">
+        <path d="M50,50 L8,2"   stroke-width="0.7" />
+        <path d="M50,50 L24,8"  stroke-width="0.5" />
+        <path d="M50,50 L48,0"  stroke-width="0.55" />
+        <path d="M50,50 L74,4"  stroke-width="0.6" />
+        <path d="M50,50 L98,12" stroke-width="0.7" />
+        <path d="M50,50 L100,40" stroke-width="0.5" />
+        <path d="M50,50 L96,68" stroke-width="0.6" />
+        <path d="M50,50 L86,100" stroke-width="0.7" />
+        <path d="M50,50 L56,100" stroke-width="0.5" />
+        <path d="M50,50 L30,100" stroke-width="0.6" />
+        <path d="M50,50 L0,90"  stroke-width="0.55" />
+        <path d="M50,50 L2,60"  stroke-width="0.5" />
+        <path d="M50,50 L0,30"  stroke-width="0.7" />
+      </g>
+      <!-- Korte splinters (dunner, ergens halverwege de hoofdlijnen aftakken) -->
+      <g stroke="#ffe091" stroke-linecap="round" fill="none" stroke-opacity="0.65">
+        <path d="M30,30 L18,38" stroke-width="0.3" />
+        <path d="M70,30 L82,18" stroke-width="0.3" />
+        <path d="M72,72 L88,82" stroke-width="0.3" />
+        <path d="M28,72 L14,90" stroke-width="0.3" />
+        <path d="M40,15 L36,30" stroke-width="0.25" />
+        <path d="M60,85 L64,70" stroke-width="0.25" />
+        <path d="M15,55 L30,52" stroke-width="0.25" />
+        <path d="M85,45 L70,48" stroke-width="0.25" />
+      </g>
+    </svg>
+    <div class="elim-text">
+      <div class="elim-big">UIT!</div>
+      <div class="elim-name" id="elimBurstName">—</div>
+      <div class="elim-sub" id="elimBurstSub">Het spel is voorbij voor jou</div>
     </div>
   </div>
 
@@ -3073,6 +3361,10 @@ IMG.bgHills.onload = markReady;     IMG.bgHills.src     = 'bg-hills.png';
 IMG.ship  = new Image(); IMG.ship.onload  = markReady; IMG.ship.src  = 'schip.png';   // bow-left, approach-view
 IMG.ship2 = new Image(); IMG.ship2.onload = markReady; IMG.ship2.src = 'schip2.png';  // bow-right, recede-view (from us afvarend)
 IMG.oever = new Image(); IMG.oever.onload = markReady; IMG.oever.src = 'oever.png';   // verre oever op horizon, tussen hills en water
+// Stille hint op de eindstand: het figuurtje dat je in STATE.OVER ziet
+// staan = de eindbaas-Jarno (rode jas + scepter). Easter-egg voor scherpe
+// ogen — pas wanneer je er expliciet op let zie je dat het de boss is.
+IMG.spriteOver = new Image(); IMG.spriteOver.onload = markReady; IMG.spriteOver.src = 'sprite-name-jarno-boss.png';
 // Tornado-frames — 3 stuks, alternerend gerenderd voor "verspringend" effect
 IMG.tornado1 = new Image(); IMG.tornado1.onload = markReady; IMG.tornado1.src = 'Tornado1.png';
 IMG.tornado2 = new Image(); IMG.tornado2.onload = markReady; IMG.tornado2.src = 'Tornado2.png';
@@ -3155,6 +3447,8 @@ const DIFFICULTY_PROFILES = {
     zoneFloor:     0.20,
     sweepStreakMul: 0.93,
     sweepFloor:    380,
+    // Token-tempo: Makkie = baseline (hartjes-threshold 3)
+    tokensPerStreak: 3,
   },
   doenlijk: {
     name: 'Doenlijk',
@@ -3164,6 +3458,8 @@ const DIFFICULTY_PROFILES = {
     zoneFloor:     0.14,
     sweepStreakMul: 0.90,
     sweepFloor:    310,
+    // Doenlijk = lastiger om tokens te krijgen, ~33% trager
+    tokensPerStreak: 4,
   },
   pittig: {
     name: 'Pittig',
@@ -3173,6 +3469,8 @@ const DIFFICULTY_PROFILES = {
     zoneFloor:     0.10,
     sweepStreakMul: 0.85,
     sweepFloor:    250,
+    // Pittig = half-zo-snel token-opbouw als Makkie (threshold 6 ipv 3)
+    tokensPerStreak: 6,
   },
 };
 /* ============================================================================
@@ -3746,6 +4044,7 @@ let lastFailShots = 0;      // # shots dat de laatst-gefailde speler moet drinke
                             // — gelezen door showPassScreen om de shot-banger
                             //   in het fail-menu te starten
 let celebration = null;     // { winner, startTime, duration } — actieve celebration-state
+let glamourEndgame = false; // wipeout-trigger: endGame met extra confetti+glitter
                             // wordt door drawCelebration() gelezen en draait 5s
 let recentClearStreak = {}; // playerIdx -> consecutive clears
 let timeScale = 1;          // slow-mo factor
@@ -3772,9 +4071,15 @@ let shakeMag = 0;
  *   • Perfect = 4 hartjes (was 2) + 1 instant token
  *   • 3 hartjes = 1 streak-token (overschot blijft staan)
  * Netto: 1 perfect levert 2 tokens op + 1 hartje, 2 clears = 1 token, 3 clears = 2 tokens. */
-const TOKENS_PER_STREAK = 3;
-const HEARTS_PER_CLEAR  = 2;            // normale clear-bonus
-const PERFECT_HEARTS    = 4;            // perfect = extra hartjes-boost
+const TOKENS_PER_STREAK_DEFAULT = 3;     // fallback voor oude profiles
+const HEARTS_PER_CLEAR  = 2;             // normale clear-bonus
+const PERFECT_HEARTS    = 4;             // perfect = extra hartjes-boost
+/* Dynamische token-streak threshold: scoort per huidige difficulty-profile.
+ * Maakt token-opbouw bij Pittig half-zo-snel als bij Makkie (6 ipv 3). */
+function tokensPerStreak() {
+  const prof = (typeof getDifficultyProfile === 'function') ? getDifficultyProfile() : null;
+  return (prof && prof.tokensPerStreak) || TOKENS_PER_STREAK_DEFAULT;
+}
 /* Per power-up:
  *   cost   = aantal tokens dat de gebruiker betaalt
  *   stacks = true → meerdere instances stapelen het effect (multiplicatief
@@ -4010,8 +4315,8 @@ function awardHearts(p, isPerfect) {
   }
   const inc = isPerfect ? PERFECT_HEARTS : HEARTS_PER_CLEAR;
   p.hearts = (p.hearts || 0) + inc;
-  while (p.hearts >= TOKENS_PER_STREAK) {
-    p.hearts -= TOKENS_PER_STREAK;
+  while (p.hearts >= tokensPerStreak()) {
+    p.hearts -= tokensPerStreak();
     p.tokenStreak = (p.tokenStreak || 0) + 1;
     const reward = p.tokenStreak;
     addPlayerTokens(p, reward);
@@ -4262,6 +4567,48 @@ function finalizePowerUp(puId, targetIdx) {
       });
       if (typeof totalShotsEl !== 'undefined' && totalShotsEl) totalShotsEl.textContent = totalShots;
       showLaunchToast(`💀 ${pu.name.toUpperCase()} — ${targets.length}× SHOTJE!`, '#ff8a8a', 2700);
+      // ELIMINATIE-BURST: als de Vloek mensen heeft uitgeschakeld → tonen we
+      // direct na de celebration de full-screen "UIT!"-overlay met namen.
+      // In teams aggregeren we per team; in solo lives groeperen we namen.
+      if (willEliminate && willEliminate.length > 0 && typeof showEliminationBurst === 'function') {
+        const sameTeam = (currentMode === 'teams') &&
+          willEliminate[0].team &&
+          willEliminate.every(p => p.team === willEliminate[0].team);
+        let mainText, subText;
+        if (sameTeam) {
+          mainText = `TEAM ${TEAM_NAME[willEliminate[0].team]} LIGT ERUIT`;
+          subText  = `Het hele team uitgeschakeld door de Friese Vloek`;
+        } else {
+          const names = willEliminate.map(p => p.name).join(', ');
+          const isMulti = willEliminate.length > 1;
+          mainText = isMulti ? `${names} LIGGEN ERUIT` : `${names} LIGT ERUIT`;
+          subText  = isMulti
+            ? `${willEliminate.length} spelers tegelijk uitgeschakeld`
+            : `Geëlimineerd door de Friese Vloek`;
+        }
+        // Kleine vertraging zodat de vloek-toast eerst rustig leesbaar is
+        setTimeout(() => showEliminationBurst(mainText, subText), 350);
+      }
+      // WIPEOUT-CHECK: als alleen de caster (of caster's team) nog leeft na
+      // deze Vloek, is een laatste sprong overbodig. Sla 'm over en triggert
+      // direct endGame() met glamour-flag voor extra confetti/glitter feest.
+      let wipeout = false;
+      if (currentMode === 'levens') {
+        const alive = players.filter(pl => !pl.eliminated);
+        if (alive.length <= 1) wipeout = true;
+      } else if (currentMode === 'teams') {
+        const aliveA = players.filter(pl => !pl.eliminated && pl.team === 'A').length;
+        const aliveB = players.filter(pl => !pl.eliminated && pl.team === 'B').length;
+        if (aliveA === 0 || aliveB === 0) wipeout = true;
+      }
+      if (wipeout) {
+        // Sla de finale sprong over: na de elim-burst gaat-ie direct
+        // endGame in met glamour-modus.
+        setTimeout(() => {
+          glamourEndgame = true;
+          endGame();
+        }, willEliminate && willEliminate.length > 0 ? 3400 : 800);
+      }
     }, willEliminate);
     renderActiveBuffsStrip();
     refreshTokenUI();
@@ -5267,11 +5614,12 @@ function refreshLivesIndicator() {
   // zouden er icoontjes wegvallen uit beeld.
   const initialMax = getMaxLives(p);
   const maxLives = Math.max(initialMax, lives);
-  // Dynamische icon-grootte zodat ook bij 10-15 levens alles netjes past in
-  // de container. Schaal lineair van 56px (4 icons of minder) tot 28px (15+).
-  const drawCount = Math.min(maxLives, 15);
-  const iconSize = Math.max(28, 56 - Math.max(0, drawCount - 4) * 2.5);
-  const gapSize = Math.max(2, Math.round(6 - Math.max(0, drawCount - 4) * 0.3));
+  // Max 12 icons in totaal (2 rijen × 6). Daarboven cap. Vast icon-formaat
+  // (32px) — de balk past nu strak in de actionBar en wrap'd naar 2e rij
+  // zodra >6 icons. Subtieler dan de eerdere overflow-versie.
+  const drawCount = Math.min(maxLives, 12);
+  const iconSize = 32;
+  const gapSize = 4;
   let icons = '';
   for (let i = 0; i < drawCount; i++) {
     const cls = i < lives ? 'life-icon' : 'life-icon spent';
@@ -5707,6 +6055,241 @@ function stopShotIconVideo() {
   });
 }
 
+/* Eliminatie-burst: dramatic full-screen overlay met crack-pattern +
+ * gigant UIT! tekst. Auto-fades na ~3s. Triggered vanuit showPassScreen
+ * zodra een speler eruit ligt. Kan ook met name/sub overgegeven worden
+ * voor andere eliminatie-momenten (Vloek, Wedden Maar, etc). */
+let _elimBurstTimer = null;
+function showEliminationBurst(nameText, subText) {
+  const ov = document.getElementById('eliminationBurst');
+  const nm = document.getElementById('elimBurstName');
+  const sb = document.getElementById('elimBurstSub');
+  if (!ov || !nm || !sb) return;
+  nm.textContent = nameText || '—';
+  sb.textContent = subText || '';
+  // Force re-trigger van de CSS-animaties: kort hidden, dan weer tonen
+  ov.hidden = true;
+  // Force reflow zodat de animatie opnieuw afspeelt
+  void ov.offsetHeight;
+  ov.hidden = false;
+  // Vibratie + shake voor extra impact (vibrate werkt op de meeste mobiele
+  // browsers; faalt silent op desktop)
+  if (typeof vibrate === 'function') vibrate([120, 60, 180, 60, 120]);
+  if (typeof triggerShake === 'function') triggerShake(450, 18);
+  if (typeof sndSplash === 'function') sndSplash();   // dramatic thud
+  // Auto-dismiss na 3s
+  if (_elimBurstTimer) { clearTimeout(_elimBurstTimer); _elimBurstTimer = null; }
+  _elimBurstTimer = setTimeout(() => {
+    ov.hidden = true;
+    _elimBurstTimer = null;
+  }, 3000);
+  // Tikken op de overlay sluit 'm ook meteen (gebruiker wil door)
+  const dismissOnTap = () => {
+    ov.hidden = true;
+    if (_elimBurstTimer) { clearTimeout(_elimBurstTimer); _elimBurstTimer = null; }
+    ov.removeEventListener('click', dismissOnTap);
+  };
+  ov.addEventListener('click', dismissOnTap);
+}
+
+/* ============================================================================
+ *  SPL PROMO-CLIP — easter-egg op bedankt-scherm.
+ *  3 snelle tikken (binnen 1.5s) op het "DANK JE WEL"-scherm openen een
+ *  full-screen video van videoclip-spl-lite.mp4. BgMusic pauseert tijdens
+ *  playback en hervat bij dismiss/end zodat de clip-audio niet door de
+ *  hetzelfde soundtrack-loop overlapt wordt.
+ * ============================================================================ */
+/* ============================================================================
+ *  TUSSENSTAND — in-game score-overzicht. 📊-knop in cornerControls opent
+ *  een overlay met de huidige stand: per speler shots/clears/lives, met
+ *  team-totalen in teams-mode. Eliminated spelers grijs + doorgestreept.
+ * ============================================================================ */
+(function setupStandingsOverlay() {
+  const btn      = document.getElementById('standingsBtn');
+  const overlay  = document.getElementById('standingsOverlay');
+  const listEl   = document.getElementById('standingsList');
+  const subEl    = document.getElementById('standingsSub');
+  const closeBtn = document.getElementById('standingsCloseBtn');
+  if (!btn || !overlay || !listEl) return;
+
+  function buildStandings() {
+    const inElim = (typeof isEliminationMode === 'function') && isEliminationMode();
+    const inTeams = (currentMode === 'teams');
+    // Subtitle: ronde + mode
+    const modeLabel = inTeams ? 'TEAMS' : (currentMode === 'levens' ? 'LEVENS' : 'KLASSIEK');
+    subEl.textContent = `Ronde ${round}  ·  ${modeLabel}`;
+
+    // Helper voor één rij
+    function rowFor(p, isCurrent) {
+      const livesCol = inElim
+        ? `<td class="lives">${inTeams ? '' : (Math.max(0, p.lives || 0) + ' 🥃')}</td>`
+        : '';
+      const classes = [];
+      if (p.eliminated) classes.push('eliminated');
+      if (isCurrent && !p.eliminated) classes.push('current');
+      return `<tr class="${classes.join(' ')}">
+        <td>${escapeHtml(p.name)}</td>
+        <td class="cleared">${p.cleared}</td>
+        <td class="shots">${p.shots} 🥃</td>
+        ${livesCol}
+      </tr>`;
+    }
+
+    const headerLives = inElim && !inTeams ? '<th style="text-align:right">LEVENS</th>' : '';
+    let html = `<table class="standings-table">
+      <tr>
+        <th>SPELER</th>
+        <th style="text-align:right">GEHAALD</th>
+        <th style="text-align:right">SHOTS</th>
+        ${headerLives}
+      </tr>`;
+
+    if (inTeams) {
+      // Per team renderen met team-totals + team-pool levens
+      ['A', 'B'].forEach(team => {
+        const teamPlayers = players.filter(p => p.team === team);
+        if (teamPlayers.length === 0) return;
+        const totalShots = teamPlayers.reduce((s, p) => s + p.shots, 0);
+        const totalClears = teamPlayers.reduce((s, p) => s + p.cleared, 0);
+        const pool = teamLives[team] || 0;
+        html += `<tr class="team-header">
+          <td colspan="3" style="color:${TEAM_COLOR[team]}">
+            TEAM ${TEAM_NAME[team]}  ·  ${pool} 🥃 pool  ·  ${teamTokens[team] || 0} ⭐
+          </td>
+        </tr>`;
+        teamPlayers.forEach((p, i) => {
+          html += rowFor(p, p === players[currentIdx]);
+        });
+        html += `<tr class="team-totals">
+          <td><strong>Totaal</strong></td>
+          <td class="cleared"><strong>${totalClears}</strong></td>
+          <td class="shots"><strong>${totalShots} 🥃</strong></td>
+        </tr>`;
+      });
+    } else {
+      // Solo: sorteer op shots oplopend (= leader bovenaan), tiebreak op clears
+      const sorted = players.slice().sort((a, b) =>
+        a.shots - b.shots || b.cleared - a.cleared
+      );
+      sorted.forEach(p => {
+        html += rowFor(p, p === players[currentIdx]);
+      });
+    }
+    html += '</table>';
+    listEl.innerHTML = html;
+  }
+
+  function openStandings() {
+    if (!players || players.length === 0) return;   // niet voor de start
+    buildStandings();
+    overlay.hidden = false;
+  }
+  function closeStandings() { overlay.hidden = true; }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (overlay.hidden) openStandings();
+    else closeStandings();
+  });
+  closeBtn.addEventListener('click', closeStandings);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeStandings(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.hidden) closeStandings();
+  });
+})();
+
+(function setupSplClipEasterEgg() {
+  const intro    = document.getElementById('scorecardIntro');
+  const overlay  = document.getElementById('splClipOverlay');
+  const video    = document.getElementById('splClipVideo');
+  const dismiss  = document.getElementById('splClipDismissBtn');
+  if (!intro || !overlay || !video || !dismiss) return;
+
+  // Tap-counter: 3 hits binnen TAP_WINDOW_MS opent de clip
+  let taps = [];
+  const TAP_WINDOW_MS = 1500;
+  const REQUIRED = 3;
+
+  function openClip() {
+    // bgMusic pauzeren zodat de clip-audio niet over de loop heen ploft
+    if (typeof bgMusic !== 'undefined' && bgMusic) {
+      try { bgMusic.pause(); } catch(e) {}
+    }
+    overlay.hidden = false;
+    // Defensieve play-flow: src pas NU dynamisch zetten + load() zodat de
+    // browser elke keer fresh start. Voorkomt "stale buffer" issues waarbij
+    // de video na 1 sec stopt omdat de eerste afspeel-attempt blijft hangen.
+    video.muted = false;
+    video.volume = 1.0;
+    video.src = 'videoclip-spl-lite.mp4';
+    try { video.load(); } catch(e) {}
+    // Error-logging (zichtbaar in DevTools console mocht de clip alsnog
+    // problemen geven — easier debuggen)
+    const errHandler = () => {
+      console.warn('SPL clip error:', video.error && video.error.code, video.error && video.error.message);
+    };
+    video.addEventListener('error', errHandler, { once: true });
+    // Wacht tot er genoeg gebuffered is voor doorlopende playback,
+    // dan pas play() — anders kan de browser na het eerste frame freezen.
+    const tryStart = () => {
+      const tryPlay = video.play();
+      if (tryPlay && typeof tryPlay.catch === 'function') {
+        tryPlay.catch(() => {
+          // Autoplay-with-sound geblockt → fallback met muted, dan probeer
+          // unmute na een tik. Werkt op Safari/iOS waar de eerste play altijd
+          // muted moet zijn ondanks user-gesture context.
+          video.muted = true;
+          video.play().catch(() => {});
+          const unmuteOnce = () => {
+            video.muted = false;
+            video.removeEventListener('click', unmuteOnce);
+          };
+          video.addEventListener('click', unmuteOnce);
+        });
+      }
+    };
+    if (video.readyState >= 3) {
+      // HAVE_FUTURE_DATA al beschikbaar → direct play
+      tryStart();
+    } else {
+      // Wacht op canplay (HAVE_FUTURE_DATA = 3) — eerste frame klaar
+      video.addEventListener('canplay', tryStart, { once: true });
+      // Safety: na 2s alsnog proberen (mocht canplay niet vuren door cached
+      // resource)
+      setTimeout(() => {
+        if (video.paused) tryStart();
+      }, 2000);
+    }
+  }
+  function closeClip() {
+    overlay.hidden = true;
+    try { video.pause(); } catch(e) {}
+    try { video.currentTime = 0; } catch(e) {}
+    // bgMusic hervatten ALS-IE eerder draaide (musicOn-flag controle)
+    if (typeof bgMusic !== 'undefined' && bgMusic && typeof musicOn !== 'undefined' && musicOn) {
+      try { bgMusic.play().catch(() => {}); } catch(e) {}
+    }
+    taps = [];
+  }
+  intro.addEventListener('click', (e) => {
+    // Negeer clicks op interactieve elementen binnen het intro (geen, maar safe)
+    const now = performance.now();
+    taps = taps.filter(t => now - t < TAP_WINDOW_MS);
+    taps.push(now);
+    if (taps.length >= REQUIRED) {
+      taps = [];
+      openClip();
+    }
+  });
+  dismiss.addEventListener('click', (e) => { e.stopPropagation(); closeClip(); });
+  // Klik buiten de video (op de zwart-bg) sluit ook
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeClip();
+  });
+  // Auto-close zodra de video eindigt (geen loop op deze clip)
+  video.addEventListener('ended', closeClip);
+})();
+
 function showPassScreen(success) {
   state = STATE.PASS;
   stopShotIconVideo();   // Veiligheid: clean eventuele oude video van vorige pass
@@ -5777,6 +6360,19 @@ function showPassScreen(success) {
   }
   nextLine.innerHTML = `Geef door aan <span style="color:#ffe091">${escapeHtml(next.name)}</span> ▶`;
   passOv.classList.remove('hidden');
+
+  // ELIMINATIE-BURST: pas getriggerd wanneer een speler JUIST nu eruit ligt.
+  // Full-screen crack-overlay + giga "UIT!"-tekst over het pass-screen heen.
+  // Auto-fade na ~3s zodat de speler daarna gewoon op DOORGEVEN kan tikken.
+  if (!success && p.eliminated) {
+    const outLabel = (currentMode === 'teams' && p.team)
+      ? `TEAM ${TEAM_NAME[p.team]} LIGT ERUIT`
+      : `${p.name} ligt eruit`;
+    const subLabel = (currentMode === 'teams' && p.team)
+      ? `Het hele team is geëlimineerd`
+      : `Het spel is voorbij voor jou`;
+    showEliminationBurst(outLabel, subLabel);
+  }
 
   // SHOT-BANGER: pas hier (in het fail-menu) starten met pulseren, niet over
   // de game-scene. Stopt bij klik op passBtn / quitBtn (advanceToNextPlayer
@@ -5922,12 +6518,20 @@ function endGame() {
     teamLosers  = sorted.filter(p => !tiedPlayers.includes(p));
   }
 
+  // GLAMOUR-MODE: wipeout-victory krijgt langere celebration (8s i.p.v. 5s)
+  // + continue winner-confetti-bursts + dubbele cheer-volume. Voelt als een
+  // echte podium-momentje. Triggert via global flag die we direct resetten.
+  const isGlamour = !!glamourEndgame;
+  glamourEndgame = false;
+  const celebDuration = isGlamour ? 8000 : 5000;
+
   state = STATE.CELEBRATION;
   celebration = {
     winner, losers,
     teamWinners, teamLosers, winningTeam,
     isTie, teamTie, tiedPlayers,
-    startTime: performance.now(), duration: 5000,
+    isGlamour,
+    startTime: performance.now(), duration: celebDuration,
   };
   // Voor confetti-spawn gebruiken we de team-losers in teams-mode zodat de
   // huilende-poppetjes ook echt het verliezende team zijn.
@@ -5935,14 +6539,30 @@ function endGame() {
   // Eerste burst huilende losers + gouden confetti
   spawnLoserConfetti(confettiLosers);
   spawnWinnerShower();
+  if (isGlamour) {
+    // Direct twee extra winner-bursts on-top — dramatic openingsalvo
+    setTimeout(() => spawnWinnerShower(), 250);
+    setTimeout(() => spawnWinnerShower(), 600);
+  }
   if (typeof sndCheer === 'function') sndCheer();
+  if (isGlamour && typeof sndCheer === 'function') {
+    // Bij wipeout een tweede cheer-laag voor extra impact
+    setTimeout(() => sndCheer(), 400);
+    setTimeout(() => sndCheer(), 1200);
+  }
 
   // Blijf gedurende de celebration steeds nieuwe huilende-poppetjes spawnen
   // (~elke 200ms) zodat het effect doorloopt over de hele 5s.
   const dropInterval = setInterval(() => spawnLoserConfetti(confettiLosers), 220);
+  // GLAMOUR: ook continu winner-shower-bursts (gouden confetti uit de hemel)
+  // zodat het de hele duur door blijft regenen — extra glitter & glamour.
+  const glamourInterval = isGlamour
+    ? setInterval(() => spawnWinnerShower(), 380)
+    : null;
 
   setTimeout(() => {
     clearInterval(dropInterval);
+    if (glamourInterval) clearInterval(glamourInterval);
     celebration = null;
     // === 5s scorecard-intro: bedank-foto in gouden lijst ===
     const intro = document.getElementById('scorecardIntro');
@@ -5999,10 +6619,15 @@ function endGame() {
       }
       finalBoard.innerHTML = html;
       overOv.classList.remove('hidden');
-      // Extra confetti-vlaag wanneer het scoreboard verschijnt
+      // Extra confetti-vlaag wanneer het scoreboard verschijnt — bij glamour
+      // 3 extra bursts ipv 1 voor extra wow-factor.
       spawnWinnerShower();
+      if (isGlamour) {
+        setTimeout(() => spawnWinnerShower(), 300);
+        setTimeout(() => spawnWinnerShower(), 700);
+      }
     }, 5000);
-  }, 5000);
+  }, celebDuration);
 }
 /* ----- Scorecard delen als PNG-afbeelding -----
  * Strategie:
@@ -7398,6 +8023,12 @@ function drawGround() {
    * wanneer hij omkeert. ============================================== */
   drawDistantShip();
 
+  /* ---------- Step 2c: TORNADO (achter de oevers) ----------
+   * Funnel + dust-spiraal worden HIER getekend (na water + schip, vóór de
+   * near-banks) zodat de cliff-randen van bg-left/bg-right de tornado-
+   * basis afdekken. Voelt realistischer: hij valt achter het landschap. */
+  drawTornado();
+
   /* ---------- Step 3: BANK PNGs (links + rechts) ----------
    * Elke bank bevat gras-top + cliff + eigen water-overgang. We schalen zo
    * dat de cliff-water-overgang in de PNG exact landt op DITCH_START / ditchEnd
@@ -7501,6 +8132,13 @@ function drawCharacterAt(cx, cy, rot, wet, reflectionMode=false) {
       else if (state === STATE.JUMPING)           frameIdx = FRAME_JUMP;
       else                                        frameIdx = FRAME_READY;
     }
+  } else if (state === STATE.OVER && IMG.spriteOver && IMG.spriteOver.complete && IMG.spriteOver.naturalWidth) {
+    // EASTER-EGG: bij de eindstand verschijnt de eindbaas-Jarno als stille
+    // hint, in plaats van het generieke fallback-poppetje. 4-frame sprite-
+    // sheet, FRAME_READY pose.
+    sprite = IMG.spriteOver;
+    frames = 4;
+    frameIdx = FRAME_READY;
   } else if (wet) sprite = IMG.spriteWet;
   else if (state === STATE.LANDED && success) sprite = IMG.spriteCheer;
   else sprite = IMG.spriteIdle;
@@ -7964,6 +8602,54 @@ function drawCelebration() {
  * - Regen: ~120 schuine druppels die continu hervallen
  * - Bliksem: zelfde druppels (regen-achtig) + random witte flitsen
  * - Tornado: spiraal-stof + zwaardere atmosfeer-overlay */
+/* ============================================================================
+ *  DRAW TORNADO — funnel + spiraal-stof. Wordt nu apart aangeroepen vanuit
+ *  drawGround() VÓÓR de near-banks worden getekend, zodat de tornado ACHTER
+ *  de oevers valt (= tussen achtergrond/water en bank-cliffs). Voorheen werd
+ *  dit in drawWeather() gedaan wat ná de banks komt — daardoor stond hij
+ *  bovenop alles.
+ * ============================================================================ */
+function drawTornado() {
+  if (currentWeather !== 'tornado') return;
+  const now = performance.now();
+  const frames = [IMG.tornado1, IMG.tornado2, IMG.tornado3].filter(im => im && im.complete && im.naturalWidth);
+  if (frames.length > 0) {
+    const tFrame = Math.floor(now / 120) % frames.length;
+    const img = frames[tFrame];
+    const targetH = GROUND_Y * 0.95;
+    const aspect = img.naturalWidth / img.naturalHeight;
+    const targetW = targetH * aspect;
+    const jitterX = Math.sin(now * 0.013) * 8 + (Math.random() - 0.5) * 4;
+    const jitterY = Math.sin(now * 0.008) * 4;
+    const DRIFT_PERIOD_MS = 18000;
+    const t01 = (now % DRIFT_PERIOD_MS) / DRIFT_PERIOD_MS;
+    const cxT = W * (-0.15 + 1.30 * t01) + jitterX;
+    const drawX = cxT - targetW / 2;
+    const TORNADO_BASE_OFFSET = 133 * dpr;
+    const drawY = GROUND_Y - targetH + TORNADO_BASE_OFFSET + jitterY;
+    ctx.save();
+    ctx.globalAlpha = 0.25 + (Math.sin(now * 0.005) * 0.5 + 0.5) * 0.12;
+    ctx.drawImage(img, drawX, drawY, targetW, targetH);
+    ctx.restore();
+  }
+  // Spiraal-stof rond de tornado-basis schuift mee met de drift (lineaire
+  // L→R via dezelfde formule als de funnel)
+  ctx.fillStyle = 'rgba(220,210,190,0.40)';
+  const DRIFT_MS = 18000;
+  const now2 = performance.now();
+  const tDrift = (now2 % DRIFT_MS) / DRIFT_MS;
+  const cxC = W * (-0.15 + 1.30 * tDrift);
+  const cyC = GROUND_Y * 0.85;
+  for (const p of weatherParticles) {
+    p.ang += p.speed;
+    const px = cxC + Math.cos(p.ang) * p.radius;
+    const py = cyC + Math.sin(p.ang) * p.radius * 0.4;
+    ctx.beginPath();
+    ctx.arc(px, py, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 function drawWeather() {
   if (currentWeather === 'zonnig') return;
   const now = performance.now();
@@ -8042,53 +8728,9 @@ function drawWeather() {
   }
 
   if (currentWeather === 'tornado') {
-    // Tornado PNG-frame — wisselt elke ~120ms tussen 3 sprites met lichte
-    // positie-jitter + roterend frame-keuze voor een "verspringend / dansend"
-    // realistisch effect. Semi-transparant zodat de scene erdoorheen blijft
-    // schemeren. Anchor-bottom op GROUND_Y zodat de basis op de horizon staat.
-    const frames = [IMG.tornado1, IMG.tornado2, IMG.tornado3].filter(im => im && im.complete && im.naturalWidth);
-    if (frames.length > 0) {
-      const tFrame = Math.floor(now / 120) % frames.length;
-      const img = frames[tFrame];
-      // Tornado-hoogte: ~85% van scene-hoogte (boven GROUND_Y)
-      const targetH = GROUND_Y * 0.95;
-      const aspect = img.naturalWidth / img.naturalHeight;
-      const targetW = targetH * aspect;
-      // Jitter: kleine x/y schok elke frame zodat de tornado lijkt te schokken
-      const jitterX = Math.sin(now * 0.013) * 8 + (Math.random() - 0.5) * 4;
-      const jitterY = Math.sin(now * 0.008) * 4;
-      // Tornado drift van LINKS naar RECHTS over het beeld. Lineaire cycle:
-      // start ~-15% van canvas, eindigt op ~115%, dan herhaalt. Periode 18s.
-      // Op jitterX zit een kleine schok-beweging on top voor extra leven.
-      const DRIFT_PERIOD_MS = 18000;
-      const t01 = (now % DRIFT_PERIOD_MS) / DRIFT_PERIOD_MS;
-      const cxT = W * (-0.15 + 1.30 * t01) + jitterX;
-      const drawX = cxT - targetW / 2;
-      // Bottom-anchor: onderkant 3 cm ONDER de horizon (gebruiker-feedback —
-      // tornado stond te hoog in beeld). 133*dpr ≈ 35 mm bij 96 dpi.
-      const TORNADO_BASE_OFFSET = 133 * dpr;
-      const drawY = GROUND_Y - targetH + TORNADO_BASE_OFFSET + jitterY;
-      ctx.save();
-      // 70% transparant → opacity rond 0.30 met lichte sin-modulatie voor leven
-      ctx.globalAlpha = 0.25 + (Math.sin(now * 0.005) * 0.5 + 0.5) * 0.12;
-      ctx.drawImage(img, drawX, drawY, targetW, targetH);
-      ctx.restore();
-    }
-    // Spiraal-stof rond de tornado-basis schuift mee met de drift (lineaire
-    // L→R via dezelfde formule als de funnel)
-    ctx.fillStyle = 'rgba(220,210,190,0.40)';
-    const DRIFT_MS = 18000;
-    const tDrift = (now % DRIFT_MS) / DRIFT_MS;
-    const cxC = W * (-0.15 + 1.30 * tDrift);
-    const cyC = GROUND_Y * 0.85;
-    for (const p of weatherParticles) {
-      p.ang += p.speed;
-      const px = cxC + Math.cos(p.ang) * p.radius;
-      const py = cyC + Math.sin(p.ang) * p.radius * 0.4;
-      ctx.beginPath();
-      ctx.arc(px, py, p.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // Tornado-rendering is verplaatst naar drawTornado(), aangeroepen vanuit
+    // drawGround() VÓÓR de banks zodat de funnel achter de oevers valt
+    // (gebruiker-wens). Hier alleen nog de particle-update / spawn.
   } else {
     // Regen-druppels (en bliksem-base)
     ctx.strokeStyle = 'rgba(180,210,240,0.65)';
