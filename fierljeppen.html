@@ -2497,26 +2497,21 @@ resize();
     if (e.target === overlay) overlay.hidden = true;
   });
 
-  /* Verstopt boss-knopje (rechtsboven in card) — verwisselt Jarno's sprite-
-   * sheet voor de geheime EINDBAAS-versie. Geen tekst, alleen visuele state
-   * (gouden glow + pulse wanneer AAN). State in localStorage. */
+  /* DEPRECATED v126: de oude boss-toggle wisselde Jarno's sprite-sheet live,
+   * wat ervoor zorgde dat de FAIL-frame van normal-Jarno alsnog de eindbaas
+   * toonde. Vanaf v126 is "Jarno (Eindbaas)" een eigen builtin-character in
+   * het dropdown, dus de toggle is overbodig. We laten de knop bestaan maar
+   * neutralizeren z'n effect: één klik geeft een korte uitleg-toast i.p.v.
+   * de sprite te verwisselen. */
   const bossBtn = document.getElementById('bossToggleBtn');
-  function refreshBossBtn() {
-    if (!bossBtn) return;
-    const on = lsGet('spl_jarno_boss', '0') === '1';
-    bossBtn.classList.toggle('boss-on', on);
-  }
   if (bossBtn) {
-    refreshBossBtn();
+    // Oude flag opruimen zodat we niemand meer in de boss-modus laten hangen.
+    try { lsSet('spl_jarno_boss', '0'); } catch(e) {}
+    bossBtn.classList.remove('boss-on');
     bossBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const on = lsGet('spl_jarno_boss', '0') === '1';
-      lsSet('spl_jarno_boss', on ? '0' : '1');
-      refreshBossBtn();
-      // Reload Jarno's sprite-sheet live zodat de toggle direct effect heeft
-      const entry = (typeof CharacterRegistry !== 'undefined') ? CharacterRegistry.get('jarno') : null;
-      if (entry && entry.img) {
-        entry.img.src = (!on) ? 'sprite-name-jarno-boss.png' : 'sprite-name-jarno.png';
+      if (typeof showAchievement === 'function') {
+        showAchievement('👑 Kies "Jarno (Eindbaas)" in het dropdown');
       }
     });
   }
@@ -2800,14 +2795,17 @@ const CharacterRegistry = (() => {
   return { addBuiltin, addUpload, remove, get, list, onChange };
 })();
 
-const BUILTIN_CHARACTERS = ['niels','sven','jarno','daan','sanderl','sanderk','jochem','jesper','hidde','stefan','frank','koen'];
+const BUILTIN_CHARACTERS = ['niels','sven','jarno','jarnoboss','daan','sanderl','sanderk','jochem','jesper','hidde','stefan','frank','koen'];
 for (const n of BUILTIN_CHARACTERS) {
-  // Jarno heeft een geheime EINDBAAS-versie: rode jas + scepter, te activeren
-  // via knop in de Gamecreator easter-egg. localStorage 'spl_jarno_boss'.
-  let src = `sprite-name-${n}.png`;
-  if (n === 'jarno' && (typeof lsGet === 'function') && lsGet('spl_jarno_boss', '0') === '1') {
-    src = 'sprite-name-jarno-boss.png';
-  }
+  // Eindbaas-versie van Jarno (rode jas + scepter) is nu een ZELFSTANDIG
+  // character ('jarnoboss') i.p.v. een toggle-overschrijving van 'jarno'.
+  // Voorheen werd de hele sprite-sheet (incl. FAIL-frame) live gewisseld
+  // o.b.v. localStorage 'spl_jarno_boss', wat de bug veroorzaakte dat normal-
+  // Jarno's pass-screen FAIL alsnog de eindbaas toonde. Nu zijn het twee
+  // verschillende karakters die je expliciet kiest in het dropdown.
+  const src = (n === 'jarnoboss')
+    ? 'sprite-name-jarno-boss.png'
+    : `sprite-name-${n}.png`;
   CharacterRegistry.addBuiltin(n, src);
 }
 // User uploads from a previous session override the builtins.
@@ -4113,18 +4111,19 @@ if (cachedNames.length >= MIN_PLAYERS) {
  * dropdowns AND as the actual `player.name` value at runtime — the registry
  * matches case-insensitively so 'SanderL' still resolves to sanderl.png. */
 const CHARACTER_DISPLAY = {
-  niels:   'Niels',
-  sven:    'Sven',
-  jarno:   'Jarno',
-  daan:    'Daan',
-  sanderl: 'SanderL',
-  sanderk: 'SanderK',
-  jochem:  'Jochem',
-  jesper:  'Jesper',
-  hidde:   'Hidde',
-  stefan:  'Stefan',
-  frank:   'Frank',
-  koen:    'Koen',
+  niels:     'Niels',
+  sven:      'Sven',
+  jarno:     'Jarno',
+  jarnoboss: 'Jarno (Eindbaas)',
+  daan:      'Daan',
+  sanderl:   'SanderL',
+  sanderk:   'SanderK',
+  jochem:    'Jochem',
+  jesper:    'Jesper',
+  hidde:     'Hidde',
+  stefan:    'Stefan',
+  frank:     'Frank',
+  koen:      'Koen',
 };
 function displayNameFor(key) {
   return CHARACTER_DISPLAY[(key || '').toLowerCase()] || (key ? key[0].toUpperCase() + key.slice(1) : '');
