@@ -1707,143 +1707,7 @@
     box-shadow: 0 18px 50px rgba(0,0,0,0.6);
     position: relative;
   }
-  /* Info-knop rechtsboven in PU-picker — opent uitleg-overlay */
-  #puPicker .pu-info-btn {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 1px solid rgba(246,215,122,0.45);
-    background: rgba(11,30,63,0.7);
-    color: #f6d77a;
-    font-size: 18px;
-    line-height: 1;
-    cursor: pointer;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 3;
-    transition: background 0.15s, border-color 0.15s, transform 0.15s;
-  }
-  #puPicker .pu-info-btn:hover {
-    background: rgba(246,215,122,0.18);
-    border-color: #f6d77a;
-    transform: scale(1.06);
-  }
-
-  /* Power-up info overlay (volledige uitleg-modal) */
-  #puInfo[hidden] { display: none !important; }
-  #puInfo {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.72);
-    z-index: 10000;
-    display: flex; align-items: center; justify-content: center;
-    padding: 16px;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    animation: fadeIn 0.2s ease-out;
-  }
-  #puInfo .pu-info-card {
-    background: #0b1e3f;
-    border: 2px solid #f6d77a;
-    border-radius: 18px;
-    padding: 20px 18px 14px;
-    max-width: 500px;
-    width: 100%;
-    max-height: 92vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    color: #f3eed7;
-    box-shadow: 0 18px 50px rgba(0,0,0,0.7);
-  }
-  #puInfo h2 {
-    color: #f6d77a;
-    font-size: 19px;
-    letter-spacing: 2px;
-    margin: 0 0 4px;
-    text-align: center;
-  }
-  #puInfo .pu-info-sub {
-    color: #d6cda3;
-    font-size: 12px;
-    text-align: center;
-    margin-bottom: 14px;
-    letter-spacing: 1.5px;
-  }
-  #puInfo .pu-info-list {
-    overflow-y: auto;
-    overflow-x: hidden;
-    flex: 1 1 auto;
-    min-height: 0;
-    padding-right: 4px;
-    -webkit-overflow-scrolling: touch;
-  }
-  #puInfo .pu-info-row {
-    display: grid;
-    grid-template-columns: 48px 1fr;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 10px 6px;
-    border-bottom: 1px solid rgba(246,215,122,0.15);
-  }
-  #puInfo .pu-info-row:last-child { border-bottom: none; }
-  #puInfo .pu-info-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 10px;
-    background-size: cover;
-    background-position: center;
-    background-color: rgba(11,30,63,0.6);
-    border: 1px solid rgba(246,215,122,0.4);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    line-height: 1;
-  }
-  #puInfo .pu-info-name {
-    color: #ffe091;
-    font-size: 14px;
-    font-weight: bold;
-    letter-spacing: 1px;
-  }
-  #puInfo .pu-info-cost {
-    color: #f6d77a;
-    font-size: 12px;
-    font-weight: normal;
-    margin-left: 6px;
-  }
-  #puInfo .pu-info-cost.top-tier { color: #ffe091; }
-  #puInfo .pu-info-desc {
-    color: #d6cda3;
-    font-size: 12.5px;
-    line-height: 1.45;
-    margin-top: 3px;
-  }
-  #puInfo .pu-info-tag {
-    display: inline-block;
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 4px;
-    margin-left: 6px;
-    letter-spacing: 1px;
-    vertical-align: middle;
-  }
-  #puInfo .pu-info-tag.def { background: rgba(135,232,154,0.25); color: #87e89a; }
-  #puInfo .pu-info-tag.off { background: rgba(255,138,138,0.25); color: #ff8a8a; }
-  #puInfo .pu-info-tag.teams { background: rgba(255,200,90,0.2); color: #ffe091; }
-  #puInfo .pu-info-footer {
-    flex-shrink: 0;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(246,215,122,0.25);
-    text-align: center;
-  }
+  /* Info-tab CSS (v135) verwijderd in v149 — picker zelf bevat nu alle uitleg. */
   #puPicker .pu-grid {
     overflow-y: auto;
     overflow-x: hidden;
@@ -1889,6 +1753,110 @@
   /* PU-slots: 3D-pop-out look — multi-layer shadow + top-highlight + tilt op
    * hover zodat de tegels echt 'uit het beeld' lijken te komen. Op active
    * zinkt-ie weer in voor tactiele feedback. */
+  /* PICKER LIST-MODE: scrollende verticale rijen (zoals info-tab) i.p.v.
+   * grid-tiles. Triggered door .list-mode op #puGrid. Wanneer in list-mode
+   * tonen we de grid niet meer als 4-koloms grid maar als enkele flex-column. */
+  #puPicker .pu-grid.list-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    grid-template-columns: unset;
+  }
+  /* Rij = clickable card. Icon links, body rechts. Disabled = grayed out. */
+  #puPicker .pu-row {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    background: linear-gradient(180deg, rgba(22, 48, 102, 0.55) 0%, rgba(11, 30, 63, 0.85) 100%);
+    border: 1.5px solid rgba(246,215,122,0.45);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+  }
+  #puPicker .pu-row:hover, #puPicker .pu-row:focus-visible {
+    background: linear-gradient(180deg, rgba(40, 80, 160, 0.65) 0%, rgba(20, 50, 110, 0.85) 100%);
+    border-color: #f6d77a;
+    box-shadow: 0 4px 12px rgba(246,215,122,0.3), inset 0 0 12px rgba(246,215,122,0.1);
+    transform: translateY(-1px);
+  }
+  #puPicker .pu-row:active { transform: translateY(1px); }
+  #puPicker .pu-row.disabled {
+    opacity: 0.45;
+    filter: grayscale(0.45);
+    cursor: not-allowed;
+  }
+  #puPicker .pu-row.disabled:hover {
+    transform: none;
+    background: linear-gradient(180deg, rgba(22, 48, 102, 0.55) 0%, rgba(11, 30, 63, 0.85) 100%);
+    border-color: rgba(246,215,122,0.45);
+    box-shadow: none;
+  }
+  /* Top-tier highlight: gouden glow */
+  #puPicker .pu-row.top-tier {
+    border-color: #f6d77a;
+    background: linear-gradient(180deg, rgba(246,215,122,0.18) 0%, rgba(246,215,122,0.05) 100%);
+    box-shadow: 0 0 10px rgba(246,215,122,0.35), inset 0 0 8px rgba(246,215,122,0.10);
+  }
+  #puPicker .pu-row-icon {
+    width: 56px;
+    height: 56px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: rgba(11,30,63,0.5);
+    border-radius: 10px;
+    border: 1px solid rgba(246,215,122,0.4);
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+  }
+  #puPicker .pu-row-body { min-width: 0; }
+  #puPicker .pu-row-name {
+    color: #ffe091;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #puPicker .pu-row-cost {
+    color: #f6d77a;
+    font-size: 13px;
+    font-weight: normal;
+    margin-left: 4px;
+  }
+  #puPicker .pu-row.top-tier .pu-row-cost { color: #fff5c8; }
+  #puPicker .pu-row-desc {
+    color: #d6cda3;
+    font-size: 12.5px;
+    line-height: 1.4;
+    margin-top: 4px;
+  }
+  #puPicker .pu-row-hint {
+    color: #ff8a8a;
+    font-size: 11px;
+    margin-top: 4px;
+    letter-spacing: 1px;
+    font-style: italic;
+  }
+  /* Hergebruik dezelfde tag-styling als de info-tab */
+  #puPicker .pu-info-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+    vertical-align: middle;
+  }
+  #puPicker .pu-info-tag.def { background: rgba(135,232,154,0.25); color: #87e89a; }
+  #puPicker .pu-info-tag.off { background: rgba(255,138,138,0.25); color: #ff8a8a; }
+  #puPicker .pu-info-tag.teams { background: rgba(255,200,90,0.2); color: #ffe091; }
+
+  /* ORIGINELE GRID-MODE (tiles) blijft behouden voor de target-step (avatars) */
   #puPicker .pu-slot {
     position: relative;
     background: linear-gradient(180deg,
@@ -2530,24 +2498,11 @@
   <!-- Power-up picker overlay -->
   <div id="puPicker" hidden data-interactive>
     <div class="pu-card" data-interactive>
-      <button class="pu-info-btn" id="puInfoBtn" type="button" aria-label="Uitleg power-ups" data-interactive>ℹ️</button>
       <h2>POWER-UP KIEZEN</h2>
       <div class="pu-sub" id="puPickerSub">Eén keer per beurt</div>
       <div class="pu-grid" id="puGrid"></div>
       <div class="pu-card-footer">
         <button class="btn secondary pu-cancel" id="puCancelBtn">SPAREN — LATER</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Power-up info overlay — uitleg van alle PUs -->
-  <div id="puInfo" hidden data-interactive>
-    <div class="pu-info-card" data-interactive>
-      <h2>POWER-UPS — UITLEG</h2>
-      <div class="pu-info-sub">Alle krachten en hun werking</div>
-      <div class="pu-info-list" id="puInfoList"></div>
-      <div class="pu-info-footer">
-        <button class="btn secondary" id="puInfoCloseBtn" data-interactive>SLUITEN</button>
       </div>
     </div>
   </div>
@@ -3713,69 +3668,9 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-/* ------- Power-up INFO overlay — uitleg van alle PUs -------------------- */
-const puInfoEl       = document.getElementById('puInfo');
-const puInfoListEl   = document.getElementById('puInfoList');
-const puInfoBtn      = document.getElementById('puInfoBtn');
-const puInfoCloseBtn = document.getElementById('puInfoCloseBtn');
-function buildPowerUpInfo() {
-  if (!puInfoListEl) return;
-  // Render alle PUs in dezelfde volgorde als de picker (JEZELF eerst, dan
-  // TARGET; binnen elke groep oplopend op cost).
-  const sorted = POWERUPS.slice().sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'def' ? -1 : 1;
-    return (a.cost || 0) - (b.cost || 0);
-  });
-  puInfoListEl.innerHTML = sorted.map(pu => {
-    // Probeer eerst de PNG, anders emoji-fallback per id
-    const EMOJI_FALLBACK = {
-      'friese-legende': '👑', 'wedden-maar': '🎲', 'casino': '🎰',
-    };
-    const iconStyle = pu.iconSrc
-      ? `background-image: url('${pu.iconSrc}');`
-      : `font-size: 26px;`;
-    const iconInner = pu.iconSrc ? '' : (EMOJI_FALLBACK[pu.id] || '⭐');
-    const typeTag = pu.type === 'def'
-      ? `<span class="pu-info-tag def">JEZELF</span>`
-      : `<span class="pu-info-tag off">${pu.allTargets ? 'IEDEREEN' : 'TARGET'}</span>`;
-    const teamsTag = pu.teamsOnly
-      ? `<span class="pu-info-tag teams">TEAMS</span>` : '';
-    const costClass = pu.top ? 'top-tier' : '';
-    const costText = pu.costLabel || `${pu.cost}⭐`;
-    return `
-      <div class="pu-info-row">
-        <div class="pu-info-icon" style="${iconStyle}">${iconInner}</div>
-        <div class="pu-info-body">
-          <div class="pu-info-name">
-            ${escapeHtml(pu.name)}
-            <span class="pu-info-cost ${costClass}">${costText}</span>
-            ${typeTag}${teamsTag}
-          </div>
-          <div class="pu-info-desc">${escapeHtml(pu.desc)}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-function openPuInfo() {
-  if (!puInfoEl) return;
-  buildPowerUpInfo();
-  puInfoEl.hidden = false;
-}
-function closePuInfo() {
-  if (puInfoEl) puInfoEl.hidden = true;
-}
-if (puInfoBtn) puInfoBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  openPuInfo();
-});
-if (puInfoCloseBtn) puInfoCloseBtn.addEventListener('click', closePuInfo);
-if (puInfoEl) puInfoEl.addEventListener('click', (e) => {
-  if (e.target === puInfoEl) closePuInfo();
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && puInfoEl && !puInfoEl.hidden) closePuInfo();
-});
+/* Power-up info-tab (v135) is verwijderd — de PU-picker zelf gebruikt sinds
+ * v148 dezelfde list-mode layout met volledige uitleg per rij, dus een
+ * aparte info-overlay was redundant. */
 
 /* ----------------------------- Background music -----------------------
  * Loops continuously on every screen. Volume scales with the user's sound
@@ -4397,33 +4292,51 @@ function renderPowerUpStep() {
     if (!pu.incompatibleWith) return false;
     return pu.incompatibleWith.some(otherId => hasBuff(otherId));
   }
+
+  // PICKER = LIST-MODE (zelfde rij-layout als de info-tab). Switch container
+  // naar list-mode klasse zodat CSS de juiste styling pakt.
+  grid.classList.add('list-mode');
+  grid.classList.remove('target-mode');
+
   grid.innerHTML = getAvailablePowerUps().map(pu => {
     const tooExpensive = curTokens < pu.cost;
     const blocked = isBlockedByActive(pu);
-    // costLabel-override (b.v. Casino → "ALL-IN ⭐") zodat misleidende
-    // getallen voorkomen worden.
+    const disabled = tooExpensive || blocked;
     const costLabel = pu.costLabel || `${pu.cost}⭐`;
-    const classes = ['pu-slot'];
-    if (tooExpensive || blocked) classes.push('too-expensive');
-    if (pu.top) classes.push('top-tier');
+    const typeTag = (pu.type === 'def')
+      ? `<span class="pu-info-tag def">JEZELF</span>`
+      : `<span class="pu-info-tag off">${pu.allTargets ? 'IEDEREEN' : 'TARGET'}</span>`;
+    const teamsTag = pu.teamsOnly ? `<span class="pu-info-tag teams">TEAMS</span>` : '';
+    const elimTag  = pu.elimOnly  ? `<span class="pu-info-tag teams">LEVENS</span>` : '';
     const blockedHint = blocked
-      ? `<div class="pu-blocked-hint" style="color:#ff8a8a;font-size:11px;margin-top:4px;letter-spacing:1px;">🚫 Conflicteert met actieve buff</div>`
-      : '';
+      ? `<div class="pu-row-hint">🚫 Conflicteert met actieve buff</div>`
+      : (tooExpensive ? `<div class="pu-row-hint">⭐ Niet genoeg tokens</div>` : '');
+    const iconBg = pu.iconSrc ? `background-image:url('${pu.iconSrc}');` : '';
+    const classes = ['pu-row'];
+    if (disabled) classes.push('disabled');
+    if (pu.top) classes.push('top-tier');
     return `
-    <div class="${classes.join(' ')}" data-pu="${pu.id}" data-interactive role="button" tabindex="0" aria-disabled="${tooExpensive || blocked}">
-      <div class="pu-icon"></div>
-      <div class="pu-name">${pu.name}</div>
-      <div class="pu-desc">${pu.desc}</div>
-      ${blockedHint}
-      <span class="pu-type ${pu.type === 'def' ? 'def' : 'off'}">${pu.type === 'def' ? 'JEZELF · ' : 'TARGET · '}${costLabel}</span>
-    </div>`;
+      <div class="${classes.join(' ')}" data-pu="${pu.id}" data-interactive role="button" tabindex="0" aria-disabled="${disabled}">
+        <div class="pu-row-icon" style="${iconBg}"></div>
+        <div class="pu-row-body">
+          <div class="pu-row-name">
+            ${escapeHtml(pu.name)}
+            <span class="pu-row-cost">${costLabel}</span>
+            ${typeTag}${teamsTag}${elimTag}
+          </div>
+          <div class="pu-row-desc">${escapeHtml(pu.desc)}</div>
+          ${blockedHint}
+        </div>
+      </div>`;
   }).join('');
-  grid.querySelectorAll('.pu-slot').forEach(el => {
+  grid.querySelectorAll('.pu-row').forEach(el => {
     const puId = el.dataset.pu;
     const pu = POWERUP_BY_ID[puId];
-    const tooExpensive = curTokens < (pu ? pu.cost : 1);
-    const blocked = pu ? isBlockedByActive(pu) : false;
-    const onSelect = () => { if (!tooExpensive && !blocked) choosePowerUp(puId); };
+    if (!pu) return;
+    const tooExpensive = curTokens < pu.cost;
+    const blocked = isBlockedByActive(pu);
+    const disabled = tooExpensive || blocked;
+    const onSelect = () => { if (!disabled) choosePowerUp(puId); };
     el.addEventListener('click', onSelect);
     el.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); }
@@ -4443,6 +4356,9 @@ function renderTargetStep(puId) {
   sub.textContent = 'Op wie verspil je deze power-up?';
   cancelBtn.textContent = 'TERUG';
   cancelBtn.onclick = renderPowerUpStep;
+  // Target-step blijft grid-layout (avatars in 3-koloms grid)
+  grid.classList.remove('list-mode');
+  grid.classList.add('target-mode');
 
   // Alle andere spelers; current zelf uitsluiten. In teams-mode ook
   // teamgenoten uitsluiten — je raakt alleen de andere team.
