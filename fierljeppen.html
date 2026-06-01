@@ -4368,6 +4368,7 @@ function renderTargetStep(puId) {
     .map((p, idx) => ({ p, idx }))
     .filter(({ p, idx }) => {
       if (idx === currentIdx) return false;
+      if (p.eliminated) return false;          // eliminated spelers tonen we niet
       if (currentMode === 'teams' && casterTeam2) return p.team !== casterTeam2;
       return true;
     });
@@ -6226,7 +6227,19 @@ function showPassScreen(success) {
 
   const p = players[currentIdx];
   passWho.textContent = p.name;
-  const next = players[(currentIdx + 1) % players.length];
+  // "Geef door aan ..." moet de eerstvolgende ÁLIVE speler tonen, niet de
+  // index+1 die toevallig eliminated kan zijn (bug rapport: namen van
+  // afgevallen spelers verschenen nog steeds als 'next').
+  let next = players[(currentIdx + 1) % players.length];
+  if (isEliminationMode()) {
+    let idx = (currentIdx + 1) % players.length;
+    let tries = 0;
+    while (players[idx] && players[idx].eliminated && tries < players.length) {
+      idx = (idx + 1) % players.length;
+      tries++;
+    }
+    if (players[idx] && !players[idx].eliminated) next = players[idx];
+  }
   if (success) {
     if (lastLaunchMeta && lastLaunchMeta.perfect) {
       passVerdict.textContent = 'PERFECT!';
